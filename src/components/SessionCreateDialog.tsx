@@ -241,7 +241,7 @@ export function SessionCreateDialog({
       }}
     >
       <div
-        className="card card--roomy forest-dialog session-dialog my-auto w-full max-w-2xl"
+        className="card card--roomy forest-dialog session-dialog my-auto w-full max-w-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-dialog-title"

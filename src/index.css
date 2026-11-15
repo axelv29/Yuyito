@@ -2347,12 +2347,15 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.5rem;
+    max-width: 24rem;
+    margin-inline: auto;
   }
 
   .tree-card {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    min-width: 0;
     padding: 0.55rem;
     border: var(--border-hairline) solid var(--control-border-color);
     border-radius: var(--radius-control);
@@ -2413,6 +2416,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Mantiene el alto original de la card aunque los botones sean más finos. */
+    min-height: 1.85rem;
     gap: 0.3rem;
   }
 
@@ -2423,6 +2428,13 @@
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--color-ink);
+  }
+
+  /* En las cards de árbol los botones de sumar y restar van más finos. */
+  .tree-card .stepper__btn {
+    width: 1.3rem;
+    height: 1.3rem;
+    font-size: 0.75rem;
   }
 
   .alloc {
