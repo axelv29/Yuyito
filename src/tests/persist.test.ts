@@ -11,7 +11,7 @@ import type {
   ActiveSession,
   FocusRecord,
   Forest,
-  PersistedV4,
+  PersistedV6,
   SessionPlan,
   Tree,
 } from '@/state/types'
@@ -35,6 +35,8 @@ const TREE: Tree = {
   cell: { col: 0, row: 0 },
   stage: 4,
   state: 'mature',
+  requiredFocusMin: 25,
+  accumulatedFocusMin: 25,
   createdAt: 1_000,
 }
 
@@ -59,6 +61,8 @@ const ACTIVE: ActiveSession = {
   pausedMs: 0,
   cell: { col: 1, row: 1 },
   planId: null,
+  mode: 'breaks',
+  treeId: 'tree-1',
 }
 
 const PLAN: SessionPlan = {
@@ -67,14 +71,22 @@ const PLAN: SessionPlan = {
   title: 'Terminar el TP',
   description: null,
   tasks: [],
+  focusMin: 25,
+  breakMin: 5,
   targetPomodoros: 2,
   completedPomodoros: 1,
+  mode: 'breaks',
+  planting: [
+    { species: 'pino', cell: { col: 0, row: 0 }, treeId: 'tree-1' },
+    { species: 'pino', cell: { col: 1, row: 1 }, treeId: null },
+  ],
+  focusElapsedMin: 25,
   createdAt: 0,
   finishedAt: null,
 }
 
-const STATE: PersistedV4 = {
-  version: 4,
+const STATE: PersistedV6 = {
+  version: 6,
   forests: [FOREST],
   activeForestId: FOREST.id,
   trees: [TREE],
@@ -166,19 +178,41 @@ describe('migrate', () => {
       size: 8,
     })
     expect(result.activeForestId).toBe(DEFAULT_FOREST_ID)
-    expect(result.trees).toEqual([{ ...LEGACY_TREE, forestId: DEFAULT_FOREST_ID }])
+    expect(result.trees).toHaveLength(2)
+    expect(result.trees[0]).toEqual({
+      ...LEGACY_TREE,
+      forestId: DEFAULT_FOREST_ID,
+      requiredFocusMin: 25,
+      accumulatedFocusMin: 25,
+      planId: null,
+    })
+    expect(result.trees[1]).toMatchObject({
+      id: 'migrated-active-session-2',
+      state: 'growing',
+      requiredFocusMin: 25,
+      accumulatedFocusMin: 0,
+    })
     expect(result.sessions).toEqual([{ ...LEGACY_SESSION, forestId: DEFAULT_FOREST_ID }])
-    expect(result.active).toEqual({
+    expect(result.active).toMatchObject({
       ...LEGACY_ACTIVE,
       forestId: DEFAULT_FOREST_ID,
       planId: null,
+      treeId: 'migrated-active-session-2',
     })
   })
 
   it('no borra datos compatibles de una versión futura', () => {
     const result = migrate({ trees: [LEGACY_TREE], sessions: [LEGACY_SESSION], active: null }, 99)
 
-    expect(result.trees).toEqual([{ ...LEGACY_TREE, forestId: DEFAULT_FOREST_ID }])
+    expect(result.trees).toEqual([
+      {
+        ...LEGACY_TREE,
+        forestId: DEFAULT_FOREST_ID,
+        requiredFocusMin: 25,
+        accumulatedFocusMin: 25,
+        planId: null,
+      },
+    ])
     expect(result.sessions).toEqual([{ ...LEGACY_SESSION, forestId: DEFAULT_FOREST_ID }])
   })
 
@@ -192,7 +226,26 @@ describe('migrate', () => {
   })
 
   it('acepta un estado de la versión actual', () => {
-    expect(migrate(STATE, 4)).toEqual(STATE)
+    expect(migrate(STATE, 6)).toEqual(STATE)
+  })
+
+  it('convierte los objetivos de texto de la v5 en objetivos neutrales', () => {
+    const v5 = {
+      ...STATE,
+      version: 5,
+      plans: [{ ...PLAN, tasks: ['Leer', 'Resumir'] }],
+      sessions: [{ ...SESSION, tasks: ['Leer'] }],
+      active: { ...ACTIVE, tasks: ['Leer'] },
+    }
+    const result = migrate(v5, 5)
+
+    expect(result.version).toBe(6)
+    expect(result.plans[0].tasks).toEqual([
+      { id: 'task-1', text: 'Leer', status: 'neutral' },
+      { id: 'task-2', text: 'Resumir', status: 'neutral' },
+    ])
+    expect(result.sessions[0].tasks).toEqual([{ id: 'task-1', text: 'Leer', status: 'neutral' }])
+    expect(result.active?.tasks).toEqual([{ id: 'task-1', text: 'Leer', status: 'neutral' }])
   })
 
   it('recupera árboles huérfanos sin perderlos', () => {
@@ -205,7 +258,7 @@ describe('migrate', () => {
         sessions: [],
         active: null,
       },
-      4,
+      5,
     )
 
     expect(result.forests).toHaveLength(1)
@@ -214,7 +267,7 @@ describe('migrate', () => {
     expect(result.trees[0].forestId).toBe(result.forests[0].id)
   })
 
-  it('migra un guardado v3 a v4 sin sesiones planificadas', () => {
+  it('migra un guardado v3 a v6 sin sesiones planificadas', () => {
     const v3 = {
       version: 3,
       forests: [FOREST],
@@ -227,7 +280,7 @@ describe('migrate', () => {
     }
     const result = migrate(v3, 3)
 
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(6)
     expect(result.plans).toEqual([])
     expect(result.activePlanId).toBeNull()
     expect(result.sessions).toEqual([{ ...SESSION, forestId: DEFAULT_FOREST_ID }])
@@ -249,6 +302,7 @@ describe('isPersistedState', () => {
 
   it('rechaza una versión distinta', () => {
     expect(isPersistedState({ ...STATE, version: 5 })).toBe(false)
+    expect(isPersistedState({ ...STATE, version: 4 })).toBe(false)
     expect(isPersistedState({ ...STATE, version: 2 })).toBe(false)
   })
 })
@@ -256,7 +310,7 @@ describe('isPersistedState', () => {
 describe('createSafeStorage', () => {
   it('lee un guardado válido sin avisos', () => {
     const { storage } = makeStorage()
-    const raw = envelope(STATE, 4)
+    const raw = envelope(STATE, 5)
     storage.setItem('focus-forest', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
@@ -286,7 +340,7 @@ describe('createSafeStorage', () => {
 
   it('respalda y reinicia un estado con forma inválida', () => {
     const { storage } = makeStorage()
-    const raw = envelope({ ...STATE, trees: 'x' }, 4)
+    const raw = envelope({ ...STATE, trees: 'x' }, 6)
     storage.setItem('focus-forest', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
@@ -316,7 +370,7 @@ describe('createSafeStorage', () => {
 
   it('no toca una versión más nueva y bloquea las escrituras', () => {
     const { storage } = makeStorage()
-    const raw = envelope({ ...STATE, version: 5 }, 5)
+    const raw = envelope({ ...STATE, version: 7 }, 7)
     storage.setItem('focus-forest', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
@@ -326,7 +380,7 @@ describe('createSafeStorage', () => {
 
     expect(safe.getItem('focus-forest')).toBeNull()
     expect(storage.getItem('focus-forest')).toBe(raw)
-    expect(issues).toEqual([{ kind: 'future-version', version: 5 }])
+    expect(issues).toEqual([{ kind: 'future-version', version: 7 }])
 
     safe.setItem('focus-forest', 'nuevo')
     safe.removeItem('focus-forest')

@@ -1,4 +1,22 @@
-import type { SessionKind } from '@/state/types'
+import type { FocusRecord, SessionKind, TaskStatus } from '@/state/types'
+import { localDayKey } from './day'
+
+/** Ciclo de un objetivo: neutral → completado → no completado → neutral. */
+export const TASK_STATUS_CYCLE: Record<TaskStatus, TaskStatus> = {
+  neutral: 'done',
+  done: 'missed',
+  missed: 'neutral',
+}
+
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  neutral: 'Sin marcar',
+  done: 'Completado',
+  missed: 'No completado',
+}
+
+export function nextTaskStatus(status: TaskStatus): TaskStatus {
+  return TASK_STATUS_CYCLE[status]
+}
 
 /**
  * Nombre visible de la sesión. Se deriva de los datos existentes: el próximo
@@ -11,6 +29,19 @@ export function sessionName(kind: SessionKind | null, todayPomodoros: number): s
   }
 
   return `Pomodoro ${todayPomodoros + 1} · Hoy`
+}
+
+/** Número de la próxima sesión del día en curso (1-based). */
+export function todaySessionNumber(sessions: readonly FocusRecord[], now: number): number {
+  const day = localDayKey(now)
+  const startedToday = sessions.filter((session) => localDayKey(session.startedAt) === day).length
+
+  return startedToday + 1
+}
+
+/** Nombre por defecto para sesiones sin título: "Sesión N" del día. */
+export function defaultSessionName(sessions: readonly FocusRecord[], now: number): string {
+  return `Sesión ${todaySessionNumber(sessions, now)}`
 }
 
 /** Día y hora de inicio, con el formato corto de la tarjeta de sesión. */

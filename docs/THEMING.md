@@ -91,13 +91,20 @@ Los tokens `--button-*` controlan borde, padding, radio, sombra y colores. Los e
 - `.timer-history-button` — botón discreto del historial en la tarjeta del timer; se marca con `aria-pressed` cuando la ventana está abierta.
 - `.forest-switcher`, `.forest-switcher__list`, `.forest-switcher__create`, `.forest-row`, `.forest-row__name`, `.forest-row__description`, `.forest-row__meta`, `.forest-switcher__empty` — listado de bosques.
 - `.stage-track` y sus modificadores `--done`, `--current`, `--upcoming` — línea de etapas de la tarjeta de sesión. `--detail` la ajusta en el detalle del historial.
-- `.session-data` y sus filas — datos de la sesión.
+- `.session-details`, `.session-details__toggle`, `.session-details__label`, `.session-details__chevron` — bloque plegable “Más datos” (arranca plegado) que envuelve a `.session-data` y sus filas; los objetivos y las etapas no se pliegan.
 - `.session-resume`, `.session-resume__title` — serie pendiente en el panel del timer.
-- `.session-card__description`, `.session-card__tasks` — descripción y objetivos de la sesión activa.
+- `.session-card__description`, `.session-tasks`, `.session-task` (`--neutral`, `--done`, `--missed`), `.session-task__icon`, `.session-task__text` — descripción y objetivos con estado de la sesión activa; la misma lista se reutiliza en el detalle del historial.
 - `.session-objectives`, `.session-objective`, `.session-add-task` — lista editable de objetivos del diálogo de sesión.
-- `.session-mode`, `.session-mode__option` (estado con `aria-pressed`), `.session-count` — elección de uno o varios pomodoros y su contador.
-- `.session-preview`, `.session-preview__scene`, `.session-preview__trees`, `.session-preview__tree`, `.session-preview__ground`, `.session-preview__note` — resumen visual de la serie en el diálogo.
-- `.session-detail` y sus partes (`__head`, `__tree`, `__description`, `__tasks`, `__trees`, `__tree-chip`, `__back`) — tarjeta de una sesión pasada; usa `.card--session` y la misma gramática que la tarjeta activa.
+- `.session-mode`, `.session-mode__option` (estado con `aria-pressed`) — modo con/sin descansos del diálogo de sesión.
+- `.session-presets`, `.session-preset` (estado con `aria-pressed`) — presets de ritmo (25/5, 50/10, 90/20) y el chip “Personalizado”.
+- `.session-steppers`, `.stepper`, `.stepper__label`, `.stepper__row`, `.stepper__btn`, `.stepper__value` — ajuste fino con contadores −/+.
+- `.session-summary` — resumen con foco total y duración completa.
+- `.tree-grid`, `.tree-card`, `.tree-card--active`, `.tree-card__main`, `.tree-card__tree`, `.tree-card__name`, `.tree-card__cost`, `.tree-card__counter`, `.tree-card__count` — cuadrícula de 4 especies con ícono, nombre, costo y contador de cuántos sumás.
+- `.alloc`, `.alloc__bar`, `.alloc__fill`, `.alloc__fill--over`, `.alloc__meta` — barra de asignación que no deja pasar más árboles que el foco total.
+- `.session-messages`, `.session-message`, `.session-message--error`, `.session-message--warning`, `.session-message--ok` — validación y aviso del diálogo (tiempo sobrante como warning).
+- `.session-dialog__body`, `.session-dialog__hint` — planificador de sesión: una sola columna, secciones apiladas y scroll propio.
+- `.session-card__edit` — botón de edición del nombre en la tarjeta de sesión (activa o del historial).
+- `.session-detail` y sus partes (`__head`, `__tree`, `__description`, `__trees`, `__tree-chip`, `__back`) — tarjeta de una sesión pasada; usa `.card--session` y la misma gramática que la tarjeta activa.
 - `.garden-left-rail`, `.history-panel`, `.history-panel__head`, `.history-panel__title`, `.history-panel__close`, `.history-panel__summary`, `.history-panel__list`, `.history-filters`, `.history-filter` (estado con `aria-pressed`), `.history-list`, `.history-row` (estado `.is-selected`), `.history-empty` — ventana flotante del historial: la columna se corta al alto de la pantalla y solo `.history-list` scrollea.
 - `.edge-scrollbar` (más `is-scrollbar-visible`, que agrega `useEdgeScrollbar`) — barra de scroll compartida por el panel de ajustes y la lista del historial: fina, redondeada y transparente hasta que el puntero se acerca al borde derecho.
 - `.toast--success`, `.toast--warning`, `.toast--info` — tono de los avisos. El tono se elige en `CompletionToast.tsx` solo por nombre de clase.
@@ -105,7 +112,7 @@ Los tokens `--button-*` controlan borde, padding, radio, sombra y colores. Los e
 - `.forest-header`, `.forest-header__name`, `.forest-countdown` (`--active`, `--past`), `.forest-countdown__button`, `.forest-countdown__tip`, `.forest-countdown__bubble` — nombre del bosque y calendario discreto de días restantes (toggle al click/tap, tooltip al hover/focus).
 - `.forest-welcome`, `.forest-welcome__icon`, `.forest-welcome__copy` — tarjeta de bienvenida para crear un bosque cuando no queda ninguno.
 - `.forest-dialog` y sus partes, `.forest-field`, `.field-input`, `.field-textarea`, `.forest-check`, `.forest-date-row`, `.forest-goal`, `.forest-form__error` — formulario de creación.
-- `.forest-preview` y sus partes, `.forest-preview-canvas` — vista previa con el atlas real.
+- `.forest-preview` y sus partes, `.forest-preview-canvas` — vista previa con el atlas real. Se dibuja 1:1 al recorte nativo (`src/render/previewFrame.ts`) con `image-rendering: pixelated` y `crisp-edges`; sin reescaling interno.
 - `.date-field` y `.date-popover` con `.date-day` (`--selected`, `--today`, `--disabled`, `--blank`) — calendario propio, no el control nativo.
 - `.btn:disabled` — estado deshabilitado de los botones.
 - `.zoom-control`, `.zoom-button` — tres botones flotantes (acercar, alejar, restablecer); no hay slider ni porcentaje visible.

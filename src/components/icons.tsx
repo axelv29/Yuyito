@@ -88,6 +88,63 @@ export function MinusIcon({ className }: IconProps) {
   )
 }
 
+/** Casilla vacía: objetivo sin marcar. */
+export function SquareIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+    </svg>
+  )
+}
+
+/** Casilla con tilde: objetivo completado. */
+export function SquareCheckIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  )
+}
+
+/** Casilla con cruz: objetivo no completado. */
+export function SquareXIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
+  )
+}
+
 /** Tuerca de ajustes. */
 export function GearIcon({ className }: IconProps) {
   return (
@@ -140,6 +197,24 @@ export function BackIcon({ className }: IconProps) {
       aria-hidden="true"
     >
       <path d="M15 18l-6-6 6-6" />
+    </svg>
+  )
+}
+
+/** Chevron hacia abajo: plegar y desplegar bloques. */
+export function ChevronDownIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
     </svg>
   )
 }

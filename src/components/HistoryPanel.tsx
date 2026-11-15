@@ -25,6 +25,7 @@ const STATUS_LABEL = {
   abandoned: 'Abandonada',
   mixed: 'Con abandonos',
   running: 'En curso',
+  unfinished: 'Sin terminar',
 } as const
 
 /** Ventana flotante con el historial del bosque activo. */
@@ -94,6 +95,7 @@ export function HistoryPanel({ now, selectedEntry, onSelectKey, onClose }: Histo
             const tree = entry.primaryTree
             const selected = selectedEntry?.key === entry.key
             const extraTrees = Math.max(0, entry.trees.length - 2)
+            const growing = entry.trees.some((item) => item.state === 'growing')
 
             return (
               <button
@@ -144,6 +146,9 @@ export function HistoryPanel({ now, selectedEntry, onSelectKey, onClose }: Histo
                       </span>
                     )}
                     {entry.withered && <span className="forest-chip">Marchito</span>}
+                    {growing && (
+                      <span className="forest-chip forest-chip--soft">En crecimiento</span>
+                    )}
                   </span>
                 </span>
               </button>

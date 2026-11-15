@@ -47,13 +47,13 @@ export function StatsPanel({ now, view, onChangeView }: StatsPanelProps) {
           label="Árboles"
           value={`${stats.matureTrees}`}
           unit="adultos"
-          detail={`${stats.witheredTrees} marchitos`}
+          detail={`${stats.growingTrees} en crecimiento · ${stats.witheredTrees} marchitos`}
         />
         <StatCard
           label="Pradera"
-          value={`${stats.matureTrees + stats.witheredTrees}`}
+          value={`${stats.matureTrees + stats.growingTrees + stats.witheredTrees}`}
           unit={`de ${totalCells} celdas`}
-          detail="Los árboles adultos ocupan su lugar"
+          detail="Cada árbol plantado ocupa su lugar"
         />
       </div>
 

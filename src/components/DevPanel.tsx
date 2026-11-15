@@ -105,6 +105,8 @@ export function DevPanel() {
       kind: species,
       stage: 1,
       state: 'mature',
+      requiredFocusMin: 25,
+      accumulatedFocusMin: 25,
       createdAt: now,
     }
 
@@ -151,6 +153,8 @@ export function DevPanel() {
             : fillSpecies,
         stage: 1,
         state: 'mature',
+        requiredFocusMin: 25,
+        accumulatedFocusMin: 25,
         createdAt: now + index,
       }))
 
@@ -192,8 +196,15 @@ export function DevPanel() {
     }
     // Saltar hacia adelante: adelanta inicio y fin por igual, así el árbol
     // crece como si hubiera pasado ese tiempo (el restante baja lo mismo).
+    // En pausa también se corre `pausedAt`, si no el reloj quedaría congelado.
+    const shift = (time: number) => time - ms
     setState({
-      active: { ...active, startedAt: active.startedAt - ms, endsAt: active.endsAt - ms },
+      active: {
+        ...active,
+        startedAt: shift(active.startedAt),
+        endsAt: shift(active.endsAt),
+        pausedAt: active.pausedAt === null ? null : shift(active.pausedAt),
+      },
     })
     useStore.getState().reconcile(Date.now())
   }
@@ -235,7 +246,8 @@ export function DevPanel() {
           <p className="type-body mt-1">Pruebas rápidas del bosque.</p>
 
           <p className="type-caption type-muted mt-2">
-            Bosque actual: {activeForest ? `${activeForest.name} (${workingSize}×${workingSize})` : 'ninguno'} ·{' '}
+            Bosque actual:{' '}
+            {activeForest ? `${activeForest.name} (${workingSize}×${workingSize})` : 'ninguno'} ·{' '}
             {forestTrees.length} árboles
           </p>
 
@@ -562,7 +574,9 @@ export function DevPanel() {
                       className="select--block"
                       value={String(tree.stage)}
                       options={stageOptions}
-                      onChange={(value) => updateTree(tree.id, { stage: Number(value) as TreeStage })}
+                      onChange={(value) =>
+                        updateTree(tree.id, { stage: Number(value) as TreeStage })
+                      }
                       ariaLabel={`Cambiar etapa del árbol ${tree.id}`}
                     />
 

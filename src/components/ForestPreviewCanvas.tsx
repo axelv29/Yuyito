@@ -1,16 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
-import {
-  GRID_COLS,
-  ORIGIN_X,
-  SCENE_HEIGHT,
-  SCENE_WIDTH,
-  TILE_HEIGHT,
-  TILE_WIDTH,
-  TOP_PADDING,
-} from '@/config/grid'
+import { SCENE_HEIGHT, SCENE_WIDTH } from '@/config/grid'
 import type { ForestSize } from '@/config/forest'
 import type { Tree, TreeSpecies, TreeStage } from '@/state/types'
 import { drawGarden } from '@/render/drawGarden'
+import { previewFrame } from '@/render/previewFrame'
 import { loadAtlas, loadGroundTile } from '@/render/sprites'
 
 interface ForestPreviewCanvasProps {
@@ -75,15 +68,16 @@ const PREVIEW_LAYOUTS: Record<ForestSize, readonly PreviewExample[]> = {
     { species: 'roble', cell: { col: 3, row: 5 } },
     { species: 'roble', cell: { col: 5, row: 4 } },
   ],
-  // 8×8: un ceibo, el más raro, cerrando la progresión.
+  // 8×8: un ceibo, el más raro, cerrando la progresión. Las copas se reparten
+  // por todo el rombo (atrás, centro y adelante) para que no queden claros.
   8: [
-    { species: 'pino', cell: { col: 0, row: 5 } },
-    { species: 'pino', cell: { col: 2, row: 4 } },
-    { species: 'pino', cell: { col: 5, row: 0 } },
-    { species: 'abedul', cell: { col: 1, row: 4 } },
-    { species: 'abedul', cell: { col: 6, row: 2 } },
-    { species: 'roble', cell: { col: 5, row: 3 } },
-    { species: 'ceibo', cell: { col: 2, row: 2 } },
+    { species: 'roble', cell: { col: 1, row: 2 } },
+    { species: 'ceibo', cell: { col: 4, row: 1 } },
+    { species: 'pino', cell: { col: 6, row: 0 } },
+    { species: 'abedul', cell: { col: 0, row: 4 } },
+    { species: 'abedul', cell: { col: 3, row: 4 } },
+    { species: 'pino', cell: { col: 2, row: 6 } },
+    { species: 'pino', cell: { col: 5, row: 5 } },
   ],
 }
 
@@ -96,6 +90,8 @@ function previewTrees(size: ForestSize): Tree[] {
     kind: example.species,
     stage: ADULT_STAGE[example.species],
     state: 'mature',
+    requiredFocusMin: 25,
+    accumulatedFocusMin: 25,
     createdAt: index,
   }))
 }
@@ -114,6 +110,9 @@ export function ForestPreviewCanvas({
     () => (useExample ? previewTrees(size) : [...(trees ?? [])]),
     [useExample, trees, size],
   )
+  // El recorte se calcula en píxeles de escena y se dibuja 1:1, sin reescalar
+  // el pixel art: solo se recorta la escena completa.
+  const frame = useMemo(() => previewFrame(size, displayTrees), [size, displayTrees])
 
   useEffect(() => {
     cancelledRef.current = false
@@ -133,8 +132,7 @@ export function ForestPreviewCanvas({
       }
 
       // La escena completa tiene mucho cielo arriba. Para la miniatura se
-      // dibuja en un lienzo aparte y se recorta la isla con un margen para
-      // que los árboles se vean grandes y reconocibles.
+      // dibuja en un lienzo aparte y se recorta la isla con margen.
       const scene = document.createElement('canvas')
       scene.width = SCENE_WIDTH
       scene.height = SCENE_HEIGHT
@@ -150,34 +148,33 @@ export function ForestPreviewCanvas({
         gardenSize: size,
       })
 
-      const meadowTop = TOP_PADDING + (GRID_COLS - size) * TILE_HEIGHT
-      const cropX = Math.max(0, ORIGIN_X - (size * TILE_WIDTH) / 2 - 18)
-      const cropY = Math.max(0, meadowTop - 92)
-      const cropWidth = Math.min(SCENE_WIDTH, size * TILE_WIDTH + 36)
-      const cropHeight = SCENE_HEIGHT - cropY
-
-      // Buffer 1:1 del recorte para que el escalado CSS (pixelated) sea nítido.
-      if (canvas.width !== cropWidth || canvas.height !== cropHeight) {
-        canvas.width = cropWidth
-        canvas.height = cropHeight
-      }
-
       context.imageSmoothingEnabled = false
       context.clearRect(0, 0, canvas.width, canvas.height)
-      context.drawImage(scene, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight)
+      context.drawImage(
+        scene,
+        frame.x,
+        frame.y,
+        frame.width,
+        frame.height,
+        0,
+        0,
+        frame.width,
+        frame.height,
+      )
     })
 
     return () => {
       cancelledRef.current = true
     }
-  }, [size, displayTrees])
+  }, [size, displayTrees, frame])
 
   return (
     <canvas
       ref={canvasRef}
       className={className ? `forest-preview-canvas ${className}` : 'forest-preview-canvas'}
-      width={SCENE_WIDTH}
-      height={SCENE_HEIGHT}
+      width={frame.width}
+      height={frame.height}
+      style={{ width: `${frame.width}px` }}
       role="img"
       aria-label={
         useExample

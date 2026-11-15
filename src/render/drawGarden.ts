@@ -17,6 +17,8 @@ export interface ActiveTreePreview {
   cell: Cell
   species: TreeSpecies
   stage: TreeStage
+  /** Árbol del store que crece en este bloque, si ya existe. */
+  treeId?: string | null
   /** Sesión activa cuyo árbol crece; permite incluirlo en la selección. */
   sessionId?: string | null
 }
@@ -33,6 +35,7 @@ export interface DrawGardenOptions {
 }
 
 interface DrawableTree {
+  treeId: string | null
   cell: Cell
   species: TreeSpecies
   stage: TreeStage
@@ -92,6 +95,7 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
   const trees: DrawableTree[] = options.trees
     .filter((tree) => isInsideGarden(tree.cell, size))
     .map((tree) => ({
+      treeId: tree.id,
       cell: tree.cell,
       species: speciesFromKind(tree.kind),
       stage: tree.stage,
@@ -101,15 +105,40 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
     }))
 
   if (options.active && isInsideGarden(options.active.cell, size)) {
-    const activeId = options.active.sessionId ?? null
-    trees.push({
-      cell: options.active.cell,
-      species: options.active.species,
-      stage: options.active.stage,
-      state: 'mature',
-      sessionId: activeId,
-      selected: activeId !== null && selected?.has(activeId) === true,
-    })
+    const active = options.active
+    const activeId = active.sessionId ?? null
+    const activeTreeId = active.treeId ?? null
+    // El árbol activo ya vive en `trees` cuando nació de una sesión planificada:
+    // se actualiza esa misma entrada con el stage vivo de la proyección, así el
+    // sprite avanza durante el bloque sin dibujar dos frames superpuestos.
+    // Se empareja por treeId porque un árbol que acumula varios bloques conserva
+    // el sessionId del bloque en el que nació.
+    const existing = trees.find(
+      (tree) =>
+        (activeTreeId !== null && tree.treeId === activeTreeId) ||
+        (activeTreeId === null &&
+          activeId !== null &&
+          tree.sessionId === activeId &&
+          tree.cell.col === active.cell.col &&
+          tree.cell.row === active.cell.row),
+    )
+
+    if (existing) {
+      existing.cell = active.cell
+      existing.species = active.species
+      existing.stage = active.stage
+      existing.state = 'growing'
+    } else {
+      trees.push({
+        treeId: activeTreeId,
+        cell: active.cell,
+        species: active.species,
+        stage: active.stage,
+        state: 'mature',
+        sessionId: activeId,
+        selected: activeId !== null && selected?.has(activeId) === true,
+      })
+    }
   }
 
   const ordered = sortByDepth(trees)

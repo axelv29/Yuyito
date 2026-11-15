@@ -49,11 +49,7 @@ export function ForestCountdown({ countdown }: ForestCountdownProps) {
           {countdown.label}
         </span>
       )}
-      {open && (
-        <span className="forest-countdown__bubble">
-          {countdown.label}
-        </span>
-      )}
+      {open && <span className="forest-countdown__bubble">{countdown.label}</span>}
     </span>
   )
 }

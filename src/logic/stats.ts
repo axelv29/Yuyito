@@ -7,6 +7,7 @@ export interface StatsSummary {
   totalPomodoros: number
   totalMinutes: number
   matureTrees: number
+  growingTrees: number
   witheredTrees: number
 }
 
@@ -23,6 +24,7 @@ export function summarizeStats(
     totalPomodoros: 0,
     totalMinutes: 0,
     matureTrees: 0,
+    growingTrees: 0,
     witheredTrees: 0,
   }
 
@@ -47,6 +49,8 @@ export function summarizeStats(
 
     if (tree.state === 'mature') {
       summary.matureTrees += 1
+    } else if (tree.state === 'growing') {
+      summary.growingTrees += 1
     } else {
       summary.witheredTrees += 1
     }

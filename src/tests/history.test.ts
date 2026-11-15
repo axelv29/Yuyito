@@ -12,7 +12,18 @@ const PLAN: SessionPlan = {
   forestId: FOREST,
   title: 'Estudiar final',
   description: 'Capítulo 4',
-  tasks: ['Leer', 'Resumir'],
+  tasks: [
+    { id: 'task-1', text: 'Leer', status: 'neutral' },
+    { id: 'task-2', text: 'Resumir', status: 'done' },
+  ],
+  focusMin: 25,
+  breakMin: 5,
+  mode: 'breaks',
+  planting: [
+    { species: 'pino', cell: { col: 0, row: 0 }, treeId: 'tree-session-a' },
+    { species: 'pino', cell: { col: 1, row: 0 }, treeId: 'tree-session-b' },
+  ],
+  focusElapsedMin: 50,
   targetPomodoros: 2,
   completedPomodoros: 2,
   createdAt: EARLIER,
@@ -48,6 +59,8 @@ function tree(id: string, treeState: Tree['state'] = 'mature'): Tree {
     cell: { col: 0, row: 0 },
     stage: 4,
     state: treeState,
+    requiredFocusMin: 25,
+    accumulatedFocusMin: 25,
     createdAt: EARLIER,
   }
 }
@@ -132,6 +145,31 @@ describe('buildHistory', () => {
     expect(entries).toHaveLength(1)
     expect(entries[0].status).toBe('abandoned')
     expect(entries[0].totalDurationMin).toBe(5)
+  })
+
+  it('marca como sin terminar una serie cerrada antes de tiempo', () => {
+    const plan: SessionPlan = {
+      ...PLAN,
+      targetPomodoros: 3,
+      completedPomodoros: 1,
+      planting: PLAN.planting.slice(0, 1),
+      focusElapsedMin: 25,
+    }
+
+    const entries = buildHistory(
+      [record('session-a', EARLIER)],
+      [plan],
+      [tree('session-a')],
+      FOREST,
+      'all',
+      NOW,
+    )
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0].status).toBe('unfinished')
+    expect(entries[0].withered).toBe(false)
+    expect(entries[0].completedPomodoros).toBe(1)
+    expect(entries[0].targetPomodoros).toBe(3)
   })
 
   it('incluye la sesión en curso con los minutos enfocados hasta ahora', () => {

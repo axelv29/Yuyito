@@ -45,7 +45,9 @@ export function groundTileUrl(size: number): string {
 
 /** Clave interna de un frame: especie, etapa y estado. */
 export function treeFrameName(species: TreeSpecies, stage: TreeStage, state: TreeState): string {
-  return `${species}.${stage}.${state}`
+  // Un árbol en crecimiento usa el arte vivo; la etapa ya transmite el progreso.
+  const frameState = state === 'growing' ? 'mature' : state
+  return `${species}.${stage}.${frameState}`
 }
 
 interface RawFrame {

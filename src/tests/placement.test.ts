@@ -10,6 +10,8 @@ function treeAt(id: string, cell: Cell, state: TreeState, createdAt: number): Tr
     cell,
     stage: 4,
     state,
+    requiredFocusMin: 25,
+    accumulatedFocusMin: 25,
     createdAt,
   }
 }

@@ -1,14 +1,25 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { finalStage, speciesConfig, speciesForFocusMin } from '@/config/species'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { finalStage, speciesConfig } from '@/config/species'
 import {
+  SESSION_BREAK_STEP,
   SESSION_DESCRIPTION_MAX_LENGTH,
+  SESSION_FOCUS_STEP,
+  SESSION_MAX_BREAK_MIN,
+  SESSION_MAX_FOCUS_MIN,
+  SESSION_MAX_LONG_BREAK_MIN,
   SESSION_MAX_POMODOROS,
   SESSION_MAX_TASKS,
+  SESSION_MAX_TREES,
+  SESSION_MIN_BREAK_MIN,
+  SESSION_MIN_FOCUS_MIN,
+  SESSION_MIN_LONG_BREAK_MIN,
   SESSION_TASK_MAX_LENGTH,
   SESSION_TITLE_MAX_LENGTH,
 } from '@/config/session'
+import { useEdgeScrollbar } from '@/hooks/useEdgeScrollbar'
+import { suggestPlanting, validatePlanting } from '@/logic/planting'
 import { useStore } from '@/state/store'
-import type { NewSessionInput } from '@/state/types'
+import type { NewSessionInput, SessionMode, TreeSpecies } from '@/state/types'
 import { CloseIcon, MinusIcon, PineIcon, PlusIcon } from './icons'
 import { TreePreview } from './TreePreview'
 
@@ -19,7 +30,57 @@ interface SessionCreateDialogProps {
   onStart: (input: NewSessionInput) => void
 }
 
-type SessionMode = 'single' | 'multi'
+const SPECIES_ORDER: readonly TreeSpecies[] = ['pino', 'abedul', 'roble', 'ceibo']
+
+const PRESETS: readonly { focus: number; brk: number }[] = [
+  { focus: 25, brk: 5 },
+  { focus: 50, brk: 10 },
+  { focus: 90, brk: 20 },
+]
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
+
+interface StepperProps {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  unit?: string
+  onChange: (value: number) => void
+}
+
+function Stepper({ label, value, min, max, step, unit, onChange }: StepperProps) {
+  const display = unit ? `${value} ${unit}` : String(value)
+  return (
+    <div className="stepper">
+      <span className="stepper__label">{label}</span>
+      <div className="stepper__row">
+        <button
+          type="button"
+          className="stepper__btn"
+          onClick={() => onChange(clamp(value - step, min, max))}
+          disabled={value <= min}
+          aria-label={`Reducir ${label}`}
+        >
+          <MinusIcon />
+        </button>
+        <span className="stepper__value">{display}</span>
+        <button
+          type="button"
+          className="stepper__btn"
+          onClick={() => onChange(clamp(value + step, min, max))}
+          disabled={value >= max}
+          aria-label={`Aumentar ${label}`}
+        >
+          <PlusIcon />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export function SessionCreateDialog({
   open,
@@ -28,41 +89,33 @@ export function SessionCreateDialog({
   onStart,
 }: SessionCreateDialogProps) {
   const titleRef = useRef<HTMLInputElement>(null)
+  const bodyScrollbar = useEdgeScrollbar<HTMLFormElement>()
   const settings = useStore((state) => state.settings)
+  // El diálogo se monta solo cuando abre (render condicional en App),
+  // así que el estado inicial nace de los ajustes y no hace falta resetear.
+  const initialFocus = clamp(settings.focusMin, SESSION_MIN_FOCUS_MIN, SESSION_MAX_FOCUS_MIN)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [tasks, setTasks] = useState<string[]>([])
-  const [mode, setMode] = useState<SessionMode>('single')
-  const [multiCount, setMultiCount] = useState(3)
-
-  const reset = useCallback(() => {
-    setTitle('')
-    setDescription('')
-    setTasks([])
-    setMode('single')
-    setMultiCount(3)
-  }, [])
+  const [mode, setMode] = useState<SessionMode>('breaks')
+  const [focusMin, setFocusMin] = useState(initialFocus)
+  const [breakMin, setBreakMin] = useState(() =>
+    clamp(settings.breakMin, SESSION_MIN_BREAK_MIN, SESSION_MAX_BREAK_MIN),
+  )
+  const [targetPomodoros, setTargetPomodoros] = useState(3)
+  const [queue, setQueue] = useState<TreeSpecies[]>(() => suggestPlanting(initialFocus * 3))
+  const [custom, setCustom] = useState(false)
 
   useEffect(() => {
-    if (!open) {
-      return
-    }
-
-    reset()
     const frame = window.requestAnimationFrame(() => titleRef.current?.focus())
     return () => window.cancelAnimationFrame(frame)
-  }, [open, reset])
+  }, [])
 
   const handleClose = useCallback(() => {
-    reset()
     onClose()
-  }, [onClose, reset])
+  }, [onClose])
 
   useEffect(() => {
-    if (!open) {
-      return
-    }
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         handleClose()
@@ -71,47 +124,109 @@ export function SessionCreateDialog({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open, handleClose])
+  }, [handleClose])
+
+  const budget = focusMin * targetPomodoros
+  // El descanso largo no se expone en la maqueta: se toma de los ajustes.
+  const longBreakMin = clamp(
+    settings.longBreakMin,
+    SESSION_MIN_LONG_BREAK_MIN,
+    SESSION_MAX_LONG_BREAK_MIN,
+  )
+  const totalCost = useMemo(
+    () => queue.reduce((sum, species) => sum + speciesConfig(species).minutes, 0),
+    [queue],
+  )
+  const validation = useMemo(
+    () =>
+      validatePlanting({
+        focusMin,
+        targetPomodoros,
+        planting: queue,
+      }),
+    [focusMin, queue, targetPomodoros],
+  )
+
+  const activePreset = useMemo(
+    () => PRESETS.find((preset) => preset.focus === focusMin && preset.brk === breakMin) ?? null,
+    [breakMin, focusMin],
+  )
+  const showFocusBreakSteppers = custom || activePreset === null
+
+  const sobra = Math.max(0, budget - totalCost)
+  const falta = Math.max(0, totalCost - budget)
+  const barPct = budget > 0 ? Math.min(1, totalCost / budget) : 0
+  const totalClock =
+    focusMin * targetPomodoros +
+    (mode === 'breaks' ? Math.max(0, targetPomodoros - 1) * breakMin : 0)
+  const canStart = queue.length > 0 && totalCost <= budget
 
   if (!open) {
     return null
   }
-
-  const targetPomodoros = mode === 'single' ? 1 : multiCount
-  const focusMin = settings.focusMin
-  const species = speciesForFocusMin(focusMin)
-  const config = speciesConfig(species)
-  const totalFocus = focusMin * targetPomodoros
-  const breakCount = targetPomodoros - 1
-  const totalWithBreaks = totalFocus + breakCount * settings.breakMin
-  const previewStage = finalStage(species)
 
   const updateTask = (index: number, value: string) => {
     setTasks((current) => current.map((task, itemIndex) => (itemIndex === index ? value : task)))
   }
 
   const addTask = () => {
-    setTasks((current) =>
-      current.length >= SESSION_MAX_TASKS ? current : [...current, ''],
-    )
+    setTasks((current) => (current.length >= SESSION_MAX_TASKS ? current : [...current, '']))
   }
 
   const removeTask = (index: number) => {
     setTasks((current) => current.filter((_, itemIndex) => itemIndex !== index))
   }
 
+  const addSpecies = (species: TreeSpecies) => {
+    const cost = speciesConfig(species).minutes
+    if (queue.length >= SESSION_MAX_TREES || totalCost + cost > budget) {
+      return
+    }
+    setQueue((current) => [...current, species])
+  }
+
+  const removeSpecies = (species: TreeSpecies) => {
+    setQueue((current) => {
+      const index = current.lastIndexOf(species)
+      if (index === -1) {
+        return current
+      }
+      return current.filter((_, itemIndex) => itemIndex !== index)
+    })
+  }
+
+  const handleModeChange = (nextMode: SessionMode) => {
+    const nextTarget = nextMode === 'continuous' ? 1 : targetPomodoros
+    setMode(nextMode)
+    setTargetPomodoros(nextTarget)
+
+    if (nextMode === 'continuous') {
+      setQueue(suggestPlanting(focusMin))
+    }
+  }
+
+  const handlePreset = (preset: { focus: number; brk: number }) => {
+    setFocusMin(preset.focus)
+    setBreakMin(preset.brk)
+    setCustom(false)
+  }
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!title.trim()) {
-      titleRef.current?.focus()
+    if (!canStart) {
       return
     }
 
     onStart({
-      title,
+      title: title.trim() || undefined,
       description: description.trim() || null,
-      tasks,
+      tasks: tasks.map((task) => task.trim()).filter(Boolean),
+      focusMin,
+      breakMin,
+      longBreakMin,
       targetPomodoros,
+      mode,
+      planting: queue,
     })
     handleClose()
   }
@@ -126,7 +241,7 @@ export function SessionCreateDialog({
       }}
     >
       <div
-        className="card card--roomy forest-dialog session-dialog my-auto w-full max-w-3xl"
+        className="card card--roomy forest-dialog session-dialog my-auto w-full max-w-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-dialog-title"
@@ -141,10 +256,6 @@ export function SessionCreateDialog({
               <h2 id="session-dialog-title" className="type-title-lg">
                 Nueva sesión
               </h2>
-              <p className="type-caption type-muted forest-dialog__sub">
-                Ponele un nombre a este rato de enfoque. Podés hacer un solo pomodoro o una serie
-                con varios árboles.
-              </p>
             </div>
           </div>
           <button
@@ -157,8 +268,14 @@ export function SessionCreateDialog({
           </button>
         </div>
 
-        <form id="session-form" className="forest-dialog__body" onSubmit={handleSubmit}>
-          <div className="forest-dialog__form">
+        <form
+          id="session-form"
+          className={`session-dialog__body edge-scrollbar${bodyScrollbar.nearEdge ? ' is-scrollbar-visible' : ''}`}
+          onSubmit={handleSubmit}
+          onPointerMove={bodyScrollbar.onPointerMove}
+          onPointerLeave={bodyScrollbar.onPointerLeave}
+        >
+          <section className="session-section" aria-label="Datos de la sesión">
             <div className="forest-field">
               <label className="settings-label" htmlFor="session-title">
                 <span className="type-body">Nombre de la sesión</span>
@@ -173,6 +290,9 @@ export function SessionCreateDialog({
                 placeholder="Terminar el TP, estudiar para el final…"
                 autoComplete="off"
               />
+              <p className="type-micro type-muted">
+                opcional · se llama “Sesión N” del día si se deja vacía
+              </p>
             </div>
 
             <div className="forest-field">
@@ -180,7 +300,9 @@ export function SessionCreateDialog({
                 <label className="settings-label" htmlFor="session-description">
                   <span className="type-body">Descripción</span>
                 </label>
-                <span className="type-micro type-muted">Opcional</span>
+                <span className="type-micro type-muted">
+                  {description.length}/{SESSION_DESCRIPTION_MAX_LENGTH} · opcional
+                </span>
               </div>
               <textarea
                 id="session-description"
@@ -191,9 +313,6 @@ export function SessionCreateDialog({
                 rows={2}
                 placeholder="Qué querés tener claro al terminar."
               />
-              <span className="forest-field__counter type-micro type-muted">
-                {description.length}/{SESSION_DESCRIPTION_MAX_LENGTH}
-              </span>
             </div>
 
             <div className="forest-field">
@@ -201,7 +320,7 @@ export function SessionCreateDialog({
                 <span className="settings-label">
                   <span className="type-body">Objetivos</span>
                 </span>
-                <span className="type-micro type-muted">Opcional</span>
+                <span className="type-micro type-muted">opcional</span>
               </div>
 
               {tasks.length > 0 && (
@@ -232,121 +351,235 @@ export function SessionCreateDialog({
               )}
 
               {tasks.length < SESSION_MAX_TASKS && (
-                <button type="button" className="btn btn-secondary btn--sm session-add-task" onClick={addTask}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm session-add-task"
+                  onClick={addTask}
+                >
                   <PlusIcon />
                   Agregar objetivo
                 </button>
               )}
             </div>
+          </section>
 
-            <div className="forest-field">
-              <span className="settings-label">
-                <span className="type-body">Duración</span>
-              </span>
-              <div className="session-mode" role="group" aria-label="Cantidad de pomodoros">
+          <section className="session-section" aria-label="Tiempos">
+            <div className="session-section__head">
+              <h3 className="type-title">Tiempos</h3>
+              <div className="session-mode" role="group" aria-label="Modo de la sesión">
                 <button
                   type="button"
                   className="session-mode__option"
-                  aria-pressed={mode === 'single'}
-                  onClick={() => setMode('single')}
+                  aria-pressed={mode === 'breaks'}
+                  onClick={() => handleModeChange('breaks')}
                 >
-                  <span className="session-mode__title">Un pomodoro</span>
-                  <span className="session-mode__detail">{focusMin} min · un árbol</span>
+                  Con descansos
                 </button>
                 <button
                   type="button"
                   className="session-mode__option"
-                  aria-pressed={mode === 'multi'}
-                  onClick={() => setMode('multi')}
+                  aria-pressed={mode === 'continuous'}
+                  onClick={() => handleModeChange('continuous')}
                 >
-                  <span className="session-mode__title">Varios pomodoros</span>
-                  <span className="session-mode__detail">Una serie con un árbol por pomodoro</span>
+                  Sin descansos
                 </button>
               </div>
+            </div>
 
-              {mode === 'multi' && (
-                <div className="session-count">
-                  <button
-                    type="button"
-                    className="icon-button session-count__button"
-                    onClick={() => setMultiCount((count) => Math.max(2, count - 1))}
-                    disabled={multiCount <= 2}
-                    aria-label="Quitar un pomodoro"
-                  >
-                    <MinusIcon />
-                  </button>
-                  <span className="session-count__value">
-                    <strong>{multiCount}</strong> pomodoros
-                  </span>
-                  <button
-                    type="button"
-                    className="icon-button session-count__button"
-                    onClick={() =>
-                      setMultiCount((count) => Math.min(SESSION_MAX_POMODOROS, count + 1))
-                    }
-                    disabled={multiCount >= SESSION_MAX_POMODOROS}
-                    aria-label="Agregar un pomodoro"
-                  >
-                    <PlusIcon />
-                  </button>
-                </div>
+            <div className="session-presets" aria-label="Ritmos rápidos">
+              {PRESETS.map((preset) => (
+                <button
+                  key={`${preset.focus}-${preset.brk}`}
+                  type="button"
+                  className="session-preset"
+                  aria-pressed={activePreset === preset}
+                  onClick={() => handlePreset(preset)}
+                >
+                  {preset.focus} / {preset.brk}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="session-preset"
+                aria-pressed={showFocusBreakSteppers}
+                onClick={() => setCustom(true)}
+              >
+                Personalizado
+              </button>
+            </div>
+
+            <div className="session-steppers">
+              {showFocusBreakSteppers && (
+                <Stepper
+                  label="Enfoque"
+                  value={focusMin}
+                  min={SESSION_MIN_FOCUS_MIN}
+                  max={SESSION_MAX_FOCUS_MIN}
+                  step={SESSION_FOCUS_STEP}
+                  unit="min"
+                  onChange={(value) => {
+                    setFocusMin(value)
+                    setCustom(true)
+                  }}
+                />
+              )}
+              {showFocusBreakSteppers && mode === 'breaks' && (
+                <Stepper
+                  label="Pausa"
+                  value={breakMin}
+                  min={SESSION_MIN_BREAK_MIN}
+                  max={SESSION_MAX_BREAK_MIN}
+                  step={SESSION_BREAK_STEP}
+                  unit="min"
+                  onChange={(value) => {
+                    setBreakMin(value)
+                    setCustom(true)
+                  }}
+                />
+              )}
+              {mode === 'breaks' && (
+                <Stepper
+                  label="Ciclos"
+                  value={targetPomodoros}
+                  min={1}
+                  max={SESSION_MAX_POMODOROS}
+                  step={1}
+                  onChange={setTargetPomodoros}
+                />
               )}
             </div>
-          </div>
 
-          <aside className="forest-preview session-preview" aria-label="Resumen de la sesión">
-            <div className="session-preview__scene">
-              <div className="session-preview__trees" aria-hidden="true">
-                {Array.from({ length: Math.min(4, targetPomodoros) }, (_, index) => (
-                  <span key={index} className="session-preview__tree">
-                    <TreePreview species={species} stage={previewStage} />
-                  </span>
-                ))}
-                {targetPomodoros > 4 && (
-                  <span className="session-preview__more type-micro">+{targetPomodoros - 4}</span>
-                )}
-              </div>
-              <span className="session-preview__ground" aria-hidden="true" />
+            {mode === 'continuous' && (
+              <p className="type-caption type-muted">
+                Sesión continua: un solo bloque, sin pausas.
+              </p>
+            )}
+
+            <div className="session-summary">
+              <span>
+                <strong>{focusMin * targetPomodoros}</strong> min de enfoque
+              </span>
+              <span>
+                <strong>{totalClock}</strong> min en total
+              </span>
+            </div>
+          </section>
+
+          <section className="session-section" aria-label="Árboles">
+            <div className="session-section__head">
+              <h3 className="type-title">Árboles</h3>
+              <button
+                type="button"
+                className="btn btn-secondary btn--sm"
+                onClick={() => setQueue(suggestPlanting(budget))}
+                disabled={budget <= 0}
+              >
+                Sugerir
+              </button>
             </div>
 
-            <div className="forest-preview__body">
-              <div className="forest-preview__title-row">
-                <h3 className="type-title">{title.trim() || 'Tu sesión'}</h3>
-                <span className="forest-preview__size">{targetPomodoros}×</span>
+            <div className="tree-grid">
+              {SPECIES_ORDER.map((species) => {
+                const config = speciesConfig(species)
+                const count = queue.filter((item) => item === species).length
+                const cost = config.minutes
+                const blocked = totalCost + cost > budget || queue.length >= SESSION_MAX_TREES
+                return (
+                  <div
+                    key={species}
+                    className={`tree-card${count > 0 ? ' tree-card--active' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="tree-card__main"
+                      onClick={() => addSpecies(species)}
+                      disabled={blocked}
+                    >
+                      <span className="tree-card__tree">
+                        <TreePreview species={species} stage={finalStage(species)} />
+                      </span>
+                      <span className="tree-card__name">{config.name}</span>
+                      <span className="tree-card__cost">{cost} min</span>
+                    </button>
+                    <div className="tree-card__counter">
+                      <button
+                        type="button"
+                        className="stepper__btn"
+                        onClick={() => removeSpecies(species)}
+                        disabled={count === 0}
+                        aria-label={`Quitar ${config.name}`}
+                      >
+                        <MinusIcon />
+                      </button>
+                      <span className="tree-card__count">{count}</span>
+                      <button
+                        type="button"
+                        className="stepper__btn"
+                        onClick={() => addSpecies(species)}
+                        disabled={blocked}
+                        aria-label={`Agregar ${config.name}`}
+                      >
+                        <PlusIcon />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="alloc">
+              <div className="alloc__bar" aria-hidden="true">
+                <div
+                  className={`alloc__fill${falta > 0 ? ' alloc__fill--over' : ''}`}
+                  style={{ width: `${barPct * 100}%` }}
+                />
               </div>
-              <p className="forest-preview__description type-caption type-muted">
-                {description.trim() || 'Sin descripción todavía.'}
-              </p>
-              <div className="forest-preview__meta">
-                <span className="type-micro type-muted">
-                  {config.name} · {targetPomodoros === 1 ? 'un árbol' : `${targetPomodoros} árboles`}
+              <div className="alloc__meta">
+                <span>
+                  <strong>{totalCost}</strong> / {budget} min
                 </span>
-                <span className="forest-chip forest-chip--soft">{totalFocus} min</span>
+                <span>
+                  {sobra > 0 ? `Sobran ${sobra} min` : falta > 0 ? `Faltan ${falta} min` : 'Justo'}
+                </span>
               </div>
-              <div className="forest-preview__divider" />
-              <div className="forest-preview__details">
-                <span className="forest-chip forest-chip--soft">{focusMin} min por pomodoro</span>
-                {breakCount > 0 && (
-                  <span className="forest-chip">
-                    + {breakCount * settings.breakMin} min de pausas
-                  </span>
-                )}
-              </div>
-              <p className="session-preview__note type-micro type-muted">
-                {targetPomodoros === 1
-                  ? 'Al completar el pomodoro, el árbol queda plantado.'
-                  : `La serie completa ocupa unos ${totalWithBreaks} min. Los árboles se agrupan en el historial.`}
-              </p>
             </div>
-          </aside>
+
+            <div className="session-messages">
+              {validation.errors.map((error) => (
+                <p key={error} className="session-message session-message--error">
+                  {error}
+                </p>
+              ))}
+              {validation.warnings.map((warning) => (
+                <p key={warning} className="session-message session-message--warning">
+                  {warning}
+                </p>
+              ))}
+              {validation.ok && validation.warnings.length === 0 && (
+                <p className="session-message session-message--ok">
+                  La cola entra justa en el presupuesto.
+                </p>
+              )}
+            </div>
+          </section>
         </form>
 
         <div className="forest-dialog__actions">
+          <span className="session-dialog__hint type-micro type-muted">
+            {mode === 'continuous'
+              ? 'Sin descansos: la sesión no se puede retomar.'
+              : 'Con descansos: podés retomar desde una pausa.'}
+          </span>
           <button type="button" className="btn btn-secondary" onClick={handleClose}>
             Cancelar
           </button>
-          <button type="submit" form="session-form" className="btn btn-primary" disabled={!title.trim()}>
-            Empezar sesión
+          <button
+            type="submit"
+            form="session-form"
+            className="btn btn-primary"
+            disabled={!canStart}
+          >
+            Plantar y empezar
           </button>
         </div>
       </div>

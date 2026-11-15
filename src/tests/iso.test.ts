@@ -6,17 +6,19 @@ describe('cellFromScenePoint', () => {
   it('encuentra el centro de una celda', () => {
     const base = cellToScreen({ col: 3, row: 3 })
 
-    expect(
-      cellFromScenePoint({ x: base.x, y: base.y + TILE_HEIGHT / 2 }, 8),
-    ).toEqual({ col: 3, row: 3 })
+    expect(cellFromScenePoint({ x: base.x, y: base.y + TILE_HEIGHT / 2 }, 8)).toEqual({
+      col: 3,
+      row: 3,
+    })
   })
 
   it('encuentra una celda del borde', () => {
     const base = cellToScreen({ col: 0, row: 0 })
 
-    expect(
-      cellFromScenePoint({ x: base.x, y: base.y + TILE_HEIGHT / 2 }, 8),
-    ).toEqual({ col: 0, row: 0 })
+    expect(cellFromScenePoint({ x: base.x, y: base.y + TILE_HEIGHT / 2 }, 8)).toEqual({
+      col: 0,
+      row: 0,
+    })
   })
 
   it('devuelve null fuera de la pradera', () => {

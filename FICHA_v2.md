@@ -26,7 +26,7 @@ Además, de lo ya conocido y no absorbido en el alcance nuevo: guardado local co
 ## 3. Flujo
 
 1. **Inicio:** pradera centrada, timer en el tiempo configurado, botón **Iniciar** y contador "Pomodoros hoy: N".
-2. **Nueva sesión:** al empezar una sesión se le puede poner título y descripción (+ tareas con checkboxes).
+2. **Nueva sesión:** al empezar una sesión se le puede poner título y descripción (+ tareas con checkboxes); si no se pone título, se usa un nombre por defecto del día. El nombre se edita después desde la tarjeta de sesión (activa o del historial).
 3. **Empezar enfoque:** se reserva la siguiente celda libre y aparece el brote del tipo de árbol correspondiente. El timer corre.
 4. **Crecimiento:** las versiones extra de maduración del árbol se van alcanzando con los tiempos del tipo; el canvas se redibuja solo al cambiar de etapa.
 5. **Completar:** el árbol termina en la etapa correspondiente de su tipo, se registra la sesión, aparece el aviso y se ofrece el descanso.
@@ -69,11 +69,17 @@ interface Tree {
   createdAt: number; // epoch ms
 }
 
+interface SessionTask {
+  id: string;
+  text: string;
+  status: 'neutral' | 'done' | 'missed';
+}
+
 interface Session {
   id: string;
   title: string | null;
   description: string | null;
-  tasks: string[];
+  tasks: SessionTask[];
   createdAt: number;
 }
 

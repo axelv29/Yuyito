@@ -4,9 +4,9 @@ Plan acordado antes de escribir la lógica. Lo marcado como **✅ Cerrado** ya s
 
 ## 1. Resumen y decisiones cerradas
 
-- **Producto:** Focus Forest, una app web de enfoque con pomodoro de 25 minutos y descanso de 5. Cada sesión de enfoque completada planta un árbol en una pradera isométrica.
+- **Producto:** Focus Forest, una app web de enfoque con pomodoro y descanso configurables. Cada sesión combina un ritmo con una cola ordenada de árboles de costo fijo en una pradera isométrica.
 - **Stack ✅:** Vite + React + TypeScript + Tailwind CSS v4, dibujo con Canvas 2D, Zustand para el estado y Vitest para la lógica. Publicación en Vercel. Next.js se descarta (ver sección 3).
-- **Alcance de la v0.1 ✅:** enfoque de 25 minutos y descanso de 5, un árbol por sesión, 4 etapas de crecimiento, pradera de 8×8, estadísticas de hoy y totales, guardado local y contador de pomodoros sin meta.
+- **Alcance de la v0.1 ✅:** enfoque y pausa configurables, cola de árboles con presupuesto, 4 especies con etapas, pradera de 8×8, estadísticas de hoy y totales, guardado local y contador de pomodoros sin meta.
 - **Tamaño de celda ✅:** 60×30 px, con árbol adulto de 44 ancho × 89 alto (atlas de 122×92 con frames recortados). Se descartan las celdas de 78×51 de las hojas de referencia.
 - **Arte ✅:** propio o encargado. Una sola especie (pino) con 4 etapas vivas y 4 versiones marchitas; los assets están en `public/sprites/`.
 - **Nombre ✅:** Focus Forest. Revisar antes de publicar por la proximidad con la app Forest.
@@ -16,12 +16,12 @@ Plan acordado antes de escribir la lógica. Lo marcado como **✅ Cerrado** ya s
 
 | Tema | Decisión |
 | --- | --- |
-| Modelo de crecimiento | Un árbol por sesión; no se acumulan minutos entre sesiones |
-| Enfoque | 25 minutos fijos |
-| Descanso | 5 minutos, ofrecido con botón; nunca arranca solo |
-| Etapas | 0 brote, 5 joven, 15 maduro, 25 adulto |
-| Al completar | El árbol adulto queda en la pradera y la sesión se registra |
-| Al abandonar | El árbol queda marchito con la variante de su etapa; se registra el tiempo enfocado real antes de abandonar |
+| Modelo de crecimiento | Presupuesto de enfoque y cola de árboles de costo fijo; se plantan de a uno y el último puede quedar parcial |
+| Enfoque | Configurable de 5 a 120 min en pasos de 5; 25 por defecto |
+| Descanso | Configurable de 1 a 30 min; con descansos o modo continuo sin pausas |
+| Etapas | Proporcionales al costo de cada especie (pino 4, abedul 5, roble y ceibo 7) |
+| Al completar | El árbol completado queda adulto; el parcial queda en crecimiento |
+| Al abandonar | El árbol actual queda marchito con la variante de su etapa; en modo continuo se cierra la sesión |
 | Recarga | Reanuda; si el enfoque ya venció, completa; si el descanso venció, cierra |
 | Celdas | 60×30, grilla 8×8, escena lógica 480×400; escala base entera y zoom solo en escalas enteras |
 | Árbol adulto | 44 ancho × 89 alto; frames recortados por estado y dibujo a tamaño nativo |
@@ -86,13 +86,13 @@ Las opciones, comparadas:
 
 ### v0.1
 
-- **Sesión de enfoque:** 25 minutos fijos. Empezar, pausar, reanudar y abandonar. La cuenta se calcula con hora de inicio y fin, no restando segundos.
-- **Descanso:** 5 minutos fijos. Se ofrece al completar el enfoque con un botón; no arranca solo. Se puede pausar o saltar. No planta árbol ni suma estadísticas.
-- **Crecimiento:** 4 etapas dentro de los 25 minutos: brote (0), joven (5), maduro (15) y adulto (25). Al abandonar, el árbol queda marchito con la variante de la etapa alcanzada y el registro conserva los minutos enfocados antes de abandonar.
+- **Sesión de enfoque:** enfoque configurable de 5 a 120 min (pasos de 5) y pausa de 1 a 30 min. Empezar, pausar, reanudar y abandonar. La cuenta se calcula con hora de inicio y fin, no restando segundos.
+- **Descanso:** pausa configurable por sesión. Se ofrece al completar un bloque con un botón; no arranca solo. En modo continuo no hay pausas. No planta árbol ni suma estadísticas.
+- **Crecimiento:** cada especie tiene un costo fijo y etapas proporcionales: pino 25 (4), abedul 45 (5), roble 60 (7), ceibo 90 (7). La cola se recorre de a un árbol; el último puede quedar parcial y guardarse como `growing`. Al abandonar, el árbol actual queda marchito con la variante de la etapa alcanzada.
 - **Pradera:** grilla isométrica de 4×4 a 8×8, centrada, con isla flotante y árboles ordenados de atrás hacia adelante. La escala base es común a todos los tamaños; los bosques chicos se ven proporcionalmente más chicos y se pueden acercar con el zoom.
-- **Estadísticas:** pomodoros y minutos de hoy; pomodoros y minutos totales; árboles adultos y marchitos. Sin gráficos.
-- **Guardado:** local en el navegador, con versión de esquema y migración preparada.
-- **Sesiones e historial:** una sesión puede ser un pomodoro o una serie de hasta 8 con nombre, descripción y objetivos. El historial del bosque agrupa los pomodoros de cada serie, incluye árboles marchitos y filtros por hoy, semana, series y marchitas.
+- **Estadísticas:** pomodoros y minutos de hoy; pomodoros y minutos totales; árboles adultos, en crecimiento y marchitos. Sin gráficos.
+- **Guardado:** local en el navegador, con versión de esquema V5 y migración preparada.
+- **Sesiones e historial:** una sesión combina ritmo y cola de árboles, con hasta 8 bloques y 8 árboles. El historial del bosque agrupa los bloques de cada sesión, incluye árboles en crecimiento y marchitos, y filtra por hoy, semana, series y marchitas.
 - **Interfaz:** vistas Bosque, Estadísticas y Bosques, con el selector dentro de la tarjeta del timer. El historial es una ventana flotante que se abre desde un botón discreto del timer y se apila bajo la tarjeta de sesión. La tarjeta de sesión queda visible durante el enfoque (también en pausa) y se oculta en descanso. El selector se deshabilita mientras hay una sesión activa; timer, pausa y abandonar siguen a mano. Iniciar abre el diálogo de sesión; la pradera permite seleccionar una sesión con doble clic para resaltar sus árboles.
 - **Zoom de la pradera:** control de vista de 0.5× a 2×, centrado y sin persistencia, con tres botones flotantes (acercar, alejar, restablecer) y rueda del mouse. No hay slider ni porcentaje visible. En desktop los niveles posibles son 50, 100, 150 y 200 %: todos son pixel-perfect estrictos porque usan escalas enteras de origen. No hay intermedios fraccionarios. La rueda avanza un nivel entero por giro (50→100→150→200) y acumula los deltas chicos de un trackpad. Si la escala base ya entra a 1:1, el mínimo es 1× para no perder píxeles; en pantallas muy chicas la escala base puede ser 0.5×. No cambia el timer, los árboles ni las estadísticas.
 
@@ -101,7 +101,7 @@ Las opciones, comparadas:
 ### Bosques: implementado en esta etapa
 
 - **Entidad `Forest`:** nombre, descripción opcional, tamaño 4×4–8×8, fecha de fin opcional, meta de horas opcional y archivado futuro. Árboles, sesiones y sesión activa llevan `forestId`.
-- **Persistencia V4:** migración de datos viejos a un bosque “Mi bosque” 8×8; sin datos viejos no se crea un bosque falso. El estado inicial muestra la pradera 8×8 de fondo con la tarjeta de bienvenida. V4 agrega las sesiones planificadas.
+- **Persistencia V5:** migración de datos viejos a un bosque “Mi bosque” 8×8; sin datos viejos no se crea un bosque falso. El estado inicial muestra la pradera 8×8 de fondo con la tarjeta de bienvenida. V5 agrega ritmo, cola de árboles y progreso por árbol.
 - **Creación:** diálogo con nombre, descripción, tamaño en un select con capacidad, fecha opcional con calendario propio y contador, meta de horas y vista previa con el atlas real. Se abre desde la bienvenida o desde Iniciar si todavía no hay bosque.
 - **Identidad visible:** la cabecera muestra el nombre del bosque y el contador de días. Los toggles para ocultarlos ya existen en el modelo (`display`) y se conectarán en Ajustes.
 - **Estadísticas por bosque:** el timer, la tarjeta de sesión y Estadísticas filtran por el bosque activo; Estadísticas muestra totales globales cuando hay más de un bosque.
@@ -109,10 +109,10 @@ Las opciones, comparadas:
 
 ### Sesiones e historial: implementado en esta etapa
 
-- **Sesión planificada (`SessionPlan`):** título, descripción, objetivos y uno o varios pomodoros (hasta 8). Cada pomodoro copia esos datos y guarda `planId`, `pomoIndex` y `pomoTotal` en su `FocusRecord`; los árboles de la serie no se fuerzan adyacentes.
-- **Iniciar:** abre un diálogo con nombre, descripción, objetivos y modo “Un pomodoro” / “Varios pomodoros”, con contador y resumen de minutos, pausas y árboles. Si no hay bosque, primero se crea uno.
-- **Serie pendiente:** tras completar un pomodoro intermedio, el timer ofrece continuar la serie o empezar otra; empezar otra cierra la anterior. Abandonar cierra la serie completa.
-- **Historial por bosque:** ventana flotante con filtros Todas, Hoy, Esta semana, Series y Marchitas; agrupa los pomodoros por sesión, muestra fecha, minutos, estado y árboles (incluidos los marchitos). La card se corta antes del borde inferior de la pantalla y solo su lista scrollea, con una barra delicada visible al acercar el puntero al borde derecho; la columna no scrollea. La tarjeta de detalle replica la de la sesión activa y agrega fecha de fin, total de enfoque y estado. Con un pomodoro en curso también se puede elegir una sesión: el detalle se despliega debajo de la tarjeta del timer y el resto de los árboles se atenúa, incluido el que está creciendo. La sesión en curso se lista en el historial con estado "En curso".
+- **Sesión planificada (`SessionPlan`):** título, descripción, objetivos, ritmo (`focusMin`, `breakMin`, `mode`, `targetPomodoros`) y cola de árboles (`planting`). Cada bloque copia esos datos y guarda `planId`, `pomoIndex`, `pomoTotal` y `credits` en su `FocusRecord`; los árboles de la cola no se fuerzan adyacentes.
+- **Iniciar:** abre un diálogo minimalista: nombre opcional, detalles opcionales, presets de ritmo (25/5, 50/10, 90/20) y steppers finos con −/+ de 5 en 5 min, modo con/sin descansos, cuadrícula de 4 especies con contador de cuántos sumás y barra de presupuesto. El tiempo sobrante no bloquea el inicio (aviso); si no hay bosque, primero se crea uno. El nombre se completa solo con “Sesión N” y se edita desde la tarjeta de sesión.
+- **Serie pendiente:** tras completar un bloque intermedio, el timer ofrece continuar la serie o empezar otra; empezar otra cierra la anterior y, si la serie quedó a medias, pide confirmación avisando que la anterior queda sin terminar (no marchita un árbol) y el historial la lista como «Sin terminar». En modo con descansos se puede dejar la sesión durante una pausa y retomarla. Abandonar cierra la sesión y marchita el árbol actual.
+- **Historial por bosque:** ventana flotante con filtros Todas, Hoy, Esta semana, Series y Marchitas; agrupa los bloques por sesión, muestra fecha, minutos, estado y árboles (incluidos los marchitos y los que quedaron en crecimiento). La card se corta antes del borde inferior de la pantalla y solo su lista scrollea, con una barra delicada visible al acercar el puntero al borde derecho; la columna no scrollea. La tarjeta de detalle replica la de la sesión activa y agrega fecha de fin, total de enfoque y estado. Con un pomodoro en curso también se puede elegir una sesión: el detalle se despliega debajo de la tarjeta del timer y el resto de los árboles se atenúa, incluido el que está creciendo. La sesión en curso se lista en el historial con estado "En curso".
 - **Selección en la pradera:** elegir una sesión (en el historial o con doble clic en un árbol/celda) muestra todos sus árboles a opacidad normal y atenúa el resto; la cámara se centra una vez en la selección. No modifica timer, árboles ni datos.
 
 ### Después

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sessionName } from '@/logic/session'
+import { nextTaskStatus, sessionName } from '@/logic/session'
 
 describe('sessionName', () => {
   it('numera el próximo pomodoro del día', () => {
@@ -9,5 +9,13 @@ describe('sessionName', () => {
 
   it('nombra el descanso sin numerarlo', () => {
     expect(sessionName('break', 4)).toBe('Descanso · Hoy')
+  })
+})
+
+describe('nextTaskStatus', () => {
+  it('cicla neutral → completado → no completado → neutral', () => {
+    expect(nextTaskStatus('neutral')).toBe('done')
+    expect(nextTaskStatus('done')).toBe('missed')
+    expect(nextTaskStatus('missed')).toBe('neutral')
   })
 })

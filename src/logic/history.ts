@@ -1,11 +1,12 @@
-import type { ActiveSession, FocusRecord, SessionPlan, Tree } from '@/state/types'
-import { speciesForFocusMin } from '@/config/species'
+import type { ActiveSession, FocusRecord, SessionPlan, SessionTask, Tree } from '@/state/types'
+import { speciesConfig, speciesForFocusMin } from '@/config/species'
 import { stageForElapsedMs } from '@/logic/growth'
+import { livePlanFocus, projectPlanting } from '@/logic/planting'
 import { elapsedMs } from './timer'
 import { localDayKey } from './day'
 
 export type HistoryFilter = 'all' | 'today' | 'week' | 'multi' | 'withered'
-export type HistoryStatus = 'completed' | 'abandoned' | 'mixed' | 'running'
+export type HistoryStatus = 'completed' | 'abandoned' | 'mixed' | 'running' | 'unfinished'
 
 /** Una sesión del historial: uno o varios pomodoros agrupados por plan. */
 export interface HistoryEntry {
@@ -17,7 +18,7 @@ export interface HistoryEntry {
   primaryTree: Tree | null
   title: string
   description: string | null
-  tasks: string[]
+  tasks: SessionTask[]
   startedAt: number
   endedAt: number
   totalDurationMin: number
@@ -43,7 +44,7 @@ function startOfLocalWeek(now: number): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() - mondayOffset).getTime()
 }
 
-function statusFor(records: readonly FocusRecord[]): HistoryStatus {
+function statusFor(records: readonly FocusRecord[], plan: SessionPlan | null): HistoryStatus {
   const completed = records.filter((record) => record.status === 'completed').length
   const abandoned = records.length - completed
   const latest = records[records.length - 1]
@@ -53,6 +54,11 @@ function statusFor(records: readonly FocusRecord[]): HistoryStatus {
   }
 
   if (abandoned === 0) {
+    // Serie cerrada antes de tiempo: se recuerda como sesión sin terminar.
+    if (plan && plan.finishedAt !== null && plan.completedPomodoros < plan.targetPomodoros) {
+      return 'unfinished'
+    }
+
     return 'completed'
   }
   if (completed === 0) {
@@ -70,8 +76,15 @@ function buildEntry(
 ): HistoryEntry {
   const ordered = [...records].sort((a, b) => a.startedAt - b.startedAt || a.id.localeCompare(b.id))
   const primaryRecord = ordered[ordered.length - 1]
-  const trees = ordered.flatMap((record) => {
-    const tree = treesBySession.get(record.treeId)
+  const treeIds = new Set<string>()
+  for (const record of ordered) {
+    treeIds.add(record.treeId)
+    for (const credit of record.credits ?? []) {
+      treeIds.add(credit.treeId)
+    }
+  }
+  const trees = [...treeIds].flatMap((id) => {
+    const tree = treesBySession.get(id)
     return tree ? [tree] : []
   })
   const completed = ordered.filter((record) => record.status === 'completed')
@@ -85,7 +98,7 @@ function buildEntry(
     records: ordered,
     trees,
     primaryRecord,
-    primaryTree: treesBySession.get(primaryRecord.treeId) ?? null,
+    primaryTree: trees[trees.length - 1] ?? treesBySession.get(primaryRecord.treeId) ?? null,
     title: plan?.title ?? latestWithTitle?.title ?? 'Pomodoro',
     description: plan?.description ?? primaryRecord.description ?? null,
     tasks: plan?.tasks.length ? plan.tasks : (primaryRecord.tasks ?? []),
@@ -94,13 +107,14 @@ function buildEntry(
     // Los pomodoros completados aportan su duración planeada y los abandonados
     // los minutos reales enfocados antes de marchitarse.
     totalDurationMin: ordered.reduce((total, record) => total + record.durationMin, 0),
-    status: statusFor(ordered),
+    status: statusFor(ordered, plan),
     withered: trees.some((tree) => tree.state === 'withered'),
     completedPomodoros: completed.length,
     targetPomodoros: plan?.targetPomodoros ?? primaryRecord.pomoTotal ?? ordered.length,
     isMulti:
       (plan?.targetPomodoros ?? primaryRecord.pomoTotal ?? ordered.length) > 1 ||
-      ordered.length > 1,
+      ordered.length > 1 ||
+      trees.length > 1,
   }
 }
 
@@ -152,22 +166,31 @@ export function buildHistory(
   // hasta ahora; si es una continuación de una serie, comparte su grupo.
   const runningFocus = active?.kind === 'focus' && active.forestId === forestId ? active : null
   if (runningFocus) {
-    const runningSpecies = speciesForFocusMin(runningFocus.durationMin)
+    const runningPlan = runningFocus.planId ? plansById.get(runningFocus.planId) : undefined
+    const runningProjection = runningPlan
+      ? projectPlanting(runningPlan, livePlanFocus(runningPlan, elapsedMs(runningFocus, now)))
+      : null
+    const runningItem = runningProjection
+      ? (runningProjection.current ?? runningProjection.items[runningProjection.items.length - 1])
+      : null
+    const runningSpecies = runningItem?.species ?? speciesForFocusMin(runningFocus.durationMin)
+    const runningConfig = speciesConfig(runningSpecies)
     const runningTree = {
-      id: runningFocus.id,
+      id: runningFocus.treeId ?? runningFocus.id,
       forestId: runningFocus.forestId,
       sessionId: runningFocus.id,
-      cell: runningFocus.cell ?? { col: 0, row: 0 },
+      cell: runningItem?.cell ?? runningFocus.cell ?? { col: 0, row: 0 },
       kind: runningSpecies,
-      stage: stageForElapsedMs(
-        runningSpecies,
-        elapsedMs(runningFocus, now),
-        runningFocus.durationMin,
-      ),
-      state: 'mature',
+      stage:
+        runningItem?.stage ??
+        stageForElapsedMs(runningSpecies, elapsedMs(runningFocus, now), runningFocus.durationMin),
+      state: runningItem && !runningItem.complete ? 'growing' : 'mature',
+      requiredFocusMin: runningItem?.requiredMin ?? runningConfig.minutes,
+      accumulatedFocusMin: runningItem?.creditedMin ?? elapsedMs(runningFocus, now) / 60_000,
+      planId: runningFocus.planId ?? null,
       createdAt: runningFocus.startedAt,
     } as Tree
-    treesBySession.set(runningFocus.id, runningTree)
+    treesBySession.set(runningTree.id, runningTree)
     pushRecord({
       id: runningFocus.id,
       forestId: runningFocus.forestId ?? forestId,
@@ -175,10 +198,10 @@ export function buildHistory(
       endedAt: now,
       durationMin: Math.max(1, Math.round(elapsedMs(runningFocus, now) / 60_000)),
       status: 'running',
-      treeId: runningFocus.id,
+      treeId: runningTree.id,
       title: runningFocus.title ?? null,
       description: runningFocus.description ?? null,
-      tasks: runningFocus.tasks ? [...runningFocus.tasks] : [],
+      tasks: runningFocus.tasks ? runningFocus.tasks.map((task) => ({ ...task })) : [],
       planId: runningFocus.planId ?? null,
       pomoIndex: runningFocus.pomoIndex,
       pomoTotal: runningFocus.pomoTotal,

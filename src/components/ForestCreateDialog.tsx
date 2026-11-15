@@ -143,7 +143,7 @@ export function ForestCreateDialog({ open, onClose, onCreate, forest }: ForestCr
       }}
     >
       <div
-        className="card card--roomy forest-dialog my-auto w-full max-w-3xl"
+        className="card card--roomy forest-dialog my-auto w-full max-w-5xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="forest-dialog-title"

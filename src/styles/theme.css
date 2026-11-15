@@ -131,6 +131,12 @@
   --check-checked-bg: var(--palette-cta);
   --check-checked-mark: var(--palette-card);
 
+  /* Objetivos de la sesión. */
+  --task-neutral-fg: var(--palette-ink);
+  --task-neutral-icon: var(--palette-muted);
+  --task-done-fg: var(--palette-cta);
+  --task-missed-fg: var(--palette-danger);
+
   --range-track: rgba(32, 63, 59, 0.12);
   --range-fill: var(--palette-cta);
   --range-thumb: var(--palette-card);

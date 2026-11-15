@@ -1,11 +1,4 @@
-import {
-  GRID_COLS,
-  ORIGIN_X,
-  ORIGIN_Y,
-  TILE_HEIGHT,
-  TILE_WIDTH,
-  TOP_PADDING,
-} from '@/config/grid'
+import { GRID_COLS, ORIGIN_X, ORIGIN_Y, TILE_HEIGHT, TILE_WIDTH, TOP_PADDING } from '@/config/grid'
 import type { Cell } from '@/state/types'
 
 export interface ScreenPoint {

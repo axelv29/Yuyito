@@ -2,11 +2,21 @@ import type { ForestSize } from '@/config/forest'
 
 export type TreeStage = 1 | 2 | 3 | 4 | 5 | 6 | 7
 export type TreeSpecies = 'pino' | 'abedul' | 'roble' | 'ceibo'
-export type TreeState = 'mature' | 'withered'
+export type TreeState = 'growing' | 'mature' | 'withered'
 export type SessionKind = 'focus' | 'break'
+export type SessionMode = 'breaks' | 'continuous'
 export type FocusStatus = 'completed' | 'abandoned' | 'running'
 export type TreeKind = string
 export type AlarmTone = 'bell' | 'chime' | 'pulse'
+/** Estado de un objetivo: sin marcar, logrado o no logrado. */
+export type TaskStatus = 'neutral' | 'done' | 'missed'
+
+/** Objetivo de una sesión. El usuario decide si lo logró o no. */
+export interface SessionTask {
+  id: string
+  text: string
+  status: TaskStatus
+}
 
 export interface Cell {
   col: number
@@ -36,6 +46,14 @@ export interface NewForestInput {
   goalHours: number | null
 }
 
+/** Un árbol reservado dentro de una sesión. La celda se elige al planificar. */
+export interface PlantingItem {
+  species: TreeSpecies
+  cell: Cell
+  /** Se completa cuando el árbol empieza a crecer. */
+  treeId: string | null
+}
+
 export interface Tree {
   id: string
   forestId: string
@@ -44,29 +62,52 @@ export interface Tree {
   kind?: TreeKind
   stage: TreeStage
   state: TreeState
+  /** Minutos de enfoque que necesita esta especie para madurar. */
+  requiredFocusMin: number
+  /** Minutos de enfoque acumulados entre bloques. */
+  accumulatedFocusMin: number
+  /** Plan al que pertenece el árbol, si nació de una sesión planificada. */
+  planId?: string | null
   createdAt: number
 }
 
-/** Sesión planificada: uno o varios pomodoros con un mismo objetivo. */
+/** Sesión planificada: un ritmo de bloques y una cola de árboles. */
 export interface SessionPlan {
   id: string
   forestId: string
   title: string
   description: string | null
-  tasks: string[]
-  /** Cantidad de pomodoros que dura la sesión (1–8). */
+  tasks: SessionTask[]
+  /** Minutos de cada bloque de enfoque. */
+  focusMin: number
+  /** Minutos de cada pausa (solo en modo con descansos). */
+  breakMin: number
+  /** Minutos del descanso largo al cerrar un ciclo de bloques. */
+  longBreakMin?: number
+  /** Cantidad de bloques de enfoque (1–8). */
   targetPomodoros: number
   completedPomodoros: number
+  mode: SessionMode
+  /** Árboles en orden, con su celda reservada. */
+  planting: PlantingItem[]
+  /** Minutos de enfoque ya acreditados al plan. */
+  focusElapsedMin: number
   createdAt: number
   /** Se cierra al completar el objetivo o al abandonar la sesión. */
   finishedAt: number | null
 }
 
 export interface NewSessionInput {
-  title: string
+  /** Opcional: si se deja vacío, la sesión arranca con "Sesión N" del día. */
+  title?: string
   description: string | null
   tasks: string[]
+  focusMin: number
+  breakMin: number
+  longBreakMin: number
   targetPomodoros: number
+  mode: SessionMode
+  planting: TreeSpecies[]
 }
 
 export interface ActiveSession {
@@ -92,9 +133,13 @@ export interface ActiveSession {
   /** Posición del pomodoro dentro de la sesión (1-based). */
   pomoIndex?: number
   pomoTotal?: number
+  /** Modo de la sesión planificada. */
+  mode?: SessionMode
+  /** Árbol que está creciendo durante este bloque. */
+  treeId?: string | null
   title?: string | null
   description?: string | null
-  tasks?: string[]
+  tasks?: SessionTask[]
 }
 
 export interface FocusRecord {
@@ -109,12 +154,14 @@ export interface FocusRecord {
   title?: string | null
   /** v2: descripción de la sesión. */
   description?: string | null
-  /** v2: tareas con checkboxes. */
-  tasks?: string[]
+  /** v2: objetivos con estado propio. */
+  tasks?: SessionTask[]
   /** Sesión planificada a la que pertenece el pomodoro. */
   planId?: string | null
   pomoIndex?: number
   pomoTotal?: number
+  /** Minutos acreditados a cada árbol durante este bloque. */
+  credits?: Array<{ treeId: string; minutes: number }>
 }
 
 export interface PomodoroSettings {
@@ -155,9 +202,34 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showCountdown: true,
 }
 
-export type LegacyTree = Omit<Tree, 'forestId'>
-export type LegacyFocusRecord = Omit<FocusRecord, 'forestId'>
-export type LegacyActiveSession = Omit<ActiveSession, 'forestId'>
+/** Forma de un árbol antes de la v5 (sin progreso acumulado). */
+export interface LegacyTree {
+  id: string
+  sessionId: string
+  cell: Cell
+  kind?: TreeKind
+  stage: TreeStage
+  state: 'mature' | 'withered'
+  createdAt: number
+}
+
+export type LegacyForestTree = LegacyTree & { forestId: string }
+export type LegacyFocusRecord = Omit<FocusRecord, 'forestId' | 'credits'>
+export type LegacyForestFocusRecord = LegacyFocusRecord & { forestId: string }
+export type LegacyActiveSession = Omit<ActiveSession, 'forestId' | 'mode' | 'treeId'>
+export type LegacyForestActiveSession = LegacyActiveSession & { forestId: string | null }
+/** Plan anterior a la v5: sin ritmo ni cola de plantación. */
+export interface LegacySessionPlan {
+  id: string
+  forestId: string
+  title: string
+  description: string | null
+  tasks: string[]
+  targetPomodoros: number
+  completedPomodoros: number
+  createdAt: number
+  finishedAt: number | null
+}
 
 export interface PersistedV1 {
   version: 1
@@ -178,9 +250,9 @@ export interface PersistedV3 {
   version: 3
   forests: Forest[]
   activeForestId: string | null
-  trees: Tree[]
-  sessions: FocusRecord[]
-  active: ActiveSession | null
+  trees: LegacyForestTree[]
+  sessions: LegacyForestFocusRecord[]
+  active: LegacyForestActiveSession | null
   settings: PomodoroSettings
   display: DisplaySettings
 }
@@ -190,11 +262,44 @@ export interface PersistedV4 {
   version: 4
   forests: Forest[]
   activeForestId: string | null
+  trees: LegacyForestTree[]
+  sessions: LegacyForestFocusRecord[]
+  plans: LegacySessionPlan[]
+  active: LegacyForestActiveSession | null
+  /** Sesión planificada que se puede continuar con el próximo pomodoro. */
+  activePlanId: string | null
+  settings: PomodoroSettings
+  display: DisplaySettings
+}
+
+/** Forma de un guardado v5: objetivos como texto, sin estado. */
+export type LegacyFocusRecordV5 = Omit<FocusRecord, 'tasks'> & { tasks?: string[] }
+export type LegacyActiveSessionV5 = Omit<ActiveSession, 'tasks'> & { tasks?: string[] }
+export type LegacySessionPlanV5 = Omit<SessionPlan, 'tasks'> & { tasks: string[] }
+
+/** v5: árboles con progreso y sesiones con ritmo y cola de plantación. */
+export interface PersistedV5 {
+  version: 5
+  forests: Forest[]
+  activeForestId: string | null
+  trees: Tree[]
+  sessions: LegacyFocusRecordV5[]
+  plans: LegacySessionPlanV5[]
+  active: LegacyActiveSessionV5 | null
+  activePlanId: string | null
+  settings: PomodoroSettings
+  display: DisplaySettings
+}
+
+/** v6: objetivos con estado propio (neutral, completado, no completado). */
+export interface PersistedV6 {
+  version: 6
+  forests: Forest[]
+  activeForestId: string | null
   trees: Tree[]
   sessions: FocusRecord[]
   plans: SessionPlan[]
   active: ActiveSession | null
-  /** Sesión planificada que se puede continuar con el próximo pomodoro. */
   activePlanId: string | null
   settings: PomodoroSettings
   display: DisplaySettings

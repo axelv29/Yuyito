@@ -1,8 +1,13 @@
 import { speciesConfig, speciesFromKind } from '@/config/species'
+import { SESSION_TITLE_MAX_LENGTH } from '@/config/session'
 import type { HistoryEntry } from '@/logic/history'
 import { stageLabel } from '@/logic/growth'
 import { formatSessionStart } from '@/logic/session'
+import { useState, type FocusEvent } from 'react'
+import { useStore } from '@/state/store'
 import { BackIcon, CloseIcon } from './icons'
+import { SessionDetails } from './SessionDetails'
+import { SessionTaskList } from './SessionTaskList'
 import { TreePreview } from './TreePreview'
 
 interface SessionDetailCardProps {
@@ -18,6 +23,7 @@ const STATUS_LABEL = {
   abandoned: 'Abandonada',
   mixed: 'Con abandonos',
   running: 'En curso',
+  unfinished: 'Sin terminar',
 } as const
 
 export function SessionDetailCard({
@@ -27,6 +33,34 @@ export function SessionDetailCard({
   onBackToHistory,
   className,
 }: SessionDetailCardProps) {
+  const renamePlanTitle = useStore((state) => state.renamePlanTitle)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const planId = entry.plan?.id ?? null
+  const canEditTitle = planId !== null
+
+  const beginEditTitle = (event: FocusEvent<HTMLInputElement>) => {
+    if (!planId) {
+      event.currentTarget.blur()
+      return
+    }
+
+    setTitleDraft(entry.title)
+    setEditingTitle(true)
+  }
+
+  const saveTitle = () => {
+    if (!editingTitle) {
+      return
+    }
+
+    const next = titleDraft.trim()
+    if (planId && next) {
+      renamePlanTitle(planId, next)
+    }
+    setEditingTitle(false)
+  }
+
   const primary = entry.primaryTree
   const species = primary ? speciesFromKind(primary.kind) : 'pino'
   const config = speciesConfig(species)
@@ -40,7 +74,9 @@ export function SessionDetailCard({
         ? 'Sesión abandonada'
         : entry.status === 'running'
           ? 'Sesión en curso'
-          : 'Sesión con abandonos'
+          : entry.status === 'unfinished'
+            ? 'Sesión sin terminar'
+            : 'Sesión con abandonos'
   const detail =
     entry.targetPomodoros > 1
       ? `Pomodoro ${entry.completedPomodoros} de ${entry.targetPomodoros} · ${entry.totalDurationMin} min`
@@ -58,16 +94,39 @@ export function SessionDetailCard({
       <div className="session-detail__head">
         <div className="min-w-0">
           <p className="eyebrow">{eyebrow}</p>
-          <h2 className="type-title session-detail__title">{entry.title}</h2>
+          <h2 className="type-title session-detail__title">
+            <input
+              className="session-title-input"
+              value={editingTitle ? titleDraft : entry.title}
+              onFocus={beginEditTitle}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.currentTarget.blur()
+                }
+                if (event.key === 'Escape') {
+                  setTitleDraft(entry.title)
+                  setEditingTitle(false)
+                  event.currentTarget.blur()
+                }
+              }}
+              maxLength={SESSION_TITLE_MAX_LENGTH}
+              aria-label="Nombre de la sesión"
+              readOnly={!canEditTitle}
+            />
+          </h2>
         </div>
-        <button
-          type="button"
-          className="icon-button session-detail__close"
-          onClick={onClose}
-          aria-label="Cerrar datos de la sesión"
-        >
-          <CloseIcon />
-        </button>
+        <div className="flex shrink-0 items-start gap-1">
+          <button
+            type="button"
+            className="icon-button session-detail__close"
+            onClick={onClose}
+            aria-label="Cerrar datos de la sesión"
+          >
+            <CloseIcon />
+          </button>
+        </div>
       </div>
 
       <div className="session-detail__tree">
@@ -77,6 +136,7 @@ export function SessionDetailCard({
         <div className="min-w-0">
           <p className="type-title">
             {config.name} · {stageLabel(species, stage)}
+            {state === 'growing' ? ' · En crecimiento' : ''}
           </p>
           <p className="type-micro type-muted">{detail}</p>
         </div>
@@ -100,16 +160,7 @@ export function SessionDetailCard({
         <p className="session-detail__description type-caption">{entry.description}</p>
       )}
 
-      {entry.tasks.length > 0 && (
-        <ul className="session-detail__tasks" aria-label="Objetivos de la sesión">
-          {entry.tasks.map((task) => (
-            <li key={task} className="session-detail__task type-caption">
-              <span className="session-detail__task-dot" aria-hidden="true" />
-              {task}
-            </li>
-          ))}
-        </ul>
-      )}
+      <SessionTaskList entryKey={entry.key} tasks={entry.tasks} />
 
       {entry.trees.length > 1 && (
         <div className="session-detail__trees" aria-label="Árboles de la sesión">
@@ -133,7 +184,7 @@ export function SessionDetailCard({
         </div>
       )}
 
-      <dl className="session-data">
+      <SessionDetails>
         <div className="session-data__row">
           <dt className="session-data__label">Bosque</dt>
           <dd className="session-data__value">{forestName}</dd>
@@ -166,9 +217,15 @@ export function SessionDetailCard({
         </div>
         <div className="session-data__row">
           <dt className="session-data__label">Árbol</dt>
-          <dd className="session-data__value">{state === 'withered' ? 'Marchito' : 'Plantado'}</dd>
+          <dd className="session-data__value">
+            {state === 'withered'
+              ? 'Marchito'
+              : state === 'growing'
+                ? 'En crecimiento'
+                : 'Plantado'}
+          </dd>
         </div>
-      </dl>
+      </SessionDetails>
 
       {onBackToHistory && (
         <button

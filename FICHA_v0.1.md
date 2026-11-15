@@ -1,5 +1,7 @@
 # Ficha v0.1 — Focus Forest
 
+> **Nota histórica:** esta ficha describe la v0.1 original (25 minutos fijos, un árbol por sesión, `PersistedV4`). El modelo actual usa ritmo configurable, cola de árboles con costo fijo, árboles parciales `growing` y `PersistedV5`; la referencia vigente es `CONTEXTO.md` y `docs/PLAN.md`.
+
 Documento de alcance y aceptación de la primera versión. Si algo no está acá, no entra en la v0.1 sin hablarlo antes.
 
 ## 1. Objetivo
@@ -141,7 +143,7 @@ Los descansos no se guardan como historial: solo existe el descanso activo. Las 
 - **Etapas:** `0 → 1`, `5 → 2`, `15 → 3`, `25 → 4`. Una sesión de enfoque completada siempre termina en etapa 4.
 - **Colocación:** aleatoria entre celdas libres, sin espaciamiento mínimo: la grilla admite hasta 64 árboles. Los marchitos ocupan celda. Si no quedan celdas libres, se reemplaza el marchito más viejo; si solo hay adultos, se bloquea el inicio con un aviso.
 - **Persistencia:** clave `focus-forest`, versión 4, migración preparada. V3→V4 agrega `plans: []` y `activePlanId: null`; las sesiones viejas quedan como pomodoros sueltos. Datos corruptos: copia en `focus-forest.broken` y reinicio. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
-- **Series:** una serie se agrupa por `planId` y no exige adyacencia. Cada pomodoro completado suma uno a `completedPomodoros`; al llegar a `targetPomodoros` o al abandonar, la serie se cierra. Empezar una sesión nueva cierra la pendiente anterior.
+- **Series:** una serie se agrupa por `planId` y no exige adyacencia. Cada pomodoro completado suma uno a `completedPomodoros`; al llegar a `targetPomodoros` o al abandonar, la serie se cierra. Empezar una sesión nueva cierra la pendiente anterior y, si quedó a medias, pide confirmación: la anterior queda sin terminar, sin árbol marchito, y el historial la muestra como «Sin terminar».
 - **Historial:** se deriva por bosque; agrupa por `planId ?? id` y no mezcla bosques. "Hoy" usa `endedAt` en día local y la semana empieza el lunes local.
 - **Selección:** elegir una sesión resalta todos sus árboles y atenúa el resto (opacidad 0.32), sin marcas en la grilla; no modifica el store, el timer ni la persistencia. El doble clic usa el frame del atlas y, si no acierta, la celda isométrica.
 - **Bosque inicial:** al arrancar sin datos se crea "Mi bosque" de 8×8 y queda activo, así que la primera pantalla no pide crear un bosque; la tarjeta central solo invita a crear otro desde **Bosques**. La migración usa el mismo bosque si no había ninguno, y si se borran todos vuelve a aparecer al recargar.
@@ -164,7 +166,7 @@ Los descansos no se guardan como historial: solo existe el descanso activo. Las 
 - [x] Recargar conserva jardín, sesión y estadísticas; datos corruptos no rompen la app.
 - [x] En 1366×768 y 1440×900 se ve el layout de escritorio con el timer sobre la pradera sin scroll; a 360 px no se rompe.
 - [x] El zoom de la pradera funciona con los botones y la rueda sin afectar el timer ni el estado, y la isla puede desbordar el recuadro sin cortarse.
-- [x] Iniciar abre el diálogo de sesión con nombre, descripción, objetivos y 1–8 pomodoros.
+- [x] Iniciar abre el diálogo de sesión con nombre opcional (por defecto “Sesión N” del día), descripción, objetivos y 1–8 pomodoros.
 - [x] Completar un pomodoro intermedio ofrece continuar la serie; abandonar cierra la serie completa.
 - [x] El historial agrupa los pomodoros de una serie, incluye árboles marchitos y filtra por hoy, semana, series y marchitas.
 - [x] Elegir una sesión (lista, árbol o celda con doble clic) resalta sus árboles y atenúa el resto sin tocar el store.

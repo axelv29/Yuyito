@@ -31,6 +31,8 @@ function tree(id: string, state: Tree['state']): Tree {
     cell: { col: 0, row: 0 },
     stage: 4,
     state,
+    requiredFocusMin: 25,
+    accumulatedFocusMin: 25,
     createdAt: TODAY,
   }
 }
@@ -42,7 +44,7 @@ const SESSIONS = [
   record('abandonada', TODAY, 'abandoned'),
 ]
 
-const TREES = [tree('t1', 'mature'), tree('t2', 'withered')]
+const TREES = [tree('t1', 'mature'), tree('t2', 'withered'), tree('t3', 'growing')]
 
 describe('summarizeStats', () => {
   it('cuenta solo los enfoques completados de hoy y los totales', () => {
@@ -53,6 +55,7 @@ describe('summarizeStats', () => {
     expect(stats.totalPomodoros).toBe(3)
     expect(stats.totalMinutes).toBe(75)
     expect(stats.matureTrees).toBe(1)
+    expect(stats.growingTrees).toBe(1)
     expect(stats.witheredTrees).toBe(1)
   })
 

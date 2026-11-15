@@ -16,7 +16,9 @@ import { StorageNotice } from '@/components/StorageNotice'
 import { TimerPanel } from '@/components/TimerPanel'
 import type { View } from '@/config/views'
 import { useCountdown } from '@/hooks/useCountdown'
+import { useKeyboardFocus } from '@/hooks/useKeyboardFocus'
 import { stageForElapsedMs } from '@/logic/growth'
+import { livePlanFocus, projectPlanting } from '@/logic/planting'
 import { elapsedMs } from '@/logic/timer'
 import { playTone } from '@/logic/alarm'
 import { sendNotification } from '@/logic/notifications'
@@ -27,19 +29,21 @@ import { describeForestCountdown } from '@/logic/forest'
 import { selectActiveForest } from '@/state/selectors'
 import type { Forest, NewForestInput, NewSessionInput, Tree } from '@/state/types'
 
-type ConfirmMode = 'abandon' | 'strictPause'
+type ConfirmMode = 'abandon' | 'strictPause' | 'newSession'
 
 interface ConfirmRequest {
-  id: string
   mode: ConfirmMode
+  id?: string
 }
 
 function App() {
   const now = useCountdown()
+  useKeyboardFocus()
   const active = useStore((state) => state.active)
   const trees = useStore((state) => state.trees)
   const sessions = useStore((state) => state.sessions)
   const plans = useStore((state) => state.plans)
+  const activePlanId = useStore((state) => state.activePlanId)
   const forests = useStore((state) => state.forests)
   const activeForestId = useStore((state) => state.activeForestId)
   const display = useStore((state) => state.display)
@@ -66,23 +70,43 @@ function App() {
   const forestTrees = activeForest ? trees.filter((tree) => tree.forestId === activeForest.id) : []
   const countdown = activeForest ? describeForestCountdown(activeForest.endsOn, now) : null
 
-  const activeSpecies = active?.kind === 'focus' ? speciesForFocusMin(active.durationMin) : null
-  const activeStage =
-    activeSpecies !== null && active?.kind === 'focus'
-      ? stageForElapsedMs(activeSpecies, elapsedMs(active, now), active.durationMin)
-      : null
+  const activePlan = active?.planId ? plans.find((plan) => plan.id === active.planId) : undefined
+  const pendingPlan =
+    activePlanId === null
+      ? null
+      : (plans.find((plan) => plan.id === activePlanId && plan.finishedAt === null) ?? null)
   const activePreview = useMemo(() => {
-    if (
-      active?.kind !== 'focus' ||
-      !active.cell ||
-      activeStage === null ||
-      activeSpecies === null
-    ) {
+    if (active?.kind !== 'focus' || !active.cell) {
       return null
     }
 
-    return { cell: active.cell, species: activeSpecies, stage: activeStage, sessionId: active.id }
-  }, [active, activeSpecies, activeStage])
+    if (activePlan) {
+      const projection = projectPlanting(
+        activePlan,
+        livePlanFocus(activePlan, elapsedMs(active, now)),
+      )
+      const item = projection.current ?? projection.items[projection.items.length - 1]
+      if (item) {
+        return {
+          cell: item.cell,
+          species: item.species,
+          stage: item.stage,
+          treeId: active.treeId ?? null,
+          sessionId: active.id,
+        }
+      }
+    }
+
+    const species = speciesForFocusMin(active.durationMin)
+    const stage = stageForElapsedMs(species, elapsedMs(active, now), active.durationMin)
+    return {
+      cell: active.cell,
+      species,
+      stage,
+      treeId: active.treeId ?? null,
+      sessionId: active.id,
+    }
+  }, [active, activePlan, now])
 
   const selectedEntry = useMemo(() => {
     if (!selectedKey || !activeForest) {
@@ -177,7 +201,7 @@ function App() {
     [selectForest],
   )
 
-  const openSessionDialog = useCallback(() => {
+  const openSessionFlow = useCallback(() => {
     if (!activeForest) {
       setPendingSessionAfterForest(true)
       setForestDialogOpen(true)
@@ -187,6 +211,15 @@ function App() {
     setSelectedKey(null)
     setSessionDialogOpen(true)
   }, [activeForest])
+
+  const openSessionDialog = useCallback(() => {
+    if (pendingPlan) {
+      setConfirmRequest({ mode: 'newSession', id: pendingPlan.id })
+      return
+    }
+
+    openSessionFlow()
+  }, [openSessionFlow, pendingPlan])
 
   const closeSessionDialog = useCallback(() => setSessionDialogOpen(false), [])
 
@@ -204,6 +237,11 @@ function App() {
     setSelectedKey(null)
     setView('garden')
   }, [continuePlan])
+
+  const confirmNewSession = useCallback(() => {
+    setConfirmRequest(null)
+    openSessionFlow()
+  }, [openSessionFlow])
 
   const handleSelectTree = useCallback(
     (tree: Tree | null) => {
@@ -275,7 +313,9 @@ function App() {
     ? `Bosque ${activeForest.name}: ${forestTrees.length} árboles y ${withered} marchitos.`
     : 'Pradera de bienvenida con 8 por 8 celdas.'
   const inSession = active !== null
-  const showConfirm = active !== null && active.kind === 'focus' && confirmRequest?.id === active.id
+  const showConfirm =
+    confirmRequest?.mode === 'newSession' ||
+    (active !== null && active.kind === 'focus' && confirmRequest?.id === active.id)
   const confirmMode = confirmRequest?.mode ?? 'abandon'
 
   const scrollableView = !inSession && (view === 'forests' || view === 'stats')
@@ -393,15 +433,27 @@ function App() {
       <ConfirmDialog
         open={showConfirm}
         title={
-          confirmMode === 'strictPause' ? '¿Pausar con pausa estricta?' : '¿Abandonar la sesión?'
+          confirmMode === 'strictPause'
+            ? '¿Pausar con pausa estricta?'
+            : confirmMode === 'newSession'
+              ? '¿Empezar una nueva sesión?'
+              : '¿Abandonar la sesión?'
         }
         message={
           confirmMode === 'strictPause'
             ? 'La pausa estricta está activada: pausar equivale a abandonar. El árbol va a quedar marchito y la sesión no va a sumar minutos. Si querés hacer pausas, desactivá la pausa estricta en los ajustes.'
-            : 'El árbol va a quedar marchito y la sesión no va a sumar minutos. Podés empezar otro pomodoro cuando quieras.'
+            : confirmMode === 'newSession'
+              ? 'La sesión anterior queda sin terminar: no cuenta como árbol marchito, sino como una sesión no terminada. ¿Querés empezar una nueva sesión de todas formas?'
+              : 'El árbol va a quedar marchito y la sesión no va a sumar minutos. Podés empezar otro pomodoro cuando quieras.'
         }
-        confirmLabel={confirmMode === 'strictPause' ? 'Pausar y abandonar' : 'Abandonar'}
-        onConfirm={confirmAbandon}
+        confirmLabel={
+          confirmMode === 'strictPause'
+            ? 'Pausar y abandonar'
+            : confirmMode === 'newSession'
+              ? 'Empezar nueva sesión'
+              : 'Abandonar'
+        }
+        onConfirm={confirmMode === 'newSession' ? confirmNewSession : confirmAbandon}
         onCancel={closeConfirm}
       />
       <ForestCreateDialog
@@ -410,12 +462,14 @@ function App() {
         onCreate={handleCreateForest}
         forest={editingForest}
       />
-      <SessionCreateDialog
-        open={sessionDialogOpen}
-        forestName={activeForest?.name ?? 'Nuevo bosque'}
-        onClose={closeSessionDialog}
-        onStart={handleStartSession}
-      />
+      {sessionDialogOpen && (
+        <SessionCreateDialog
+          open={sessionDialogOpen}
+          forestName={activeForest?.name ?? 'Nuevo bosque'}
+          onClose={closeSessionDialog}
+          onStart={handleStartSession}
+        />
+      )}
     </div>
   )
 }

@@ -48,16 +48,12 @@ export function TimerPanel({
   const forestId = active?.kind === 'focus' ? active.forestId : activeForestId
   const activeForest = selectActiveForest(forests, forestId)
   const stats = selectStats(sessions, trees, now, activeForest?.id)
-  const openPlan = plans.find(
-    (plan) => plan.id === activePlanId && plan.finishedAt === null,
-  )
-  const planForest = openPlan
-    ? selectActiveForest(forests, openPlan.forestId)
-    : null
+  const openPlan = plans.find((plan) => plan.id === activePlanId && plan.finishedAt === null)
+  const planForest = openPlan ? selectActiveForest(forests, openPlan.forestId) : null
   const [showSettings, setShowSettings] = useState(false)
 
   const isPaused = active?.pausedAt !== null && active?.pausedAt !== undefined
-  const focusMin = settings.focusMin ?? FOCUS_MINUTES
+  const focusMin = openPlan?.focusMin ?? settings.focusMin ?? FOCUS_MINUTES
   const remaining = active ? remainingMs(active, now) : focusMin * 60_000
   const duration = active ? active.durationMin * 60_000 : focusMin * 60_000
   const progress = active ? Math.min(1, elapsedMs(active, now) / duration) : 0
@@ -148,6 +144,11 @@ export function TimerPanel({
               <p className="type-micro type-muted">
                 {openPlan.completedPomodoros} de {openPlan.targetPomodoros} pomodoros
                 {planForest ? ` · ${planForest.name}` : ''}
+              </p>
+              <p className="type-micro type-muted">
+                {openPlan.mode === 'continuous' ? 'Sin descansos' : 'Con descansos'} ·{' '}
+                {openPlan.planting.length} {openPlan.planting.length === 1 ? 'árbol' : 'árboles'} en
+                la cosecha
               </p>
             </div>
           )}

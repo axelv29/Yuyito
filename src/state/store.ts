@@ -5,17 +5,31 @@ import {
   FOREST_GOAL_HOURS_MAX,
   FOREST_NAME_MAX_LENGTH,
 } from '@/config/forest'
-import { finalStage, speciesForFocusMin } from '@/config/species'
+import { finalStage, speciesConfig, speciesForFocusMin } from '@/config/species'
 import { DEFAULT_GARDEN_SIZE } from '@/config/grid'
 import {
   SESSION_DESCRIPTION_MAX_LENGTH,
+  SESSION_MAX_BREAK_MIN,
+  SESSION_MAX_FOCUS_MIN,
+  SESSION_MAX_LONG_BREAK_MIN,
   SESSION_MAX_POMODOROS,
   SESSION_MAX_TASKS,
+  SESSION_MAX_TREES,
+  SESSION_MIN_BREAK_MIN,
+  SESSION_MIN_FOCUS_MIN,
+  SESSION_MIN_LONG_BREAK_MIN,
   SESSION_TASK_MAX_LENGTH,
   SESSION_TITLE_MAX_LENGTH,
 } from '@/config/session'
 import { stageForElapsedMs } from '@/logic/growth'
 import { choosePlacement } from '@/logic/placement'
+import { defaultSessionName, nextTaskStatus } from '@/logic/session'
+import {
+  projectPlanting,
+  suggestPlanting,
+  validatePlanting,
+  type PlantingProjection,
+} from '@/logic/planting'
 import {
   createBreakSession,
   createFocusSession,
@@ -26,15 +40,19 @@ import {
 } from '@/logic/timer'
 import type {
   ActiveSession,
+  Cell,
   DisplaySettings,
   FocusRecord,
   Forest,
   NewForestInput,
   NewSessionInput,
-  PersistedV4,
+  PersistedV6,
+  PlantingItem,
   PomodoroSettings,
   SessionPlan,
+  SessionTask,
   Tree,
+  TreeSpecies,
 } from './types'
 import { DEFAULT_DISPLAY_SETTINGS, DEFAULT_POMODORO_SETTINGS } from './types'
 import {
@@ -52,7 +70,7 @@ export interface Notice {
   text: string
 }
 
-interface StoreState extends PersistedV4 {
+interface StoreState extends PersistedV6 {
   pendingBreak: boolean
   notice: Notice | null
   /** Dev: tamaño del bosque en celdas por lado para el preview del panel. */
@@ -64,8 +82,12 @@ interface StoreState extends PersistedV4 {
   unarchiveForest: (id: string) => void
   deleteForest: (id: string) => void
   updateDisplay: (patch: Partial<DisplaySettings>) => void
+  /** Avanza un objetivo: neutral → completado → no completado. */
+  cycleTaskStatus: (entryKey: string, taskId: string) => void
   /** Crea una sesión planificada y empieza su primer pomodoro. */
   startSession: (input: NewSessionInput, now: number) => void
+  /** Renombra una sesión planificada (tarjeta activa o del historial). */
+  renamePlanTitle: (planId: string, title: string) => void
   /** Continúa la sesión pendiente con el siguiente pomodoro. */
   continuePlan: (now: number) => void
   /** Cierra una sesión pendiente sin empezar otro pomodoro. */
@@ -88,6 +110,129 @@ function makeId(): string {
   }
 
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)))
+}
+
+function treeFromProjection(
+  forestId: string,
+  sessionId: string,
+  planId: string,
+  item: PlantingProjection['items'][number],
+  now: number,
+): Tree {
+  return {
+    id: makeId(),
+    forestId,
+    sessionId,
+    cell: item.cell,
+    kind: item.species,
+    stage: item.stage,
+    state: item.complete ? 'mature' : 'growing',
+    requiredFocusMin: item.requiredMin,
+    accumulatedFocusMin: item.creditedMin,
+    planId,
+    createdAt: now,
+  }
+}
+
+/**
+ * Crea o actualiza los árboles de una proyección. Los árboles completos pasan
+ * a maduros; los parciales quedan en crecimiento. Devuelve también la cola con
+ * los ids ya enlazados.
+ */
+function applyProjection(
+  trees: readonly Tree[],
+  plan: SessionPlan,
+  projection: PlantingProjection,
+  now: number,
+  sessionId: string,
+): { trees: Tree[]; planting: PlantingItem[] } {
+  const next = [...trees]
+  const indexById = new Map(next.map((tree, index) => [tree.id, index]))
+
+  const planting = plan.planting.map((item, index) => {
+    const projected = projection.items[index]
+    if (!projected) {
+      return item
+    }
+
+    let treeId = projected.treeId
+    if (treeId && !indexById.has(treeId)) {
+      treeId = null
+    }
+
+    if (!treeId && projected.creditedMin > 0) {
+      const tree = treeFromProjection(plan.forestId, sessionId, plan.id, projected, now)
+      next.push(tree)
+      indexById.set(tree.id, next.length - 1)
+      treeId = tree.id
+    }
+
+    if (treeId) {
+      const treeIndex = indexById.get(treeId)
+      if (treeIndex !== undefined) {
+        const existing = next[treeIndex]
+        next[treeIndex] = {
+          ...existing,
+          kind: projected.species,
+          stage: projected.stage,
+          state: projected.complete ? 'mature' : 'growing',
+          requiredFocusMin: projected.requiredMin,
+          accumulatedFocusMin: projected.creditedMin,
+          planId: plan.id,
+        }
+      }
+    }
+
+    return { ...item, treeId }
+  })
+
+  return { trees: next, planting }
+}
+
+function reservePlantingCells(
+  forestId: string,
+  forestSize: number,
+  trees: readonly Tree[],
+  species: readonly TreeSpecies[],
+  now: number,
+): { cells: Cell[]; replacedTreeIds: string[] } | null {
+  const virtual = trees.filter((tree) => tree.forestId === forestId).map((tree) => ({ ...tree }))
+  const cells: Cell[] = []
+  const replacedTreeIds: string[] = []
+
+  for (let index = 0; index < species.length; index += 1) {
+    const placement = choosePlacement(virtual, Math.random, forestSize, forestSize)
+    if (!placement) {
+      return null
+    }
+
+    if (placement.replacedTreeId) {
+      replacedTreeIds.push(placement.replacedTreeId)
+      const index = virtual.findIndex((tree) => tree.id === placement.replacedTreeId)
+      if (index >= 0) {
+        virtual.splice(index, 1)
+      }
+    }
+
+    cells.push(placement.cell)
+    virtual.push({
+      id: `reserved-${cells.length}`,
+      forestId,
+      sessionId: 'reserved',
+      cell: placement.cell,
+      stage: 1,
+      state: 'mature',
+      requiredFocusMin: 25,
+      accumulatedFocusMin: 25,
+      createdAt: now,
+    })
+  }
+
+  return { cells, replacedTreeIds }
 }
 
 export const useStore = create<StoreState>()(
@@ -114,37 +259,44 @@ export const useStore = create<StoreState>()(
           return false
         }
 
-        const forestTrees = state.trees.filter((tree) => tree.forestId === forest.id)
-        const placement = choosePlacement(forestTrees, Math.random, forest.size, forest.size)
-        if (!placement) {
+        const projection = projectPlanting(plan, plan.focusElapsedMin)
+        // Con tiempo sobrante la cola ya está completa: el bloque corre sobre
+        // el último árbol plantado, sin acreditar minutos nuevos.
+        const current =
+          projection.current ?? [...projection.items].reverse().find((item) => item.treeId) ?? null
+        if (!current) {
           set({
             activePlanId: null,
             plans: state.plans.map((item) =>
               item.id === plan.id ? { ...item, finishedAt: now } : item,
             ),
             notice: {
-              kind: 'warning',
-              text: 'La pradera está llena. Las parcelas nuevas llegan en la próxima versión.',
+              kind: 'success',
+              text: `Sesión completada: ${plan.title}.`,
             },
           })
           return false
         }
 
-        const trees =
-          placement.replacedTreeId === null
-            ? state.trees
-            : state.trees.filter((tree) => tree.id !== placement.replacedTreeId)
-        const sessions =
-          placement.replacedTreeId === null
-            ? state.sessions
-            : state.sessions.filter((session) => session.treeId !== placement.replacedTreeId)
-        const session = createFocusSession(
-          makeId(),
-          now,
-          placement.cell,
-          state.settings.focusMin,
-          forest.id,
-        )
+        const sessionId = makeId()
+        const trees = [...state.trees]
+        const planting = [...plan.planting]
+        let treeId = current.treeId
+
+        if (!treeId || !trees.some((tree) => tree.id === treeId)) {
+          const tree = treeFromProjection(
+            plan.forestId,
+            sessionId,
+            plan.id,
+            { ...current, complete: false },
+            now,
+          )
+          trees.push(tree)
+          treeId = tree.id
+          planting[current.index] = { ...planting[current.index], treeId }
+        }
+
+        const session = createFocusSession(sessionId, now, current.cell, plan.focusMin, forest.id)
         const activeSession: ActiveSession = {
           ...session,
           strictPause: state.settings.strictPause,
@@ -152,14 +304,16 @@ export const useStore = create<StoreState>()(
           planId: plan.id,
           pomoIndex: plan.completedPomodoros + 1,
           pomoTotal: plan.targetPomodoros,
+          mode: plan.mode,
+          treeId,
           title: plan.title,
           description: plan.description,
-          tasks: [...plan.tasks],
+          tasks: plan.tasks.map((task) => ({ ...task })),
         }
 
         set({
           trees,
-          sessions,
+          plans: state.plans.map((item) => (item.id === plan.id ? { ...item, planting } : item)),
           active: activeSession,
           activeForestId: forest.id,
           activePlanId: plan.id,
@@ -185,87 +339,127 @@ export const useStore = create<StoreState>()(
         // Si la pestaña estuvo cerrada, la sesión terminó en `endsAt`,
         // no cuando se reabrió: así cae en el día correcto.
         const endedAt = Math.min(now, active.endsAt)
-        const species = speciesForFocusMin(active.durationMin)
-        const tree: Tree = {
-          id: makeId(),
-          forestId: active.forestId,
-          sessionId: active.id,
-          cell: active.cell,
-          kind: species,
-          stage: finalStage(species),
-          state: 'mature',
-          createdAt: endedAt,
+        const state = get()
+        const plan = active.planId
+          ? state.plans.find((item) => item.id === active.planId)
+          : undefined
+
+        if (!plan) {
+          const species = speciesForFocusMin(active.durationMin)
+          const requiredFocusMin = speciesConfig(species).minutes
+          const tree: Tree = {
+            id: makeId(),
+            forestId: active.forestId,
+            sessionId: active.id,
+            cell: active.cell,
+            kind: species,
+            stage: finalStage(species),
+            state: 'mature',
+            requiredFocusMin,
+            accumulatedFocusMin: requiredFocusMin,
+            planId: null,
+            createdAt: endedAt,
+          }
+          const record: FocusRecord = {
+            id: active.id,
+            forestId: active.forestId,
+            startedAt: active.startedAt,
+            endedAt,
+            durationMin: active.durationMin,
+            status: 'completed',
+            treeId: tree.id,
+            title: active.title ?? null,
+            description: active.description ?? null,
+            tasks: active.tasks ? active.tasks.map((task) => ({ ...task })) : [],
+            planId: null,
+            pomoIndex: active.pomoIndex,
+            pomoTotal: active.pomoTotal,
+            credits: [{ treeId: tree.id, minutes: requiredFocusMin }],
+          }
+
+          set((currentState) => ({
+            trees: [...currentState.trees, tree],
+            sessions: [...currentState.sessions, record],
+            active: null,
+            pendingBreak: true,
+            notice: {
+              kind: 'success',
+              text: '¡Pomodoro completado! El árbol quedó en la pradera.',
+            },
+          }))
+          return
         }
+
+        const focusMin = active.durationMin
+        const before = projectPlanting(plan, plan.focusElapsedMin)
+        const focusElapsedMin = plan.focusElapsedMin + focusMin
+        const after = projectPlanting(plan, focusElapsedMin)
+        const { trees, planting } = applyProjection(state.trees, plan, after, endedAt, active.id)
+        const completedPomodoros = Math.min(plan.targetPomodoros, plan.completedPomodoros + 1)
+        // El plan corre hasta el último bloque aunque la cola ya esté completa
+        // (tiempo sobrante): así el usuario puede terminar el tiempo y, si se
+        // va antes, el último árbol plantado se marchita.
+        const planFinished = completedPomodoros >= plan.targetPomodoros
+        const credits = after.items.flatMap((item, index) => {
+          const previous = before.items[index]?.creditedMin ?? 0
+          const minutes = item.creditedMin - previous
+          const treeId = planting[index]?.treeId
+          return minutes > 0 && treeId ? [{ treeId, minutes }] : []
+        })
+        const treeId = credits[0]?.treeId ?? active.treeId ?? ''
+
         const record: FocusRecord = {
           id: active.id,
           forestId: active.forestId,
           startedAt: active.startedAt,
           endedAt,
-          durationMin: active.durationMin,
+          durationMin: focusMin,
           status: 'completed',
-          treeId: tree.id,
+          treeId,
           title: active.title ?? null,
           description: active.description ?? null,
           tasks: active.tasks ? [...active.tasks] : [],
-          planId: active.planId ?? null,
+          planId: plan.id,
           pomoIndex: active.pomoIndex,
           pomoTotal: active.pomoTotal,
+          credits,
+        }
+        const updatedPlan: SessionPlan = {
+          ...plan,
+          planting,
+          focusElapsedMin,
+          completedPomodoros,
+          finishedAt: planFinished ? endedAt : null,
         }
 
-        set((state) => {
-          const plan = active.planId
-            ? state.plans.find((item) => item.id === active.planId)
-            : undefined
-          const completedPomodoros = plan
-            ? Math.min(
-                plan.targetPomodoros,
-                Math.max(plan.completedPomodoros + 1, active.pomoIndex ?? 1),
-              )
-            : 0
-          const planFinished = plan ? completedPomodoros >= plan.targetPomodoros : false
-          const plans = plan
-            ? state.plans.map((item) =>
-                item.id === plan.id
-                  ? {
-                      ...item,
-                      completedPomodoros,
-                      finishedAt: planFinished ? endedAt : null,
-                    }
-                  : item,
-              )
-            : state.plans
-          const notice =
-            plan && !planFinished
+        set({
+          trees,
+          sessions: [...state.sessions, record],
+          plans: state.plans.map((item) => (item.id === plan.id ? updatedPlan : item)),
+          activePlanId: planFinished ? null : plan.id,
+          active: null,
+          pendingBreak: plan.mode === 'breaks' && !planFinished,
+          notice: planFinished
+            ? {
+                kind: 'success',
+                text: `Sesión completada: ${plan.title}.`,
+              }
+            : after.currentIndex === null
               ? {
-                  kind: 'success' as const,
-                  text: `Pomodoro ${completedPomodoros} de ${plan.targetPomodoros} completado. El árbol quedó en la pradera.`,
+                  kind: 'success',
+                  text: `Bloque ${completedPomodoros} de ${plan.targetPomodoros}. Los árboles ya están listos: queda terminar el tiempo.`,
                 }
-              : plan && planFinished
-                ? {
-                    kind: 'success' as const,
-                    text: `Sesión completada: ${plan.title}. Quedaron ${plan.targetPomodoros} árboles.`,
-                  }
-                : {
-                    kind: 'success' as const,
-                    text: '¡Pomodoro completado! El árbol quedó en la pradera.',
-                  }
-
-          return {
-            trees: [...state.trees, tree],
-            sessions: [...state.sessions, record],
-            plans,
-            activePlanId: plan && !planFinished ? plan.id : null,
-            active: null,
-            pendingBreak: true,
-            notice,
-          }
+              : {
+                  kind: 'success',
+                  text: `Bloque ${completedPomodoros} de ${plan.targetPomodoros} completado. El árbol sigue creciendo.`,
+                },
         })
       }
 
       const initialForest = createDefaultForest()
 
       return {
-        version: 4,
+        version: 6,
         forests: [initialForest],
         activeForestId: initialForest.id,
         trees: [],
@@ -417,6 +611,40 @@ export const useStore = create<StoreState>()(
 
         updateDisplay: (patch) => set((state) => ({ display: { ...state.display, ...patch } })),
 
+        cycleTaskStatus: (entryKey, taskId) => {
+          const cycle = (tasks: SessionTask[]): SessionTask[] =>
+            tasks.map((task) =>
+              task.id === taskId ? { ...task, status: nextTaskStatus(task.status) } : task,
+            )
+
+          set((state) => {
+            const plan = state.plans.find((item) => item.id === entryKey)
+            if (plan) {
+              return {
+                plans: state.plans.map((item) =>
+                  item.id === plan.id ? { ...item, tasks: cycle(item.tasks) } : item,
+                ),
+                active:
+                  state.active?.planId === plan.id && state.active.tasks
+                    ? { ...state.active, tasks: cycle(state.active.tasks) }
+                    : state.active,
+              }
+            }
+
+            if (state.active?.id === entryKey && state.active.tasks) {
+              return { active: { ...state.active, tasks: cycle(state.active.tasks) } }
+            }
+
+            return {
+              sessions: state.sessions.map((record) =>
+                record.id === entryKey && record.tasks
+                  ? { ...record, tasks: cycle(record.tasks) }
+                  : record,
+              ),
+            }
+          })
+        },
+
         startSession: (input, now) => {
           if (get().active) {
             return
@@ -443,28 +671,94 @@ export const useStore = create<StoreState>()(
             return
           }
 
-          const title = input.title.trim().slice(0, SESSION_TITLE_MAX_LENGTH)
-          if (!title) {
-            return
-          }
+          const title =
+            (input.title ?? '').trim().slice(0, SESSION_TITLE_MAX_LENGTH) ||
+            defaultSessionName(state.sessions, now)
           const description =
             input.description?.trim().slice(0, SESSION_DESCRIPTION_MAX_LENGTH) || null
-          const tasks = input.tasks
+          const tasks: SessionTask[] = input.tasks
             .map((task) => task.trim().slice(0, SESSION_TASK_MAX_LENGTH))
             .filter((task) => task.length > 0)
             .slice(0, SESSION_MAX_TASKS)
-          const targetPomodoros = Math.min(
-            SESSION_MAX_POMODOROS,
-            Math.max(1, Math.round(input.targetPomodoros)),
+            .map((text) => ({ id: makeId(), text, status: 'neutral' }))
+          const mode = input.mode === 'continuous' ? 'continuous' : 'breaks'
+          const focusMin = clamp(
+            Number.isFinite(input.focusMin) ? input.focusMin : state.settings.focusMin,
+            SESSION_MIN_FOCUS_MIN,
+            SESSION_MAX_FOCUS_MIN,
           )
+          const breakMin = clamp(
+            Number.isFinite(input.breakMin) ? input.breakMin : state.settings.breakMin,
+            SESSION_MIN_BREAK_MIN,
+            SESSION_MAX_BREAK_MIN,
+          )
+          const longBreakMin = clamp(
+            Number.isFinite(input.longBreakMin) ? input.longBreakMin : state.settings.longBreakMin,
+            SESSION_MIN_LONG_BREAK_MIN,
+            SESSION_MAX_LONG_BREAK_MIN,
+          )
+          const targetPomodoros =
+            mode === 'continuous' ? 1 : clamp(input.targetPomodoros, 1, SESSION_MAX_POMODOROS)
+          const plantingSpecies = input.planting.slice(0, SESSION_MAX_TREES)
+          const validation = validatePlanting({
+            focusMin,
+            targetPomodoros,
+            planting: plantingSpecies,
+          })
+
+          if (!validation.ok) {
+            set({
+              notice: {
+                kind: 'warning',
+                text: validation.errors[0] ?? 'La sesión no es válida.',
+              },
+            })
+            return
+          }
+
+          const reservation = reservePlantingCells(
+            forest.id,
+            forest.size,
+            state.trees,
+            plantingSpecies,
+            now,
+          )
+          if (!reservation) {
+            set({
+              notice: {
+                kind: 'warning',
+                text: 'La pradera está llena. Las parcelas nuevas llegan en la próxima versión.',
+              },
+            })
+            return
+          }
+
+          const replaced = new Set(reservation.replacedTreeIds)
+          const trees = state.trees.filter((tree) => !replaced.has(tree.id))
+          const sessions = state.sessions.filter(
+            (session) =>
+              !replaced.has(session.treeId) &&
+              !(session.credits ?? []).some((credit) => replaced.has(credit.treeId)),
+          )
+          const planting: PlantingItem[] = plantingSpecies.map((species, index) => ({
+            species,
+            cell: reservation.cells[index],
+            treeId: null,
+          }))
           const plan: SessionPlan = {
             id: makeId(),
             forestId: forest.id,
             title,
             description,
             tasks,
+            focusMin,
+            breakMin,
+            longBreakMin,
             targetPomodoros,
             completedPomodoros: 0,
+            mode,
+            planting,
+            focusElapsedMin: 0,
             createdAt: now,
             finishedAt: null,
           }
@@ -475,7 +769,13 @@ export const useStore = create<StoreState>()(
               : item,
           )
 
-          set({ plans: [...plans, plan], activePlanId: plan.id })
+          set({
+            trees,
+            sessions,
+            plans: [...plans, plan],
+            activePlanId: plan.id,
+            notice: null,
+          })
           startPlanPomodoro(plan, now)
         },
 
@@ -516,6 +816,22 @@ export const useStore = create<StoreState>()(
           })
         },
 
+        renamePlanTitle: (planId, title) => {
+          const nextTitle = title.trim().slice(0, SESSION_TITLE_MAX_LENGTH)
+          set((state) => ({
+            plans: state.plans.map((plan) =>
+              plan.id === planId ? { ...plan, title: nextTitle || plan.title } : plan,
+            ),
+            ...(state.active?.planId === planId
+              ? {
+                  active: state.active
+                    ? { ...state.active, title: nextTitle || state.active.title }
+                    : state.active,
+                }
+              : {}),
+          }))
+        },
+
         /** Compatibilidad con el auto-inicio: retoma la sesión o empieza una simple. */
         startFocus: (now) => {
           if (get().active) {
@@ -531,12 +847,18 @@ export const useStore = create<StoreState>()(
             return
           }
 
+          const focusMin = state.settings.focusMin
           get().startSession(
             {
               title: 'Pomodoro',
               description: null,
               tasks: [],
+              focusMin,
+              breakMin: state.settings.breakMin,
+              longBreakMin: state.settings.longBreakMin,
               targetPomodoros: 1,
+              mode: 'continuous',
+              planting: suggestPlanting(focusMin, 1),
             },
             now,
           )
@@ -547,10 +869,27 @@ export const useStore = create<StoreState>()(
             return
           }
 
-          const settings = get().settings
-          const completed = get().sessions.filter((s) => s.status === 'completed').length
-          const isLong = completed > 0 && completed % settings.longBreakEvery === 0
-          const breakMin = isLong ? settings.longBreakMin : settings.breakMin
+          const state = get()
+          const plan = state.plans.find(
+            (item) => item.id === state.activePlanId && item.finishedAt === null,
+          )
+          const settings = state.settings
+          const completed = state.sessions.filter((s) => s.status === 'completed').length
+          const planIsLong =
+            plan !== undefined &&
+            plan.longBreakMin !== undefined &&
+            plan.completedPomodoros > 0 &&
+            plan.completedPomodoros % settings.longBreakEvery === 0
+          const isLong = plan
+            ? planIsLong
+            : completed > 0 && completed % settings.longBreakEvery === 0
+          const breakMin = plan
+            ? planIsLong
+              ? (plan.longBreakMin ?? plan.breakMin)
+              : plan.breakMin
+            : isLong
+              ? settings.longBreakMin
+              : settings.breakMin
           const session = createBreakSession(makeId(), now, breakMin)
 
           set({ active: { ...session, longBreak: isLong }, pendingBreak: false, notice: null })
@@ -619,12 +958,110 @@ export const useStore = create<StoreState>()(
             return
           }
 
-          // El árbol se marchita, pero el tiempo enfocado no se pierde: el
-          // registro guarda los minutos reales (sin pausas), no la duración
-          // planeada. Mínimo 1 minuto para cualquier abandono con tiempo.
+          const state = get()
+          const plan = active.planId
+            ? state.plans.find((item) => item.id === active.planId)
+            : undefined
+
+          if (plan) {
+            const focusMs = elapsedMs(active, now)
+            const elapsedMin = Math.max(0, Math.round(focusMs / 60_000))
+            const before = projectPlanting(plan, plan.focusElapsedMin)
+            const focusElapsedMin = plan.focusElapsedMin + elapsedMin
+            const after = projectPlanting(plan, focusElapsedMin)
+            const { trees, planting } = applyProjection(state.trees, plan, after, now, active.id)
+
+            // El árbol que se está trabajando es el actual; si el bloque ya
+            // terminó la cola, el último con minutos. Nunca se marchita un
+            // árbol anterior que ya quedó completo.
+            let targetIndex = after.currentIndex ?? -1
+            if (targetIndex === -1) {
+              for (let index = 0; index < after.items.length; index += 1) {
+                if (after.items[index].creditedMin > 0) {
+                  targetIndex = index
+                }
+              }
+            }
+
+            let targetTreeId =
+              (targetIndex >= 0 ? planting[targetIndex]?.treeId : null) ?? active.treeId
+
+            if (!targetTreeId && after.current) {
+              const tree = treeFromProjection(plan.forestId, active.id, plan.id, after.current, now)
+              trees.push(tree)
+              targetTreeId = tree.id
+              planting[after.current.index] = {
+                ...planting[after.current.index],
+                treeId: tree.id,
+              }
+            }
+
+            if (targetTreeId) {
+              const treeIndex = trees.findIndex((tree) => tree.id === targetTreeId)
+              if (treeIndex >= 0) {
+                const itemIndex = planting.findIndex((item) => item.treeId === targetTreeId)
+                const item = itemIndex >= 0 ? after.items[itemIndex] : undefined
+                trees[treeIndex] = {
+                  ...trees[treeIndex],
+                  state: 'withered',
+                  stage: item?.stage ?? trees[treeIndex].stage,
+                  accumulatedFocusMin: item?.creditedMin ?? trees[treeIndex].accumulatedFocusMin,
+                }
+              }
+            }
+
+            const credits = after.items.flatMap((item, index) => {
+              const previous = before.items[index]?.creditedMin ?? 0
+              const minutes = item.creditedMin - previous
+              const treeId = planting[index]?.treeId
+              return minutes > 0 && treeId ? [{ treeId, minutes }] : []
+            })
+            const record: FocusRecord = {
+              id: active.id,
+              forestId: active.forestId,
+              startedAt: active.startedAt,
+              endedAt: now,
+              durationMin: Math.max(1, elapsedMin),
+              status: 'abandoned',
+              treeId: targetTreeId ?? active.treeId ?? '',
+              title: active.title ?? null,
+              description: active.description ?? null,
+              tasks: active.tasks ? active.tasks.map((task) => ({ ...task })) : [],
+              planId: plan.id,
+              pomoIndex: active.pomoIndex,
+              pomoTotal: active.pomoTotal,
+              credits,
+            }
+            const updatedPlan: SessionPlan = {
+              ...plan,
+              planting,
+              focusElapsedMin,
+              finishedAt: now,
+            }
+
+            set({
+              trees,
+              sessions: [...state.sessions, record],
+              plans: state.plans.map((item) => (item.id === plan.id ? updatedPlan : item)),
+              activePlanId: null,
+              active: null,
+              pendingBreak: false,
+              notice: {
+                kind: 'info',
+                text:
+                  plan.mode === 'continuous'
+                    ? 'La sesión continua se cerró y el último árbol quedó marchito.'
+                    : 'El árbol quedó marchito. La sesión se cerró; podés empezar otra cuando quieras.',
+              },
+            })
+            return
+          }
+
+          // Compatibilidad con sesiones viejas sin plan.
           const focusMs = elapsedMs(active, now)
           const elapsedMin = Math.max(1, Math.round(focusMs / 60_000))
           const species = speciesForFocusMin(active.durationMin)
+          const requiredFocusMin = speciesConfig(species).minutes
           const stage = stageForElapsedMs(species, focusMs, active.durationMin)
           const tree: Tree = {
             id: makeId(),
@@ -634,6 +1071,9 @@ export const useStore = create<StoreState>()(
             kind: species,
             stage,
             state: 'withered',
+            requiredFocusMin,
+            accumulatedFocusMin: Math.min(requiredFocusMin, elapsedMin),
+            planId: null,
             createdAt: now,
           }
           const record: FocusRecord = {
@@ -646,23 +1086,16 @@ export const useStore = create<StoreState>()(
             treeId: tree.id,
             title: active.title ?? null,
             description: active.description ?? null,
-            tasks: active.tasks ? [...active.tasks] : [],
-            planId: active.planId ?? null,
+            tasks: active.tasks ? active.tasks.map((task) => ({ ...task })) : [],
+            planId: null,
             pomoIndex: active.pomoIndex,
             pomoTotal: active.pomoTotal,
+            credits: [{ treeId: tree.id, minutes: elapsedMin }],
           }
 
-          set((state) => ({
-            trees: [...state.trees, tree],
-            sessions: [...state.sessions, record],
-            plans: active.planId
-              ? state.plans.map((plan) =>
-                  plan.id === active.planId && plan.finishedAt === null
-                    ? { ...plan, finishedAt: now }
-                    : plan,
-                )
-              : state.plans,
-            activePlanId: active.planId ? null : state.activePlanId,
+          set((currentState) => ({
+            trees: [...currentState.trees, tree],
+            sessions: [...currentState.sessions, record],
             active: null,
             pendingBreak: false,
             notice: {
