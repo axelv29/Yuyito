@@ -21,6 +21,7 @@ import { suggestPlanting, validatePlanting } from '@/logic/planting'
 import { useStore } from '@/state/store'
 import type { NewSessionInput, SessionMode, TreeSpecies } from '@/state/types'
 import { CloseIcon, MinusIcon, PineIcon, PlusIcon } from './icons'
+import { SessionTimeRing } from './SessionTimeRing'
 import { TreePreview } from './TreePreview'
 
 interface SessionCreateDialogProps {
@@ -195,14 +196,18 @@ export function SessionCreateDialog({
     })
   }
 
-  const handleModeChange = (nextMode: SessionMode) => {
-    const nextTarget = nextMode === 'continuous' ? 1 : targetPomodoros
-    setMode(nextMode)
-    setTargetPomodoros(nextTarget)
-
-    if (nextMode === 'continuous') {
-      setQueue(suggestPlanting(focusMin))
+  const handleCyclesToggle = (enabled: boolean) => {
+    if (enabled) {
+      const nextTarget = 3
+      setMode('breaks')
+      setTargetPomodoros(nextTarget)
+      setQueue(suggestPlanting(focusMin * nextTarget))
+      return
     }
+
+    setMode('continuous')
+    setTargetPomodoros(1)
+    setQueue(suggestPlanting(focusMin))
   }
 
   const handlePreset = (preset: { focus: number; brk: number }) => {
@@ -241,7 +246,7 @@ export function SessionCreateDialog({
       }}
     >
       <div
-        className="card card--roomy forest-dialog session-dialog my-auto w-full max-w-xl"
+        className="card card--roomy forest-dialog session-dialog my-auto w-full max-w-[30rem]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-dialog-title"
@@ -366,102 +371,131 @@ export function SessionCreateDialog({
           <section className="session-section" aria-label="Tiempos">
             <div className="session-section__head">
               <h3 className="type-title">Tiempos</h3>
-              <div className="session-mode" role="group" aria-label="Modo de la sesión">
-                <button
-                  type="button"
-                  className="session-mode__option"
-                  aria-pressed={mode === 'breaks'}
-                  onClick={() => handleModeChange('breaks')}
-                >
-                  Con descansos
-                </button>
-                <button
-                  type="button"
-                  className="session-mode__option"
-                  aria-pressed={mode === 'continuous'}
-                  onClick={() => handleModeChange('continuous')}
-                >
-                  Sin descansos
-                </button>
+            </div>
+
+            <div className="session-time">
+              <div className="session-time__main">
+                <div className="session-presets" aria-label="Ritmos rápidos">
+                  {PRESETS.map((preset) => (
+                    <button
+                      key={`${preset.focus}-${preset.brk}`}
+                      type="button"
+                      className="session-preset"
+                      aria-pressed={activePreset === preset}
+                      onClick={() => handlePreset(preset)}
+                    >
+                      {preset.focus} / {preset.brk}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="session-preset"
+                    aria-pressed={showFocusBreakSteppers}
+                    onClick={() => setCustom(true)}
+                  >
+                    Personalizado
+                  </button>
+                </div>
+
+                <div className="session-time__row">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={mode === 'breaks'}
+                    className="session-toggle"
+                    onClick={() => handleCyclesToggle(mode !== 'breaks')}
+                  >
+                    <span className="session-toggle__track" aria-hidden="true">
+                      <span className="session-toggle__knob" />
+                    </span>
+                    <span className="session-toggle__label">Activar ciclos</span>
+                  </button>
+
+                  {mode === 'breaks' && (
+                    <div className="session-cycles">
+                      <span className="session-cycles__label">Ciclos</span>
+                      <button
+                        type="button"
+                        className="stepper__btn stepper__btn--compact"
+                        onClick={() =>
+                          setTargetPomodoros(clamp(targetPomodoros - 1, 1, SESSION_MAX_POMODOROS))
+                        }
+                        disabled={targetPomodoros <= 1}
+                        aria-label="Reducir Ciclos"
+                      >
+                        <MinusIcon />
+                      </button>
+                      <span className="session-cycles__value">{targetPomodoros}</span>
+                      <button
+                        type="button"
+                        className="stepper__btn stepper__btn--compact"
+                        onClick={() =>
+                          setTargetPomodoros(clamp(targetPomodoros + 1, 1, SESSION_MAX_POMODOROS))
+                        }
+                        disabled={targetPomodoros >= SESSION_MAX_POMODOROS}
+                        aria-label="Aumentar Ciclos"
+                      >
+                        <PlusIcon />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {showFocusBreakSteppers && (
+                  <div className="session-steppers">
+                    <Stepper
+                      label="Enfoque"
+                      value={focusMin}
+                      min={SESSION_MIN_FOCUS_MIN}
+                      max={SESSION_MAX_FOCUS_MIN}
+                      step={SESSION_FOCUS_STEP}
+                      unit="min"
+                      onChange={(value) => {
+                        setFocusMin(value)
+                        setCustom(true)
+                      }}
+                    />
+                    {mode === 'breaks' && (
+                      <Stepper
+                        label="Pausa"
+                        value={breakMin}
+                        min={SESSION_MIN_BREAK_MIN}
+                        max={SESSION_MAX_BREAK_MIN}
+                        step={SESSION_BREAK_STEP}
+                        unit="min"
+                        onChange={(value) => {
+                          setBreakMin(value)
+                          setCustom(true)
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {mode === 'continuous' && (
+                  <p className="type-caption type-muted">
+                    Sesión continua: un solo bloque, sin pausas.
+                  </p>
+                )}
+
+                <div className="session-summary">
+                  <span>
+                    <strong>{focusMin * targetPomodoros}</strong> min de enfoque
+                  </span>
+                  {totalClock !== focusMin * targetPomodoros && (
+                    <span>
+                      <strong>{totalClock}</strong> min en total
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="session-presets" aria-label="Ritmos rápidos">
-              {PRESETS.map((preset) => (
-                <button
-                  key={`${preset.focus}-${preset.brk}`}
-                  type="button"
-                  className="session-preset"
-                  aria-pressed={activePreset === preset}
-                  onClick={() => handlePreset(preset)}
-                >
-                  {preset.focus} / {preset.brk}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="session-preset"
-                aria-pressed={showFocusBreakSteppers}
-                onClick={() => setCustom(true)}
-              >
-                Personalizado
-              </button>
-            </div>
-
-            <div className="session-steppers">
-              {showFocusBreakSteppers && (
-                <Stepper
-                  label="Enfoque"
-                  value={focusMin}
-                  min={SESSION_MIN_FOCUS_MIN}
-                  max={SESSION_MAX_FOCUS_MIN}
-                  step={SESSION_FOCUS_STEP}
-                  unit="min"
-                  onChange={(value) => {
-                    setFocusMin(value)
-                    setCustom(true)
-                  }}
-                />
-              )}
-              {showFocusBreakSteppers && mode === 'breaks' && (
-                <Stepper
-                  label="Pausa"
-                  value={breakMin}
-                  min={SESSION_MIN_BREAK_MIN}
-                  max={SESSION_MAX_BREAK_MIN}
-                  step={SESSION_BREAK_STEP}
-                  unit="min"
-                  onChange={(value) => {
-                    setBreakMin(value)
-                    setCustom(true)
-                  }}
-                />
-              )}
-              {mode === 'breaks' && (
-                <Stepper
-                  label="Ciclos"
-                  value={targetPomodoros}
-                  min={1}
-                  max={SESSION_MAX_POMODOROS}
-                  step={1}
-                  onChange={setTargetPomodoros}
-                />
-              )}
-            </div>
-
-            {mode === 'continuous' && (
-              <p className="type-caption type-muted">
-                Sesión continua: un solo bloque, sin pausas.
-              </p>
-            )}
-
-            <div className="session-summary">
-              <span>
-                <strong>{focusMin * targetPomodoros}</strong> min de enfoque
-              </span>
-              <span>
-                <strong>{totalClock}</strong> min en total
-              </span>
+              <SessionTimeRing
+                focusMin={focusMin}
+                breakMin={mode === 'breaks' ? breakMin : 0}
+                cycles={targetPomodoros}
+                totalMin={totalClock}
+              />
             </div>
           </section>
 

@@ -95,7 +95,10 @@ Los tokens `--button-*` controlan borde, padding, radio, sombra y colores. Los e
 - `.session-resume`, `.session-resume__title` — serie pendiente en el panel del timer.
 - `.session-card__description`, `.session-tasks`, `.session-task` (`--neutral`, `--done`, `--missed`), `.session-task__icon`, `.session-task__text` — descripción y objetivos con estado de la sesión activa; la misma lista se reutiliza en el detalle del historial.
 - `.session-objectives`, `.session-objective`, `.session-add-task` — lista editable de objetivos del diálogo de sesión.
-- `.session-mode`, `.session-mode__option` (estado con `aria-pressed`) — modo con/sin descansos del diálogo de sesión.
+- `.session-time`, `.session-time__main`, `.session-time__row` — fila de Tiempos: contenido a la izquierda y anillo de resumen a la derecha.
+- `.session-toggle`, `.session-toggle__track`, `.session-toggle__knob` (estado con `aria-checked`) — switch **Activar ciclos** del diálogo de sesión; apagado equivale a un solo bloque sin pausas.
+- `.session-cycles`, `.session-cycles__label`, `.session-cycles__value` — selector de ciclos compacto en forma de pill, con los botones `.stepper__btn--compact`; no ocupa el ancho de la card.
+- `.session-time-ring`, `.session-time-ring__svg`, `.session-time-ring__track`, `.session-time-ring__arc` (`--focus`, `--break`), `.session-time-ring__center`, `.session-time-ring__total`, `.session-time-ring__unit` — anillo chico con la composición de la sesión; los arcos de enfoque usan el degradado `--ring-from`/`--ring-to` y los de pausa `--ring-short-from`.
 - `.session-presets`, `.session-preset` (estado con `aria-pressed`) — presets de ritmo (25/5, 50/10, 90/20) y el chip “Personalizado”.
 - `.session-steppers`, `.stepper`, `.stepper__label`, `.stepper__row`, `.stepper__btn`, `.stepper__value` — ajuste fino con contadores −/+.
 - `.session-summary` — resumen con foco total y duración completa.
