@@ -18,9 +18,7 @@ export function SessionDetails({ children }: { children: ReactNode }) {
         aria-controls={id}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="session-details__label">
-          {open ? 'Ocultar datos' : 'Más datos'}
-        </span>
+        <span className="session-details__label">{open ? 'Ocultar datos' : 'Más datos'}</span>
         <ChevronDownIcon className="session-details__chevron" />
       </button>
       {open && (

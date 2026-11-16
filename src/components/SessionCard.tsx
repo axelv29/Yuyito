@@ -110,9 +110,7 @@ export function SessionCard({ now }: { now: number }) {
             />
           </h2>
           <p className="type-micro type-muted mt-0.5">{detail}</p>
-          {active.title?.trim() && (
-            <p className="type-micro type-muted mt-0.5">{speciesDetail}</p>
-          )}
+          {active.title?.trim() && <p className="type-micro type-muted mt-0.5">{speciesDetail}</p>}
         </div>
       </div>
 
