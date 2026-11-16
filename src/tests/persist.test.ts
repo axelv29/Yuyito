@@ -450,4 +450,51 @@ describe('createSafeStorage', () => {
     expect(issues).toEqual([])
     expect(storage.getItem('focus-forest.broken')).toBeNull()
   })
+
+  it('rescata los datos válidos de un guardado con un elemento dañado', () => {
+    const { storage } = makeStorage()
+    const brokenTree = { ...TREE, id: 'tree-2', cell: { col: 99, row: 99 } }
+    const raw = envelope({ ...STATE, trees: [TREE, brokenTree] }, 6)
+    storage.setItem('focus-forest', raw)
+    const issues: StorageIssue[] = []
+    const safe = createSafeStorage(
+      () => storage,
+      (issue) => issues.push(issue),
+    )
+
+    const healed = safe.getItem('focus-forest')
+
+    expect(healed).not.toBeNull()
+    const saved = JSON.parse(healed as string) as { state: PersistedV6; version: number }
+    expect(saved.version).toBe(6)
+    expect(saved.state.trees.map((tree) => tree.id)).toEqual([TREE.id])
+    expect(saved.state.plans).toHaveLength(1)
+    expect(saved.state.sessions).toHaveLength(1)
+
+    expect(storage.getItem('focus-forest.broken')).toBe(raw)
+    expect(issues).toEqual([{ kind: 'recovered' }])
+  })
+
+  it('deja el guardado rescatado sano para la próxima lectura', () => {
+    const { storage } = makeStorage()
+    const raw = envelope({ ...STATE, active: { kind: 'focus' } }, 6)
+    storage.setItem('focus-forest', raw)
+    const first = createSafeStorage(
+      () => storage,
+      () => undefined,
+    )
+
+    const healed = first.getItem('focus-forest')
+    expect(healed).not.toBeNull()
+
+    const issues: StorageIssue[] = []
+    const second = createSafeStorage(
+      () => storage,
+      (issue) => issues.push(issue),
+    )
+
+    expect(second.getItem('focus-forest')).toBe(storage.getItem('focus-forest'))
+    expect(issues).toEqual([])
+    expect(storage.getItem('focus-forest.broken')).toBe(raw)
+  })
 })

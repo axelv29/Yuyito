@@ -4,6 +4,8 @@ function messageFor(issue: StorageIssue): string {
   switch (issue.kind) {
     case 'corrupt':
       return 'El guardado del navegador estaba dañado. Guardamos una copia y empezamos de nuevo.'
+    case 'recovered':
+      return 'El guardado tenía datos dañados. Recuperamos todo lo que se pudo y el original quedó guardado por si hace falta.'
     case 'future-version':
       return `El guardado es de una versión más nueva (v${issue.version}). Esta versión no lo modifica ni guarda cambios nuevos; actualizá la app para recuperarlo.`
     case 'unavailable':
@@ -19,8 +21,9 @@ export function StorageNotice() {
     return null
   }
 
-  const dismissible = issue.kind === 'corrupt'
-  const tone = issue.kind === 'corrupt' ? 'toast--info' : 'toast--warning'
+  const dismissible = issue.kind === 'corrupt' || issue.kind === 'recovered'
+  const tone =
+    issue.kind === 'corrupt' || issue.kind === 'recovered' ? 'toast--info' : 'toast--warning'
 
   return (
     <div className="relative z-30 mx-auto w-full max-w-3xl px-4 pb-2">

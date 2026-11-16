@@ -833,28 +833,69 @@ function defaultGetStorage(): Storage | null {
   return typeof localStorage === 'undefined' ? null : localStorage
 }
 
-function backupState(storage: Storage, name: string, raw: string): boolean {
+function copyToBackup(storage: Storage, name: string, raw: string): boolean {
   try {
     const baseKey = `${name}.broken`
     const backupKey = storage.getItem(baseKey) === null ? baseKey : `${baseKey}.${Date.now()}`
 
     storage.setItem(backupKey, raw)
-
-    try {
-      storage.removeItem(name)
-    } catch {
-      // Si no se puede borrar, la copia ya está a salvo.
-    }
-
     return true
   } catch {
     return false
   }
 }
 
+function backupState(storage: Storage, name: string, raw: string): boolean {
+  const copied = copyToBackup(storage, name, raw)
+
+  if (copied) {
+    try {
+      storage.removeItem(name)
+    } catch {
+      // Si no se puede borrar, la copia ya está a salvo.
+    }
+  }
+
+  return copied
+}
+
 /**
- * Envuelve localStorage con tres protecciones:
- * - datos dañados: copia en `focus-forest.broken` y reinicio;
+ * Un guardado conserva la forma general aunque falle la validación estricta.
+ * Solo en ese caso vale la pena intentar rescatar sus elementos válidos: si
+ * falta la estructura, es basura y no hay nada que salvar.
+ */
+function hasSaveShape(value: unknown): value is Record<string, unknown> {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.forests) &&
+    Array.isArray(value.trees) &&
+    Array.isArray(value.sessions) &&
+    Array.isArray(value.plans)
+  )
+}
+
+/**
+ * Rescata de un guardado dañado todo lo que valida, en lugar de descartarlo
+ * entero. `migrate` ya descarta elemento por elemento; si aun así el
+ * resultado no es un estado íntegro, no se rescata nada.
+ */
+function recoverState(state: unknown): PersistedV6 | null {
+  if (!hasSaveShape(state)) {
+    return null
+  }
+
+  try {
+    const recovered = migrate(state, PERSIST_VERSION)
+    return isPersistedState(recovered) ? recovered : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Envuelve localStorage con cuatro protecciones:
+ * - datos dañados de la versión actual: rescata lo que valida y copia el
+ *   original en `focus-forest.broken`; si no se rescata nada, reinicia;
  * - versión más nueva: aviso y escrituras bloqueadas, sin tocar el original;
  * - almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
  */
@@ -916,7 +957,32 @@ export function createSafeStorage(
         return null
       }
 
-      if (envelope.version === PERSIST_VERSION && !isPersistedState(envelope.state)) {
+      if (envelope.version === PERSIST_VERSION) {
+        if (isPersistedState(envelope.state)) {
+          return raw
+        }
+
+        // Un solo elemento inválido no debe costar todo el progreso: se
+        // rescatan los datos válidos, el original queda copiado en `.broken`
+        // y el guardado se reescribe ya sano.
+        const recovered = recoverState(envelope.state)
+        if (recovered) {
+          copyToBackup(storage, name, raw)
+
+          const healed = JSON.stringify({ state: recovered, version: PERSIST_VERSION })
+
+          try {
+            storage.setItem(name, healed)
+          } catch {
+            writesBlocked = true
+            reportIssue({ kind: 'unavailable' })
+            return healed
+          }
+
+          reportIssue({ kind: 'recovered' })
+          return healed
+        }
+
         return resetCorrupt()
       }
 

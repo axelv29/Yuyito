@@ -84,7 +84,7 @@ Dirección de dependencias: `config` no importa nada; `logic` importa `config` y
 - El historial por bosque se deriva de `sessions`, `plans` y `trees`; no se guarda una copia. Agrupa por `planId ?? id`, muestra completadas, abandonadas, mixtas y la en curso, e incluye filtros Todas, Hoy, Esta semana, Series y Marchitas. Las sesiones de otro bosque no aparecen. Los abandonos registran los minutos reales enfocados antes de marchitarse; las completadas suman su duración planeada. Un árbol parcial aparece como “En crecimiento”.
 - Las estadísticas se derivan; no guardar contadores duplicados. `matureTrees`, `growingTrees` y `witheredTrees` se cuentan por separado.
 - Al rehidratar, reconciliar: enfoque vencido → completar; descanso vencido → cerrar; pausado → no completar.
-- Datos dañados: copiar a `focus-forest.broken` y reiniciar. Versión más nueva: avisar y bloquear escrituras sin tocar el original. localStorage bloqueado o lleno: avisar y seguir en memoria.
+- Datos dañados de la versión actual: rescatar con `migrate()` los elementos válidos, copiar el original a `focus-forest.broken` y reescribir el guardado ya sano (aviso “recuperamos lo que se pudo”); si no se rescata nada, copiar y reiniciar. Versión más nueva: avisar y bloquear escrituras sin tocar el original. localStorage bloqueado o lleno: avisar y seguir en memoria.
 
 ### Isometría
 

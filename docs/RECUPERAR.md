@@ -1,6 +1,7 @@
 # Recuperar un guardado dañado
 
-Cuando la app no puede leer el guardado, **no lo borra**: lo copia a otra clave
+Cuando la app no puede leer el guardado, no lo descarta a la ligera: primero
+intenta rescatar los elementos válidos; si no queda nada, lo copia a otra clave
 de localStorage y arranca de cero. La copia sigue ahí.
 
 | Clave | Qué contiene |
@@ -10,7 +11,8 @@ de localStorage y arranca de cero. La copia sigue ahí.
 | `focus-forest.broken.<timestamp>` | Copias de incidentes posteriores. |
 | `focus-forest.antes-de-recuperar.<timestamp>` | Lo que había antes de restaurar una copia. |
 
-Código: `src/state/persist.ts` → `backupState()`.
+Código: `src/state/persist.ts` → `copyToBackup()`, `recoverState()` y
+`createSafeStorage()`.
 
 ## Incidente del 2026-11-16
 
@@ -22,6 +24,9 @@ empezaba de cero.
 
 Arreglado en `src/state/persist.ts`: `isSessionPlan()` ahora usa `isSessionTask`,
 igual que `isStoredSessionPlan()` y `isFocusRecordBase()`.
+
+Además, con el rescate al leer (ver abajo), un caso así ya no cuesta todo el
+progreso: se descarta solo el plan inválido y se conserva el resto.
 
 ## Restaurar la copia
 
@@ -64,10 +69,24 @@ Si hace falta revisar el contenido fuera del navegador:
 })()
 ```
 
+## Dos capas de defensa
+
+1. **Rescate al leer.** Si el guardado tiene la versión actual pero no valida,
+   `getItem()` comprueba que tenga la forma general (`forests`, `trees`,
+   `sessions`, `plans` como arrays), corre `migrate()` —que ya descarta elemento
+   por elemento— y, si el resultado valida, lo devuelve y lo reescribe ya sano.
+   El original queda copiado en `focus-forest.broken` y se avisa con “recuperamos
+   todo lo que se pudo”. Solo si no se rescata nada se reinicia.
+2. **Validador al día.** Un dato nuevo en el guardado necesita su validador, su
+   versión y un caso en `src/tests/persist.test.ts` con el dato **presente**
+   (no vacío) en el mismo commit.
+
 ## Regla para no repetirlo
 
-`isPersistedState()` es todo o nada: un solo elemento inválido descarta el
-estado completo. Al cambiar la forma de lo que se guarda hay que actualizar
-**el validador y su versión** en el mismo commit, y agregar un caso en
-`src/tests/persist.test.ts` con el dato nuevo. Los tests existentes no lo
-detectaron porque el plan de prueba tenía `tasks: []`.
+`isPersistedState()` sigue siendo todo o nada a propósito: define qué es un
+estado íntegro. Lo que cambió es qué se hace cuando falla. Al cambiar la forma
+de lo que se guarda hay que actualizar el validador y su versión en el mismo
+commit, y agregar un caso en `src/tests/persist.test.ts` con el dato nuevo. Los
+tests existentes no detectaron este incidente porque el plan de prueba tenía
+`tasks: []` y el `every` pasaba vacío: los casos deben incluir el dato, no solo
+el tipo.
