@@ -84,6 +84,8 @@ export interface SessionPlan {
   breakMin: number
   /** Minutos del descanso largo al cerrar un ciclo de bloques. */
   longBreakMin?: number
+  /** Cada cuántos bloques va el descanso largo. `0` = sin pausa larga. */
+  longBreakEvery?: number
   /** Cantidad de bloques de enfoque (1–8). */
   targetPomodoros: number
   completedPomodoros: number
@@ -105,6 +107,8 @@ export interface NewSessionInput {
   focusMin: number
   breakMin: number
   longBreakMin: number
+  /** Cada cuántos bloques va la pausa larga. `0` = sin pausa larga. */
+  longBreakEvery?: number
   targetPomodoros: number
   mode: SessionMode
   planting: TreeSpecies[]

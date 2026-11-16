@@ -161,7 +161,7 @@ export function validatePlanting(input: PlantingValidationInput): PlantingValida
     } else {
       const percent = Math.round((last.creditedMin / last.requiredMin) * 100)
       warnings.push(
-        `El último árbol quedará al ${percent}% (${last.creditedMin}/${last.requiredMin} min). Ajustá el tiempo o aceptá que no madure.`,
+        `El último árbol queda al ${percent}% (${last.creditedMin}/${last.requiredMin} min).`,
       )
     }
   }

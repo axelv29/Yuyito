@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
 import { finalStage, speciesConfig } from '@/config/species'
 import {
   SESSION_BREAK_STEP,
   SESSION_DESCRIPTION_MAX_LENGTH,
   SESSION_FOCUS_STEP,
+  SESSION_LONG_BREAK_STEP,
   SESSION_MAX_BREAK_MIN,
   SESSION_MAX_FOCUS_MIN,
   SESSION_MAX_LONG_BREAK_MIN,
@@ -18,9 +27,11 @@ import {
 } from '@/config/session'
 import { useEdgeScrollbar } from '@/hooks/useEdgeScrollbar'
 import { suggestPlanting, validatePlanting } from '@/logic/planting'
+import { sessionTotalMinutes } from '@/logic/session'
 import { useStore } from '@/state/store'
 import type { NewSessionInput, SessionMode, TreeSpecies } from '@/state/types'
 import { CloseIcon, MinusIcon, PineIcon, PlusIcon } from './icons'
+import { InfoTip } from './InfoTip'
 import { SessionTimeRing } from './SessionTimeRing'
 import { TreePreview } from './TreePreview'
 
@@ -43,43 +54,95 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)))
 }
 
-interface StepperProps {
+interface NumberFieldProps {
+  /** Nombre accesible del campo y de sus botones. */
   label: string
   value: number
   min: number
   max: number
-  step: number
+  step?: number
   unit?: string
   onChange: (value: number) => void
 }
 
-function Stepper({ label, value, min, max, step, unit, onChange }: StepperProps) {
-  const display = unit ? `${value} ${unit}` : String(value)
+/**
+ * Número compacto con −/+ discretos y edición a mano: se puede escribir el
+ * entero que se quiera y se ajusta a los límites al salir del campo.
+ */
+function NumberField({ label, value, min, max, step = 1, unit, onChange }: NumberFieldProps) {
+  const [draft, setDraft] = useState(String(value))
+  const editing = useRef(false)
+
+  useEffect(() => {
+    if (!editing.current) {
+      setDraft(String(value))
+    }
+  }, [value])
+
+  const commit = (raw: string) => {
+    const parsed = Number.parseInt(raw, 10)
+    const next = Number.isFinite(parsed) ? clamp(parsed, min, max) : value
+    if (next !== value) {
+      onChange(next)
+    }
+    setDraft(String(next))
+  }
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const digits = event.target.value.replace(/\D/g, '').slice(0, 3)
+    setDraft(digits)
+    if (digits !== '') {
+      onChange(clamp(Number(digits), min, max))
+    }
+  }
+
   return (
-    <div className="stepper">
-      <span className="stepper__label">{label}</span>
-      <div className="stepper__row">
-        <button
-          type="button"
-          className="stepper__btn"
-          onClick={() => onChange(clamp(value - step, min, max))}
-          disabled={value <= min}
-          aria-label={`Reducir ${label}`}
-        >
-          <MinusIcon />
-        </button>
-        <span className="stepper__value">{display}</span>
-        <button
-          type="button"
-          className="stepper__btn"
-          onClick={() => onChange(clamp(value + step, min, max))}
-          disabled={value >= max}
-          aria-label={`Aumentar ${label}`}
-        >
-          <PlusIcon />
-        </button>
-      </div>
-    </div>
+    <span className="num-field">
+      <button
+        type="button"
+        className="num-field__btn"
+        onClick={() => onChange(clamp(value - step, min, max))}
+        disabled={value <= min}
+        aria-label={`Reducir ${label}`}
+      >
+        <MinusIcon />
+      </button>
+
+      <span className="num-field__value">
+        <input
+          className="num-field__input"
+          value={draft}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          aria-label={label}
+          style={{ width: `${Math.max(1, draft.length)}ch` }}
+          onFocus={() => {
+            editing.current = true
+          }}
+          onChange={handleChange}
+          onBlur={() => {
+            editing.current = false
+            commit(draft)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.currentTarget.blur()
+            }
+          }}
+        />
+        {unit && <span className="num-field__unit">{unit}</span>}
+      </span>
+
+      <button
+        type="button"
+        className="num-field__btn"
+        onClick={() => onChange(clamp(value + step, min, max))}
+        disabled={value >= max}
+        aria-label={`Aumentar ${label}`}
+      >
+        <PlusIcon />
+      </button>
+    </span>
   )
 }
 
@@ -104,8 +167,14 @@ export function SessionCreateDialog({
     clamp(settings.breakMin, SESSION_MIN_BREAK_MIN, SESSION_MAX_BREAK_MIN),
   )
   const [targetPomodoros, setTargetPomodoros] = useState(3)
+  const [longBreaks, setLongBreaks] = useState(false)
+  const [longBreakEvery, setLongBreakEvery] = useState(() =>
+    clamp(settings.longBreakEvery, 1, SESSION_MAX_POMODOROS),
+  )
+  const [longBreakMin, setLongBreakMin] = useState(() =>
+    clamp(settings.longBreakMin, SESSION_MIN_LONG_BREAK_MIN, SESSION_MAX_LONG_BREAK_MIN),
+  )
   const [queue, setQueue] = useState<TreeSpecies[]>(() => suggestPlanting(initialFocus * 3))
-  const [custom, setCustom] = useState(false)
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => titleRef.current?.focus())
@@ -128,12 +197,18 @@ export function SessionCreateDialog({
   }, [handleClose])
 
   const budget = focusMin * targetPomodoros
-  // El descanso largo no se expone en la maqueta: se toma de los ajustes.
-  const longBreakMin = clamp(
-    settings.longBreakMin,
-    SESSION_MIN_LONG_BREAK_MIN,
-    SESSION_MAX_LONG_BREAK_MIN,
+  const rhythm = useMemo(
+    () => ({
+      focusMin,
+      breakMin: mode === 'breaks' ? breakMin : 0,
+      cycles: targetPomodoros,
+      longBreakMin: mode === 'breaks' && longBreaks ? longBreakMin : 0,
+      longBreakEvery: mode === 'breaks' && longBreaks ? longBreakEvery : 0,
+    }),
+    [breakMin, focusMin, longBreakEvery, longBreakMin, longBreaks, mode, targetPomodoros],
   )
+  const totalClock = useMemo(() => sessionTotalMinutes(rhythm), [rhythm])
+
   const totalCost = useMemo(
     () => queue.reduce((sum, species) => sum + speciesConfig(species).minutes, 0),
     [queue],
@@ -152,15 +227,13 @@ export function SessionCreateDialog({
     () => PRESETS.find((preset) => preset.focus === focusMin && preset.brk === breakMin) ?? null,
     [breakMin, focusMin],
   )
-  const showFocusBreakSteppers = custom || activePreset === null
 
   const sobra = Math.max(0, budget - totalCost)
   const falta = Math.max(0, totalCost - budget)
   const barPct = budget > 0 ? Math.min(1, totalCost / budget) : 0
-  const totalClock =
-    focusMin * targetPomodoros +
-    (mode === 'breaks' ? Math.max(0, targetPomodoros - 1) * breakMin : 0)
   const canStart = queue.length > 0 && totalCost <= budget
+  // El tiempo sobrante se explica en el tooltip de la barra, no en un párrafo.
+  const messages = validation.warnings.filter((warning) => !warning.startsWith('Sobran '))
 
   if (!open) {
     return null
@@ -213,7 +286,6 @@ export function SessionCreateDialog({
   const handlePreset = (preset: { focus: number; brk: number }) => {
     setFocusMin(preset.focus)
     setBreakMin(preset.brk)
-    setCustom(false)
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -229,6 +301,7 @@ export function SessionCreateDialog({
       focusMin,
       breakMin,
       longBreakMin,
+      longBreakEvery: mode === 'breaks' && longBreaks ? longBreakEvery : 0,
       targetPomodoros,
       mode,
       planting: queue,
@@ -295,9 +368,6 @@ export function SessionCreateDialog({
                 placeholder="Terminar el TP, estudiar para el final…"
                 autoComplete="off"
               />
-              <p className="type-micro type-muted">
-                opcional · se llama “Sesión N” del día si se deja vacía
-              </p>
             </div>
 
             <div className="forest-field">
@@ -306,7 +376,7 @@ export function SessionCreateDialog({
                   <span className="type-body">Descripción</span>
                 </label>
                 <span className="type-micro type-muted">
-                  {description.length}/{SESSION_DESCRIPTION_MAX_LENGTH} · opcional
+                  {description.length}/{SESSION_DESCRIPTION_MAX_LENGTH}
                 </span>
               </div>
               <textarea
@@ -321,12 +391,9 @@ export function SessionCreateDialog({
             </div>
 
             <div className="forest-field">
-              <div className="forest-field__label-row">
-                <span className="settings-label">
-                  <span className="type-body">Objetivos</span>
-                </span>
-                <span className="type-micro type-muted">opcional</span>
-              </div>
+              <span className="settings-label">
+                <span className="type-body">Objetivos</span>
+              </span>
 
               {tasks.length > 0 && (
                 <ul className="session-objectives">
@@ -387,102 +454,126 @@ export function SessionCreateDialog({
                       {preset.focus} / {preset.brk}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    className="session-preset"
-                    aria-pressed={showFocusBreakSteppers}
-                    onClick={() => setCustom(true)}
-                  >
-                    Personalizado
-                  </button>
                 </div>
 
                 <div className="session-time__row">
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={mode === 'breaks'}
-                    className="session-toggle"
-                    onClick={() => handleCyclesToggle(mode !== 'breaks')}
-                  >
-                    <span className="session-toggle__track" aria-hidden="true">
-                      <span className="session-toggle__knob" />
-                    </span>
-                    <span className="session-toggle__label">Activar ciclos</span>
-                  </button>
+                  <span className="session-switch">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={mode === 'breaks'}
+                      className="session-toggle"
+                      onClick={() => handleCyclesToggle(mode !== 'breaks')}
+                    >
+                      <span className="session-toggle__track" aria-hidden="true">
+                        <span className="session-toggle__knob" />
+                      </span>
+                      <span className="session-toggle__label">Activar ciclos</span>
+                    </button>
+                    <InfoTip
+                      label="Más información sobre los ciclos"
+                      text="Con ciclos, la sesión alterna bloques de enfoque y pausas, y podés retomarla desde un descanso. Sin ciclos es un solo bloque: si salís, la sesión se cierra."
+                    />
+                  </span>
 
                   {mode === 'breaks' && (
                     <div className="session-cycles">
                       <span className="session-cycles__label">Ciclos</span>
-                      <button
-                        type="button"
-                        className="stepper__btn stepper__btn--compact"
-                        onClick={() =>
-                          setTargetPomodoros(clamp(targetPomodoros - 1, 1, SESSION_MAX_POMODOROS))
-                        }
-                        disabled={targetPomodoros <= 1}
-                        aria-label="Reducir Ciclos"
-                      >
-                        <MinusIcon />
-                      </button>
-                      <span className="session-cycles__value">{targetPomodoros}</span>
-                      <button
-                        type="button"
-                        className="stepper__btn stepper__btn--compact"
-                        onClick={() =>
-                          setTargetPomodoros(clamp(targetPomodoros + 1, 1, SESSION_MAX_POMODOROS))
-                        }
-                        disabled={targetPomodoros >= SESSION_MAX_POMODOROS}
-                        aria-label="Aumentar Ciclos"
-                      >
-                        <PlusIcon />
-                      </button>
+                      <NumberField
+                        label="Ciclos"
+                        value={targetPomodoros}
+                        min={1}
+                        max={SESSION_MAX_POMODOROS}
+                        onChange={setTargetPomodoros}
+                      />
                     </div>
                   )}
                 </div>
 
-                {showFocusBreakSteppers && (
-                  <div className="session-steppers">
-                    <Stepper
-                      label="Enfoque"
+                {mode === 'breaks' && (
+                  <>
+                    <div className="session-time__row">
+                      <span className="session-switch">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={longBreaks}
+                          className="session-toggle"
+                          onClick={() => setLongBreaks((value) => !value)}
+                        >
+                          <span className="session-toggle__track" aria-hidden="true">
+                            <span className="session-toggle__knob" />
+                          </span>
+                          <span className="session-toggle__label">Pausas largas</span>
+                        </button>
+                        <InfoTip
+                          label="Más información sobre las pausas largas"
+                          text="Una pausa más larga cada cierta cantidad de bloques. Elegí cada cuántos bloques va y cuánto dura."
+                        />
+                      </span>
+                    </div>
+
+                    {longBreaks && (
+                      <div className="session-time__row session-time__row--sub">
+                        <div className="session-cycles">
+                          <NumberField
+                            label="Cada cuántos bloques"
+                            value={longBreakEvery}
+                            min={1}
+                            max={SESSION_MAX_POMODOROS}
+                            unit="ciclos"
+                            onChange={setLongBreakEvery}
+                          />
+                          <NumberField
+                            label="Minutos de pausa larga"
+                            value={longBreakMin}
+                            min={SESSION_MIN_LONG_BREAK_MIN}
+                            max={SESSION_MAX_LONG_BREAK_MIN}
+                            step={SESSION_LONG_BREAK_STEP}
+                            unit="min"
+                            onChange={setLongBreakMin}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div className="time-fields">
+                  <div className="time-field">
+                    <span className="time-field__label">Enfoque</span>
+                    <NumberField
+                      label="Minutos de enfoque"
                       value={focusMin}
                       min={SESSION_MIN_FOCUS_MIN}
                       max={SESSION_MAX_FOCUS_MIN}
                       step={SESSION_FOCUS_STEP}
                       unit="min"
-                      onChange={(value) => {
-                        setFocusMin(value)
-                        setCustom(true)
-                      }}
+                      onChange={setFocusMin}
                     />
-                    {mode === 'breaks' && (
-                      <Stepper
-                        label="Pausa"
+                  </div>
+
+                  {mode === 'breaks' && (
+                    <div className="time-field">
+                      <span className="time-field__label">Pausa</span>
+                      <NumberField
+                        label="Minutos de pausa"
                         value={breakMin}
                         min={SESSION_MIN_BREAK_MIN}
                         max={SESSION_MAX_BREAK_MIN}
                         step={SESSION_BREAK_STEP}
                         unit="min"
-                        onChange={(value) => {
-                          setBreakMin(value)
-                          setCustom(true)
-                        }}
+                        onChange={setBreakMin}
                       />
-                    )}
-                  </div>
-                )}
-
-                {mode === 'continuous' && (
-                  <p className="type-caption type-muted">
-                    Sesión continua: un solo bloque, sin pausas.
-                  </p>
-                )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="session-summary">
                   <span>
-                    <strong>{focusMin * targetPomodoros}</strong> min de enfoque
+                    <strong>{budget}</strong> min de enfoque
                   </span>
-                  {totalClock !== focusMin * targetPomodoros && (
+                  {totalClock !== budget && (
                     <span>
                       <strong>{totalClock}</strong> min en total
                     </span>
@@ -490,12 +581,7 @@ export function SessionCreateDialog({
                 </div>
               </div>
 
-              <SessionTimeRing
-                focusMin={focusMin}
-                breakMin={mode === 'breaks' ? breakMin : 0}
-                cycles={targetPomodoros}
-                totalMin={totalClock}
-              />
+              <SessionTimeRing rhythm={rhythm} totalMin={totalClock} />
             </div>
           </section>
 
@@ -572,8 +658,14 @@ export function SessionCreateDialog({
                 <span>
                   <strong>{totalCost}</strong> / {budget} min
                 </span>
-                <span>
+                <span className="alloc__state">
                   {sobra > 0 ? `Sobran ${sobra} min` : falta > 0 ? `Faltan ${falta} min` : 'Justo'}
+                  {sobra > 0 && (
+                    <InfoTip
+                      label="Más información sobre los minutos que sobran"
+                      text={`Quedan ${sobra} min de enfoque sin plantar. Podés empezar igual; si abandonás antes de tiempo, el último árbol se marchita.`}
+                    />
+                  )}
                 </span>
               </div>
             </div>
@@ -584,26 +676,16 @@ export function SessionCreateDialog({
                   {error}
                 </p>
               ))}
-              {validation.warnings.map((warning) => (
+              {messages.map((warning) => (
                 <p key={warning} className="session-message session-message--warning">
                   {warning}
                 </p>
               ))}
-              {validation.ok && validation.warnings.length === 0 && (
-                <p className="session-message session-message--ok">
-                  La cola entra justa en el presupuesto.
-                </p>
-              )}
             </div>
           </section>
         </form>
 
         <div className="forest-dialog__actions">
-          <span className="session-dialog__hint type-micro type-muted">
-            {mode === 'continuous'
-              ? 'Sin descansos: la sesión no se puede retomar.'
-              : 'Con descansos: podés retomar desde una pausa.'}
-          </span>
           <button type="button" className="btn btn-secondary" onClick={handleClose}>
             Cancelar
           </button>

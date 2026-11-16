@@ -697,6 +697,12 @@ export const useStore = create<StoreState>()(
             SESSION_MIN_LONG_BREAK_MIN,
             SESSION_MAX_LONG_BREAK_MIN,
           )
+          // `0` desactiva la pausa larga; cualquier otro valor es cada cuántos bloques.
+          const longBreakEvery = clamp(
+            Number.isFinite(input.longBreakEvery) ? (input.longBreakEvery as number) : 0,
+            0,
+            SESSION_MAX_POMODOROS,
+          )
           const targetPomodoros =
             mode === 'continuous' ? 1 : clamp(input.targetPomodoros, 1, SESSION_MAX_POMODOROS)
           const plantingSpecies = input.planting.slice(0, SESSION_MAX_TREES)
@@ -754,6 +760,7 @@ export const useStore = create<StoreState>()(
             focusMin,
             breakMin,
             longBreakMin,
+            longBreakEvery,
             targetPomodoros,
             completedPomodoros: 0,
             mode,
@@ -875,11 +882,14 @@ export const useStore = create<StoreState>()(
           )
           const settings = state.settings
           const completed = state.sessions.filter((s) => s.status === 'completed').length
+          // Los planes viejos sin pausa larga declarada siguen usando los ajustes.
+          const every = plan?.longBreakEvery ?? settings.longBreakEvery
           const planIsLong =
             plan !== undefined &&
             plan.longBreakMin !== undefined &&
+            every > 0 &&
             plan.completedPomodoros > 0 &&
-            plan.completedPomodoros % settings.longBreakEvery === 0
+            plan.completedPomodoros % every === 0
           const isLong = plan
             ? planIsLong
             : completed > 0 && completed % settings.longBreakEvery === 0

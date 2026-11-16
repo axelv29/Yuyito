@@ -95,17 +95,19 @@ Los tokens `--button-*` controlan borde, padding, radio, sombra y colores. Los e
 - `.session-resume`, `.session-resume__title` — serie pendiente en el panel del timer.
 - `.session-card__description`, `.session-tasks`, `.session-task` (`--neutral`, `--done`, `--missed`), `.session-task__icon`, `.session-task__text` — descripción y objetivos con estado de la sesión activa; la misma lista se reutiliza en el detalle del historial.
 - `.session-objectives`, `.session-objective`, `.session-add-task` — lista editable de objetivos del diálogo de sesión.
-- `.session-time`, `.session-time__main`, `.session-time__row` — fila de Tiempos: contenido a la izquierda y anillo de resumen a la derecha.
-- `.session-toggle`, `.session-toggle__track`, `.session-toggle__knob` (estado con `aria-checked`) — switch **Activar ciclos** del diálogo de sesión; apagado equivale a un solo bloque sin pausas.
-- `.session-cycles`, `.session-cycles__label`, `.session-cycles__value` — selector de ciclos compacto en forma de pill, con los botones `.stepper__btn--compact`; no ocupa el ancho de la card.
-- `.session-time-ring`, `.session-time-ring__svg`, `.session-time-ring__track`, `.session-time-ring__arc` (`--focus`, `--break`), `.session-time-ring__center`, `.session-time-ring__total`, `.session-time-ring__unit` — anillo chico con la composición de la sesión; los arcos de enfoque usan el degradado `--ring-from`/`--ring-to` y los de pausa `--ring-short-from`.
-- `.session-presets`, `.session-preset` (estado con `aria-pressed`) — presets de ritmo (25/5, 50/10, 90/20) y el chip “Personalizado”.
-- `.session-steppers`, `.stepper`, `.stepper__label`, `.stepper__row`, `.stepper__btn`, `.stepper__value` — ajuste fino con contadores −/+.
+- `.session-time`, `.session-time__main`, `.session-time__row` — fila de Tiempos: contenido a la izquierda y anillo de resumen a la derecha; `--sub` alinea la configuración de pausas largas.
+- `.session-switch`, `.session-toggle`, `.session-toggle__track`, `.session-toggle__knob` (estado con `aria-checked`) — switches **Activar ciclos** y **Pausas largas** del diálogo de sesión; sin ciclos equivale a un solo bloque sin pausas.
+- `.session-cycles`, `.session-cycles__label` — pill compacta para ciclos y pausas largas; no ocupa el ancho de la card.
+- `.num-field`, `.num-field__btn`, `.num-field__value`, `.num-field__input`, `.num-field__unit` — número editable a mano con botones −/+ chicos y discretos; el input se ajusta a los límites al salir.
+- `.time-fields`, `.time-field`, `.time-field__label` — enfoque y pausa con el título fuera de la card y el número adentro.
+- `.session-time-ring`, `.session-time-ring__svg`, `.session-time-ring__track`, `.session-time-ring__arc` (`--focus`, `--short-break`, `--long-break`), `.session-time-ring__start`, `.session-time-ring__center`, `.session-time-ring__total`, `.session-time-ring__unit`, `.session-time-ring__tip*` — anillo chico con la composición de la sesión. Los arcos de enfoque usan el degradado `--ring-from`/`--ring-to`, las pausas cortas `--ring-short-to` y las largas `--ring-long-to`; `__start` marca el punto 0 y `__tip` es el tooltip propio con puntos de color.
+- `.session-presets`, `.session-preset` (estado con `aria-pressed`) — presets de ritmo (25/5, 50/10, 90/20).
+- `.stepper__btn` — botones −/+ del contador de las cards de árbol.
 - `.session-summary` — resumen con foco total y duración completa.
+- `.alloc`, `.alloc__bar`, `.alloc__fill`, `.alloc__fill--over`, `.alloc__meta`, `.alloc__state` — barra de asignación; `.alloc__state` lleva el tooltip que explica los minutos sobrantes.
 - `.tree-grid`, `.tree-card`, `.tree-card--active`, `.tree-card__main`, `.tree-card__tree`, `.tree-card__name`, `.tree-card__cost`, `.tree-card__counter`, `.tree-card__count` — cuadrícula de 4 especies con ícono, nombre, costo y contador de cuántos sumás.
-- `.alloc`, `.alloc__bar`, `.alloc__fill`, `.alloc__fill--over`, `.alloc__meta` — barra de asignación que no deja pasar más árboles que el foco total.
-- `.session-messages`, `.session-message`, `.session-message--error`, `.session-message--warning`, `.session-message--ok` — validación y aviso del diálogo (tiempo sobrante como warning).
-- `.session-dialog__body`, `.session-dialog__hint` — planificador de sesión: una sola columna, secciones apiladas y scroll propio.
+- `.session-messages`, `.session-message`, `.session-message--error`, `.session-message--warning` — validación del diálogo (los minutos sobrantes se explican en el tooltip de `.alloc__state`).
+- `.session-dialog__body` — planificador de sesión: una sola columna, secciones apiladas y scroll propio.
 - `.session-card__edit` — botón de edición del nombre en la tarjeta de sesión (activa o del historial).
 - `.session-detail` y sus partes (`__head`, `__tree`, `__description`, `__trees`, `__tree-chip`, `__back`) — tarjeta de una sesión pasada; usa `.card--session` y la misma gramática que la tarjeta activa.
 - `.garden-left-rail`, `.history-panel`, `.history-panel__head`, `.history-panel__title`, `.history-panel__close`, `.history-panel__summary`, `.history-panel__list`, `.history-filters`, `.history-filter` (estado con `aria-pressed`), `.history-list`, `.history-row` (estado `.is-selected`), `.history-empty` — ventana flotante del historial: la columna se corta al alto de la pantalla y solo `.history-list` scrollea.

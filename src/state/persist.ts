@@ -361,6 +361,11 @@ function isSessionPlan(value: unknown): value is SessionPlan {
       (typeof value.longBreakMin === 'number' &&
         Number.isFinite(value.longBreakMin) &&
         value.longBreakMin >= 0)) &&
+    (value.longBreakEvery === undefined ||
+      (typeof value.longBreakEvery === 'number' &&
+        Number.isInteger(value.longBreakEvery) &&
+        value.longBreakEvery >= 0 &&
+        value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
     value.targetPomodoros >= 1 &&
@@ -405,6 +410,11 @@ function isStoredSessionPlan(
       (typeof value.longBreakMin === 'number' &&
         Number.isFinite(value.longBreakMin) &&
         value.longBreakMin >= 0)) &&
+    (value.longBreakEvery === undefined ||
+      (typeof value.longBreakEvery === 'number' &&
+        Number.isInteger(value.longBreakEvery) &&
+        value.longBreakEvery >= 0 &&
+        value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
     value.targetPomodoros >= 1 &&
