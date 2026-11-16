@@ -543,23 +543,23 @@ export function SessionCreateDialog({
                       text="Con ciclos, la sesión alterna bloques de enfoque y pausas, y podés retomarla desde un descanso. Sin ciclos es un solo bloque: si salís, la sesión se cierra."
                     />
                   </span>
-
-                  {mode === 'breaks' && (
-                    <div className="session-cycles">
-                      <span className="session-cycles__label">Ciclos</span>
-                      <NumberField
-                        label="Ciclos"
-                        value={targetPomodoros}
-                        min={1}
-                        max={SESSION_MAX_POMODOROS}
-                        onChange={setTargetPomodoros}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 {mode === 'breaks' && (
                   <>
+                    <div className="session-time__row session-time__row--sub">
+                      <div className="session-cycles">
+                        <span className="session-cycles__label">Ciclos</span>
+                        <NumberField
+                          label="Ciclos"
+                          value={targetPomodoros}
+                          min={1}
+                          max={SESSION_MAX_POMODOROS}
+                          onChange={setTargetPomodoros}
+                        />
+                      </div>
+                    </div>
+
                     <div className="session-time__row">
                       <span className="session-switch">
                         <button

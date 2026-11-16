@@ -96,7 +96,7 @@ Los tokens `--button-*` controlan borde, padding, radio, sombra y colores. Los e
 - `.session-card__description`, `.session-tasks`, `.session-task` (`--neutral`, `--done`, `--missed`), `.session-task__icon`, `.session-task__text` — descripción y objetivos con estado de la sesión activa; la misma lista se reutiliza en el detalle del historial.
 - `.session-objectives`, `.session-objective`, `.session-add-task` — lista editable de objetivos del diálogo de sesión; Enter en un objetivo escrito agrega otro.
 - `.session-dialog .field-textarea` — descripción con alto fijo (4.8rem), sin tirador de resize y con scrollbar fina transparente que solo muestra el pulgar con el puntero o el foco, como los menús.
-- `.session-time`, `.session-time__main`, `.session-time__row` — fila de Tiempos: contenido a la izquierda y anillo de resumen a la derecha; `--sub` alinea la configuración de pausas largas.
+- `.session-time`, `.session-time__main`, `.session-time__row` — fila de Tiempos: contenido a la izquierda y anillo de resumen a la derecha; `--sub` alinea las pills de ciclos y de pausas largas, debajo de su switch.
 - `.session-switch`, `.session-toggle`, `.session-toggle__track`, `.session-toggle__knob` (estado con `aria-checked`) — switches **Activar ciclos** y **Pausas largas** del diálogo de sesión; sin ciclos equivale a un solo bloque sin pausas.
 - `.session-cycles`, `.session-cycles__label` — pill compacta para ciclos y pausas largas; no ocupa el ancho de la card.
 - `.num-field`, `.num-field__btn`, `.num-field__value`, `.num-field__input`, `.num-field__unit` — número editable a mano con botones −/+ chicos y discretos; el input se ajusta a los límites al salir.
