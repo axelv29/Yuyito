@@ -292,6 +292,18 @@ describe('isPersistedState', () => {
     expect(isPersistedState(STATE)).toBe(true)
   })
 
+  it('acepta planes con objetivos que tienen estado', () => {
+    const plan: SessionPlan = {
+      ...PLAN,
+      tasks: [
+        { id: 'task-1', text: 'Leer', status: 'neutral' },
+        { id: 'task-2', text: 'Resumir', status: 'done' },
+      ],
+    }
+
+    expect(isPersistedState({ ...STATE, plans: [plan] })).toBe(true)
+  })
+
   it('rechaza árboles con forma inválida', () => {
     expect(isPersistedState({ ...STATE, trees: [{ nope: true }] })).toBe(false)
   })
@@ -418,5 +430,24 @@ describe('createSafeStorage', () => {
 
     expect(() => safe.setItem('focus-forest', 'x')).not.toThrow()
     expect(issues).toEqual([{ kind: 'unavailable' }])
+  })
+
+  it('lee un guardado actual con objetivos con estado sin marcarlo dañado', () => {
+    const { storage } = makeStorage()
+    const plan: SessionPlan = {
+      ...PLAN,
+      tasks: [{ id: 'task-1', text: 'Leer', status: 'done' }],
+    }
+    const raw = envelope({ ...STATE, plans: [plan] }, 6)
+    storage.setItem('focus-forest', raw)
+    const issues: StorageIssue[] = []
+    const safe = createSafeStorage(
+      () => storage,
+      (issue) => issues.push(issue),
+    )
+
+    expect(safe.getItem('focus-forest')).toBe(raw)
+    expect(issues).toEqual([])
+    expect(storage.getItem('focus-forest.broken')).toBeNull()
   })
 })

@@ -350,7 +350,7 @@ function isSessionPlan(value: unknown): value is SessionPlan {
     value.title.trim().length > 0 &&
     (value.description === null || typeof value.description === 'string') &&
     Array.isArray(value.tasks) &&
-    value.tasks.every((task) => typeof task === 'string') &&
+    value.tasks.every(isSessionTask) &&
     typeof value.focusMin === 'number' &&
     Number.isFinite(value.focusMin) &&
     value.focusMin > 0 &&
