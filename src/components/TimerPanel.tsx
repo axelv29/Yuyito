@@ -104,8 +104,8 @@ export function TimerPanel({
               type="button"
               className="icon-button timer-settings-button"
               onClick={() => setShowSettings(true)}
-              aria-label="Abrir ajustes"
-              title="Ajustes"
+              aria-label="Abrir ajustes predeterminados"
+              title="Ajustes predeterminados"
             >
               <GearIcon />
             </button>

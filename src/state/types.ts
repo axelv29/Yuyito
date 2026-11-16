@@ -86,6 +86,8 @@ export interface SessionPlan {
   longBreakMin?: number
   /** Cada cuántos bloques va el descanso largo. `0` = sin pausa larga. */
   longBreakEvery?: number
+  /** Pausa estricta de esta sesión; si falta, se usan los ajustes. */
+  strictPause?: boolean
   /** Cantidad de bloques de enfoque (1–8). */
   targetPomodoros: number
   completedPomodoros: number
@@ -109,6 +111,8 @@ export interface NewSessionInput {
   longBreakMin: number
   /** Cada cuántos bloques va la pausa larga. `0` = sin pausa larga. */
   longBreakEvery?: number
+  /** Pausa estricta; si falta, se usan los ajustes. */
+  strictPause?: boolean
   targetPomodoros: number
   mode: SessionMode
   planting: TreeSpecies[]

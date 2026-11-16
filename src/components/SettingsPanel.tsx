@@ -93,8 +93,12 @@ export function SettingsPanel({ settings, onChange, onBack }: SettingsPanelProps
         >
           <BackIcon />
         </button>
-        <h2 className="type-title">Ajustes</h2>
+        <h2 className="type-title">Ajustes predeterminados</h2>
       </div>
+      <p className="type-body type-muted">
+        Son los valores con los que arranca cada sesión nueva; lo que haga falta se cambia en la
+        card de nueva sesión.
+      </p>
 
       <section className="flex flex-col gap-2">
         <p className="eyebrow">Tiempos</p>

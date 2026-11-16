@@ -299,7 +299,8 @@ export const useStore = create<StoreState>()(
         const session = createFocusSession(sessionId, now, current.cell, plan.focusMin, forest.id)
         const activeSession: ActiveSession = {
           ...session,
-          strictPause: state.settings.strictPause,
+          // Los planes viejos sin pausa estricta propia siguen los ajustes.
+          strictPause: plan.strictPause ?? state.settings.strictPause,
           pauseToleranceMin: state.settings.pauseToleranceMin,
           planId: plan.id,
           pomoIndex: plan.completedPomodoros + 1,
@@ -703,6 +704,9 @@ export const useStore = create<StoreState>()(
             0,
             SESSION_MAX_POMODOROS,
           )
+          // La pausa estricta nace de los ajustes salvo que la sesión la defina.
+          const strictPause =
+            typeof input.strictPause === 'boolean' ? input.strictPause : state.settings.strictPause
           const targetPomodoros =
             mode === 'continuous' ? 1 : clamp(input.targetPomodoros, 1, SESSION_MAX_POMODOROS)
           const plantingSpecies = input.planting.slice(0, SESSION_MAX_TREES)
@@ -761,6 +765,7 @@ export const useStore = create<StoreState>()(
             breakMin,
             longBreakMin,
             longBreakEvery,
+            strictPause,
             targetPomodoros,
             completedPomodoros: 0,
             mode,

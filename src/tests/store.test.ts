@@ -179,13 +179,36 @@ describe('store: etapa visible del árbol activo', () => {
       START,
     )
 
-    const stages = [0, 5, 10, 15, 20].map((minute) =>
-      previewStage(START + minute * 60_000),
-    )
+    const stages = [0, 5, 10, 15, 20].map((minute) => previewStage(START + minute * 60_000))
 
     expect(stages).toEqual([1, 2, 2, 3, 3])
     // El árbol del store sigue en la etapa con la que nació: el preview es
     // quien trae la etapa viva, y por eso drawGarden la fusiona al dibujar.
     expect(useStore.getState().trees[0].stage).toBe(1)
+  })
+})
+
+describe('store: pausa estricta por sesión', () => {
+  it('toma la pausa estricta que define la sesión y la mantiene al retomar', () => {
+    useStore.getState().startSession({ ...session(['pino']), strictPause: true }, START)
+
+    const first = useStore.getState()
+    expect(first.active?.strictPause).toBe(true)
+    expect(first.plans[0].strictPause).toBe(true)
+
+    // Con pausa estricta pausar no hace nada: toca confirmar para abandonar.
+    useStore.getState().pause(START + 5 * 60_000)
+    expect(useStore.getState().active?.pausedAt).toBeNull()
+
+    finishCurrentBlock()
+    useStore.getState().continuePlan(START + 30 * 60_000)
+    expect(useStore.getState().active?.strictPause).toBe(true)
+  })
+
+  it('usa los ajustes cuando la sesión no define nada', () => {
+    useStore.getState().startSession(session(['pino']), START)
+
+    expect(useStore.getState().active?.strictPause).toBe(false)
+    expect(useStore.getState().plans[0].strictPause).toBe(false)
   })
 })

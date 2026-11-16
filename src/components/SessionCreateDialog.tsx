@@ -153,21 +153,26 @@ export function SessionCreateDialog({
   onStart,
 }: SessionCreateDialogProps) {
   const titleRef = useRef<HTMLInputElement>(null)
+  const taskRefs = useRef<Array<HTMLInputElement | null>>([])
   const bodyScrollbar = useEdgeScrollbar<HTMLFormElement>()
   const settings = useStore((state) => state.settings)
   // El diálogo se monta solo cuando abre (render condicional en App),
   // así que el estado inicial nace de los ajustes y no hace falta resetear.
   const initialFocus = clamp(settings.focusMin, SESSION_MIN_FOCUS_MIN, SESSION_MAX_FOCUS_MIN)
+  const initialBreak = clamp(settings.breakMin, SESSION_MIN_BREAK_MIN, SESSION_MAX_BREAK_MIN)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [tasks, setTasks] = useState<string[]>([])
   const [mode, setMode] = useState<SessionMode>('breaks')
   const [focusMin, setFocusMin] = useState(initialFocus)
-  const [breakMin, setBreakMin] = useState(() =>
-    clamp(settings.breakMin, SESSION_MIN_BREAK_MIN, SESSION_MAX_BREAK_MIN),
+  const [breakMin, setBreakMin] = useState(initialBreak)
+  // Personalizado se activa solo si los ajustes no caen en ningún preset.
+  const [custom, setCustom] = useState(
+    () => !PRESETS.some((preset) => preset.focus === initialFocus && preset.brk === initialBreak),
   )
   const [targetPomodoros, setTargetPomodoros] = useState(3)
   const [longBreaks, setLongBreaks] = useState(false)
+  const [strictPause, setStrictPause] = useState(settings.strictPause)
   const [longBreakEvery, setLongBreakEvery] = useState(() =>
     clamp(settings.longBreakEvery, 1, SESSION_MAX_POMODOROS),
   )
@@ -284,6 +289,7 @@ export function SessionCreateDialog({
   }
 
   const handlePreset = (preset: { focus: number; brk: number }) => {
+    setCustom(false)
     setFocusMin(preset.focus)
     setBreakMin(preset.brk)
   }
@@ -302,6 +308,7 @@ export function SessionCreateDialog({
       breakMin,
       longBreakMin,
       longBreakEvery: mode === 'breaks' && longBreaks ? longBreakEvery : 0,
+      strictPause,
       targetPomodoros,
       mode,
       planting: queue,
@@ -385,7 +392,6 @@ export function SessionCreateDialog({
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 maxLength={SESSION_DESCRIPTION_MAX_LENGTH}
-                rows={2}
                 placeholder="Qué querés tener claro al terminar."
               />
             </div>
@@ -401,9 +407,30 @@ export function SessionCreateDialog({
                     <li key={`objective-${index}`} className="session-objective">
                       <span className="session-objective__mark" aria-hidden="true" />
                       <input
+                        ref={(element) => {
+                          taskRefs.current[index] = element
+                        }}
                         className="field-input session-objective__input"
                         value={task}
                         onChange={(event) => updateTask(index, event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter') {
+                            return
+                          }
+                          // Mientras se escribe un objetivo, Enter agrega otro
+                          // en vez de empezar la sesión; sin texto escrito el
+                          // comportamiento sigue siendo el de siempre.
+                          if (tasks[index].trim().length === 0) {
+                            return
+                          }
+                          event.preventDefault()
+                          if (tasks.length >= SESSION_MAX_TASKS) {
+                            return
+                          }
+                          const nextIndex = tasks.length
+                          setTasks((current) => [...current, ''])
+                          window.requestAnimationFrame(() => taskRefs.current[nextIndex]?.focus())
+                        }}
                         maxLength={SESSION_TASK_MAX_LENGTH}
                         placeholder="Un paso concreto"
                         aria-label={`Objetivo ${index + 1}`}
@@ -448,13 +475,54 @@ export function SessionCreateDialog({
                       key={`${preset.focus}-${preset.brk}`}
                       type="button"
                       className="session-preset"
-                      aria-pressed={activePreset === preset}
+                      aria-pressed={!custom && activePreset === preset}
                       onClick={() => handlePreset(preset)}
                     >
                       {preset.focus} / {preset.brk}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    className="session-preset"
+                    aria-pressed={custom}
+                    onClick={() => setCustom(true)}
+                  >
+                    Personalizado
+                  </button>
                 </div>
+
+                {/* Enfoque y pausa a mano: solo con el preset Personalizado. */}
+                {custom && (
+                  <div className="time-fields">
+                    <div className="time-field">
+                      <span className="time-field__label">Enfoque</span>
+                      <NumberField
+                        label="Minutos de enfoque"
+                        value={focusMin}
+                        min={SESSION_MIN_FOCUS_MIN}
+                        max={SESSION_MAX_FOCUS_MIN}
+                        step={SESSION_FOCUS_STEP}
+                        unit="min"
+                        onChange={setFocusMin}
+                      />
+                    </div>
+
+                    {mode === 'breaks' && (
+                      <div className="time-field">
+                        <span className="time-field__label">Pausa</span>
+                        <NumberField
+                          label="Minutos de pausa"
+                          value={breakMin}
+                          min={SESSION_MIN_BREAK_MIN}
+                          max={SESSION_MAX_BREAK_MIN}
+                          step={SESSION_BREAK_STEP}
+                          unit="min"
+                          onChange={setBreakMin}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="session-time__row">
                   <span className="session-switch">
@@ -539,34 +607,26 @@ export function SessionCreateDialog({
                   </>
                 )}
 
-                <div className="time-fields">
-                  <div className="time-field">
-                    <span className="time-field__label">Enfoque</span>
-                    <NumberField
-                      label="Minutos de enfoque"
-                      value={focusMin}
-                      min={SESSION_MIN_FOCUS_MIN}
-                      max={SESSION_MAX_FOCUS_MIN}
-                      step={SESSION_FOCUS_STEP}
-                      unit="min"
-                      onChange={setFocusMin}
+                {/* Ajuste básico de pomodoro; el detalle vive en Ajustes. */}
+                <div className="session-time__row">
+                  <span className="session-switch">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={strictPause}
+                      className="session-toggle"
+                      onClick={() => setStrictPause((value) => !value)}
+                    >
+                      <span className="session-toggle__track" aria-hidden="true">
+                        <span className="session-toggle__knob" />
+                      </span>
+                      <span className="session-toggle__label">Pausa estricta</span>
+                    </button>
+                    <InfoTip
+                      label="Más información sobre la pausa estricta"
+                      text="Si la activás, pausar equivale a abandonar: se pide confirmación y, si aceptás, el árbol se marchita y el pomodoro no suma minutos."
                     />
-                  </div>
-
-                  {mode === 'breaks' && (
-                    <div className="time-field">
-                      <span className="time-field__label">Pausa</span>
-                      <NumberField
-                        label="Minutos de pausa"
-                        value={breakMin}
-                        min={SESSION_MIN_BREAK_MIN}
-                        max={SESSION_MAX_BREAK_MIN}
-                        step={SESSION_BREAK_STEP}
-                        unit="min"
-                        onChange={setBreakMin}
-                      />
-                    </div>
-                  )}
+                  </span>
                 </div>
 
                 <div className="session-summary">

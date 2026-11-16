@@ -366,6 +366,7 @@ function isSessionPlan(value: unknown): value is SessionPlan {
         Number.isInteger(value.longBreakEvery) &&
         value.longBreakEvery >= 0 &&
         value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
+    (value.strictPause === undefined || typeof value.strictPause === 'boolean') &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
     value.targetPomodoros >= 1 &&
@@ -415,6 +416,7 @@ function isStoredSessionPlan(
         Number.isInteger(value.longBreakEvery) &&
         value.longBreakEvery >= 0 &&
         value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
+    (value.strictPause === undefined || typeof value.strictPause === 'boolean') &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
     value.targetPomodoros >= 1 &&
