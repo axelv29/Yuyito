@@ -13,6 +13,7 @@ import { SessionCreateDialog } from '@/components/SessionCreateDialog'
 import { SessionDetailCard } from '@/components/SessionDetailCard'
 import { StatsPanel } from '@/components/StatsPanel'
 import { StorageNotice } from '@/components/StorageNotice'
+import { StreakOverlay } from '@/components/StreakOverlay'
 import { TimerPanel } from '@/components/TimerPanel'
 import type { View } from '@/config/views'
 import { useCountdown } from '@/hooks/useCountdown'
@@ -426,8 +427,9 @@ function App() {
         )}
       </main>
 
-      {import.meta.env.DEV && <DevPanel />}
+      {import.meta.env.DEV && <DevPanel now={now} />}
 
+      <StreakOverlay now={now} />
       <CompletionToast />
       <BreakPrompt />
       <ConfirmDialog

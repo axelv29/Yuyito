@@ -46,7 +46,7 @@ import type {
   Forest,
   NewForestInput,
   NewSessionInput,
-  PersistedV6,
+  PersistedV7,
   PlantingItem,
   PomodoroSettings,
   SessionPlan,
@@ -70,11 +70,13 @@ export interface Notice {
   text: string
 }
 
-interface StoreState extends PersistedV6 {
+interface StoreState extends PersistedV7 {
   pendingBreak: boolean
   notice: Notice | null
   /** Dev: tamaño del bosque en celdas por lado para el preview del panel. */
   devGardenSize: number
+  /** Dev: corre la racha diaria N días para probar el cambio de día. */
+  devDayOffset: number
   createForest: (input: NewForestInput, now: number) => string | null
   selectForest: (id: string) => void
   updateForest: (id: string, input: NewForestInput) => void
@@ -102,6 +104,8 @@ interface StoreState extends PersistedV6 {
   dismissNotice: () => void
   dismissBreak: () => void
   updateSettings: (patch: Partial<PomodoroSettings>) => void
+  /** Marca el día local en que se mostró la card de racha (una vez por día). */
+  markStreakIntroShown: (dayKey: string) => void
 }
 
 function makeId(): string {
@@ -460,7 +464,7 @@ export const useStore = create<StoreState>()(
       const initialForest = createDefaultForest()
 
       return {
-        version: 6,
+        version: PERSIST_VERSION,
         forests: [initialForest],
         activeForestId: initialForest.id,
         trees: [],
@@ -470,9 +474,11 @@ export const useStore = create<StoreState>()(
         activePlanId: null,
         settings: { ...DEFAULT_POMODORO_SETTINGS },
         display: { ...DEFAULT_DISPLAY_SETTINGS },
+        streakIntroShownOn: null,
         pendingBreak: false,
         notice: null,
         devGardenSize: DEFAULT_GARDEN_SIZE,
+        devDayOffset: 0,
 
         createForest: (input, now) => {
           const name = input.name.trim().slice(0, FOREST_NAME_MAX_LENGTH)
@@ -1173,6 +1179,8 @@ export const useStore = create<StoreState>()(
         dismissNotice: () => set({ notice: null }),
         dismissBreak: () => set({ pendingBreak: false }),
         updateSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),
+        markStreakIntroShown: (dayKey) =>
+          set((state) => (state.streakIntroShownOn === dayKey ? state : { streakIntroShownOn: dayKey })),
       }
     },
     {
@@ -1191,6 +1199,7 @@ export const useStore = create<StoreState>()(
         activePlanId: state.activePlanId,
         settings: state.settings,
         display: state.display,
+        streakIntroShownOn: state.streakIntroShownOn,
       }),
     },
   ),

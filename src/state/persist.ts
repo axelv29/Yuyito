@@ -13,7 +13,7 @@ import type {
   Forest,
   LegacySessionPlan,
   LegacyTree,
-  PersistedV6,
+  PersistedV7,
   PlantingItem,
   PomodoroSettings,
   SessionMode,
@@ -27,7 +27,7 @@ import type {
 import { DEFAULT_DISPLAY_SETTINGS, DEFAULT_POMODORO_SETTINGS } from './types'
 
 export const STORAGE_KEY = 'focus-forest'
-export const PERSIST_VERSION = 6
+export const PERSIST_VERSION = 7
 
 export const DEFAULT_FOREST_ID = 'forest-default'
 
@@ -45,9 +45,9 @@ export function createDefaultForest(createdAt = 0): Forest {
   }
 }
 
-export function emptyState(): PersistedV6 {
+export function emptyState(): PersistedV7 {
   return {
-    version: 6,
+    version: 7,
     forests: [createDefaultForest()],
     activeForestId: DEFAULT_FOREST_ID,
     trees: [],
@@ -57,6 +57,7 @@ export function emptyState(): PersistedV6 {
     activePlanId: null,
     settings: { ...DEFAULT_POMODORO_SETTINGS },
     display: { ...DEFAULT_DISPLAY_SETTINGS },
+    streakIntroShownOn: null,
   }
 }
 
@@ -491,7 +492,7 @@ function isPomodoroSettings(value: unknown): value is PomodoroSettings {
 }
 
 /** Valida el estado completo; se usa al leer la versión actual. */
-export function isPersistedState(value: unknown): value is PersistedV6 {
+export function isPersistedState(value: unknown): value is PersistedV7 {
   return (
     isRecord(value) &&
     value.version === PERSIST_VERSION &&
@@ -507,7 +508,8 @@ export function isPersistedState(value: unknown): value is PersistedV6 {
     (value.active === null || isActiveSession(value.active)) &&
     (value.activePlanId === null || typeof value.activePlanId === 'string') &&
     isPomodoroSettings(value.settings) &&
-    isDisplaySettings(value.display)
+    isDisplaySettings(value.display) &&
+    (value.streakIntroShownOn === null || isDateKey(value.streakIntroShownOn))
   )
 }
 
@@ -586,7 +588,7 @@ function buildLegacyPlanting(
  * esperada. Los datos anteriores a la v3 se agrupan en un bosque inicial de
  * 8×8; los árboles huérfanos se recuperan en lugar de perderse.
  */
-export function migrate(persisted: unknown, _version: number): PersistedV6 {
+export function migrate(persisted: unknown, _version: number): PersistedV7 {
   const data = isRecord(persisted) ? persisted : {}
 
   const settings = isPomodoroSettings(data.settings)
@@ -595,6 +597,7 @@ export function migrate(persisted: unknown, _version: number): PersistedV6 {
   const display = isDisplaySettings(data.display)
     ? { ...DEFAULT_DISPLAY_SETTINGS, ...data.display }
     : { ...DEFAULT_DISPLAY_SETTINGS }
+  const streakIntroShownOn = isDateKey(data.streakIntroShownOn) ? data.streakIntroShownOn : null
 
   const forests: Forest[] = Array.isArray(data.forests)
     ? data.forests.filter(isForest).map((forest) => ({ ...forest }))
@@ -813,7 +816,7 @@ export function migrate(persisted: unknown, _version: number): PersistedV6 {
   const activeForestId = active?.forestId ?? savedActiveForestId ?? fallbackId ?? null
 
   return {
-    version: 6,
+    version: 7,
     forests,
     activeForestId,
     trees,
@@ -823,6 +826,7 @@ export function migrate(persisted: unknown, _version: number): PersistedV6 {
     activePlanId,
     settings,
     display,
+    streakIntroShownOn,
   }
 }
 
@@ -879,7 +883,7 @@ function hasSaveShape(value: unknown): value is Record<string, unknown> {
  * entero. `migrate` ya descarta elemento por elemento; si aun así el
  * resultado no es un estado íntegro, no se rescata nada.
  */
-function recoverState(state: unknown): PersistedV6 | null {
+function recoverState(state: unknown): PersistedV7 | null {
   if (!hasSaveShape(state)) {
     return null
   }
@@ -1035,4 +1039,4 @@ export function createSafeStorage(
 }
 
 export const safeStorage = createSafeStorage()
-export const persistStorage = createJSONStorage<PersistedV6>(() => safeStorage)
+export const persistStorage = createJSONStorage<PersistedV7>(() => safeStorage)

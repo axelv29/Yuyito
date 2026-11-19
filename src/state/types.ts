@@ -312,3 +312,19 @@ export interface PersistedV6 {
   settings: PomodoroSettings
   display: DisplaySettings
 }
+
+/** v7: como v6 más el día en que se mostró la card de racha diaria. */
+export interface PersistedV7 {
+  version: 7
+  forests: Forest[]
+  activeForestId: string | null
+  trees: Tree[]
+  sessions: FocusRecord[]
+  plans: SessionPlan[]
+  active: ActiveSession | null
+  activePlanId: string | null
+  settings: PomodoroSettings
+  display: DisplaySettings
+  /** Día local (YYYY-MM-DD) en que se mostró la card de racha; null si nunca. */
+  streakIntroShownOn: string | null
+}

@@ -1,13 +1,12 @@
 import { speciesConfig, speciesFromKind } from '@/config/species'
-import { SESSION_TITLE_MAX_LENGTH } from '@/config/session'
 import type { HistoryEntry } from '@/logic/history'
 import { stageLabel } from '@/logic/growth'
 import { formatSessionStart } from '@/logic/session'
-import { useState, type FocusEvent } from 'react'
 import { useStore } from '@/state/store'
 import { BackIcon, CloseIcon } from './icons'
 import { SessionDetails } from './SessionDetails'
 import { SessionTaskList } from './SessionTaskList'
+import { SessionTitle } from './SessionTitle'
 import { TreePreview } from './TreePreview'
 
 interface SessionDetailCardProps {
@@ -34,32 +33,8 @@ export function SessionDetailCard({
   className,
 }: SessionDetailCardProps) {
   const renamePlanTitle = useStore((state) => state.renamePlanTitle)
-  const [editingTitle, setEditingTitle] = useState(false)
-  const [titleDraft, setTitleDraft] = useState('')
   const planId = entry.plan?.id ?? null
   const canEditTitle = planId !== null
-
-  const beginEditTitle = (event: FocusEvent<HTMLInputElement>) => {
-    if (!planId) {
-      event.currentTarget.blur()
-      return
-    }
-
-    setTitleDraft(entry.title)
-    setEditingTitle(true)
-  }
-
-  const saveTitle = () => {
-    if (!editingTitle) {
-      return
-    }
-
-    const next = titleDraft.trim()
-    if (planId && next) {
-      renamePlanTitle(planId, next)
-    }
-    setEditingTitle(false)
-  }
 
   const primary = entry.primaryTree
   const species = primary ? speciesFromKind(primary.kind) : 'pino'
@@ -95,25 +70,15 @@ export function SessionDetailCard({
         <div className="min-w-0">
           <p className="eyebrow">{eyebrow}</p>
           <h2 className="type-title session-detail__title">
-            <input
-              className="session-title-input"
-              value={editingTitle ? titleDraft : entry.title}
-              onFocus={beginEditTitle}
-              onChange={(event) => setTitleDraft(event.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.currentTarget.blur()
-                }
-                if (event.key === 'Escape') {
-                  setTitleDraft(entry.title)
-                  setEditingTitle(false)
-                  event.currentTarget.blur()
+            <SessionTitle
+              text={entry.title}
+              editText={entry.title}
+              editable={canEditTitle}
+              onSave={(next) => {
+                if (planId) {
+                  renamePlanTitle(planId, next)
                 }
               }}
-              maxLength={SESSION_TITLE_MAX_LENGTH}
-              aria-label="Nombre de la sesión"
-              readOnly={!canEditTitle}
             />
           </h2>
         </div>

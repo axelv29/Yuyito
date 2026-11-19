@@ -5,10 +5,18 @@ import {
   requestNotificationPermission,
   sendNotification,
 } from '@/logic/notifications'
+import { addDays, localDayKey } from '@/logic/day'
 import { cellKey, cellOrder, choosePlacement } from '@/logic/placement'
 import { speciesConfig, speciesFromKind } from '@/config/species'
 import { useStore } from '@/state/store'
-import type { AlarmTone, Tree, TreeSpecies, TreeStage, TreeState } from '@/state/types'
+import type {
+  AlarmTone,
+  FocusRecord,
+  Tree,
+  TreeSpecies,
+  TreeStage,
+  TreeState,
+} from '@/state/types'
 import { Select } from './Select'
 
 const STAGE_OPTIONS: readonly { value: TreeStage; label: string }[] = [
@@ -59,13 +67,16 @@ const FILL_SPECIES_OPTIONS = [
 
 type FillSpecies = (typeof FILL_SPECIES_OPTIONS)[number]['value']
 
-export function DevPanel() {
+export function DevPanel({ now }: { now: number }) {
   const trees = useStore((state) => state.trees)
+  const sessions = useStore((state) => state.sessions)
   const active = useStore((state) => state.active)
   const settings = useStore((state) => state.settings)
   const forests = useStore((state) => state.forests)
   const activeForestId = useStore((state) => state.activeForestId)
   const gardenSize = useStore((state) => state.devGardenSize)
+  const devDayOffset = useStore((state) => state.devDayOffset)
+  const streakIntroShownOn = useStore((state) => state.streakIntroShownOn)
   const setState = useStore.setState
   const [open, setOpen] = useState(false)
   const [permission, setPermission] = useState(getNotificationPermission())
@@ -226,8 +237,50 @@ export function DevPanel() {
     useStore.getState().updateSettings({ focusMin: 1, breakMin: 1, longBreakMin: 1 })
   }
 
+  const streakToday = localDayKey(addDays(now, devDayOffset))
+
+  /** Crea un pomodoro completado (y su árbol) en el día simulado actual. */
+  const plantStreakToday = () => {
+    if (!forestId) {
+      return
+    }
+
+    const placement = choosePlacement(forestTrees, Math.random, workingSize, workingSize)
+
+    if (!placement || placement.replacedTreeId !== null) {
+      return
+    }
+
+    const ended = new Date(addDays(Date.now(), devDayOffset))
+    ended.setHours(12, 0, 0, 0)
+    const stamp = ended.getTime()
+    const tree: Tree = {
+      id: `dev-tree-racha-${stamp}`,
+      sessionId: `dev-session-racha-${stamp}`,
+      forestId,
+      cell: placement.cell,
+      kind: 'pino',
+      stage: 1,
+      state: 'mature',
+      requiredFocusMin: 25,
+      accumulatedFocusMin: 25,
+      createdAt: stamp,
+    }
+    const record: FocusRecord = {
+      id: `dev-focus-racha-${stamp}`,
+      forestId,
+      startedAt: stamp - 25 * 60_000,
+      endedAt: stamp,
+      durationMin: 25,
+      status: 'completed',
+      treeId: tree.id,
+    }
+
+    setState({ trees: [...trees, tree], sessions: [...sessions, record] })
+  }
+
   return (
-    <div className="fixed bottom-4 left-4 z-40 hidden w-64 max-w-[calc(100vw-2rem)] md:block">
+    <div className="fixed bottom-14 left-4 z-40 hidden w-64 max-w-[calc(100vw-2rem)] md:block">
       <button
         type="button"
         className="btn btn-secondary btn--sm"
@@ -410,6 +463,59 @@ export function DevPanel() {
                 onClick={() => setState({ pendingBreak: true })}
               >
                 Forzar descanso
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 border-t border-ink/10 pt-3">
+            <p className="eyebrow">Racha diaria</p>
+            <p className="type-micro type-muted mt-0.5">
+              “Día simulado” corre solo el cálculo de la racha y su aviso; el resto de la app sigue
+              en tiempo real.
+            </p>
+            <p className="type-caption type-muted mt-1.5">
+              Día: {streakToday}
+              {devDayOffset === 0 ? ' (hoy)' : ` (${devDayOffset > 0 ? '+' : ''}${devDayOffset})`} ·
+              card mostrada: {streakIntroShownOn ?? 'nunca'}
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                className="btn btn-secondary btn--sm"
+                onClick={() => setState({ devDayOffset: devDayOffset - 1 })}
+              >
+                −1 día
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn--sm"
+                onClick={() => setState({ devDayOffset: 0 })}
+              >
+                Hoy
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn--sm"
+                onClick={() => setState({ devDayOffset: devDayOffset + 1 })}
+              >
+                +1 día
+              </button>
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                className="btn btn-secondary btn--sm"
+                onClick={() => setState({ streakIntroShownOn: null })}
+              >
+                Reabrir card
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn--sm"
+                onClick={plantStreakToday}
+                disabled={!forestId}
+              >
+                Plantar hoy (prueba)
               </button>
             </div>
           </div>

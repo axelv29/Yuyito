@@ -12,6 +12,25 @@ export function PineIcon({ className }: IconProps) {
   )
 }
 
+/** Hoja: racha diaria (chip y tira de 7 días). */
+export function LeafIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.7 10-10 10Z" />
+      <path d="M2 21c0-3 1.9-5.4 5.1-6C9.5 14.5 12 13 13 12" />
+    </svg>
+  )
+}
+
 /** Barras de la vista Estadísticas. */
 export function BarsIcon({ className }: IconProps) {
   return (

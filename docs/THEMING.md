@@ -112,6 +112,13 @@ Los tokens `--button-*` controlan borde, padding, radio, sombra y colores. Los e
 - `.session-card__edit` — botón de edición del nombre en la tarjeta de sesión (activa o del historial).
 - `.session-detail` y sus partes (`__head`, `__tree`, `__description`, `__trees`, `__tree-chip`, `__back`) — tarjeta de una sesión pasada; usa `.card--session` y la misma gramática que la tarjeta activa.
 - `.garden-left-rail`, `.history-panel`, `.history-panel__head`, `.history-panel__title`, `.history-panel__close`, `.history-panel__summary`, `.history-panel__list`, `.history-filters`, `.history-filter` (estado con `aria-pressed`), `.history-list`, `.history-row` (estado `.is-selected`), `.history-empty` — ventana flotante del historial: la columna se corta al alto de la pantalla y solo `.history-list` scrollea.
+- `.stats-pills`, `.stats-pill` (estado con `aria-pressed`) — alcance de Estadísticas (*Este bosque / Todos*) y período del gráfico (*Día / Semana / Mes*), con la misma píldora suave de los presets de sesión.
+- `.stats-chart__tip*` — tooltip compartido por el mapa de calor y las barras; se posiciona por hover y no intercepta el puntero. `.stats-nav__button` son las flechas redondeadas para moverse entre semanas y meses.
+- `.stats-heatmap*` — mapa de calor de 53 semanas (`.stats-heatmap__scroll` permite desplazarlo en pantallas angostas). `.stats-heatmap__cell--l0…--l4` son los niveles, `--future` atenúa los días que todavía no llegaron y `--today` marca el día actual; la leyenda usa los mismos niveles como muestra.
+- `.stats-bars*` — barras de los días del período: `__head` con total y navegación, `__track` con el alto de `--chart-bars-height`, `__bar` con `--today`/`--future` y `__label` con la misma distinción. `.stats-bars__empty` cubre los períodos sin enfoques.
+- `.stats-donut*` — anillos de completados/abandonados y reparto por bosque; siguen el lenguaje del anillo de sesión (`__track`, `__arc--1…6`, centro con total, leyenda con puntos y tooltip al hover/focus).
+- `.stats-ranking*` — ranking de bosques del bosque favorito, con mini-barras y el primer puesto en el verde principal.
+- Los tokens de los gráficos viven en `theme.css`: `--chart-heat-*` (escala de calor), `--chart-bar*` (barras), `--chart-series-1…6` (porciones y ranking), `--chart-tip-bg` y `--chart-grid-line`. La escala de calor se calcula relativa al día con más minutos del rango visible.
 - `.edge-scrollbar` (más `is-scrollbar-visible`, que agrega `useEdgeScrollbar`) — barra de scroll compartida por el panel de ajustes y la lista del historial: fina, redondeada y transparente hasta que el puntero se acerca al borde derecho.
 - `.toast--success`, `.toast--warning`, `.toast--info` — tono de los avisos. El tono se elige en `CompletionToast.tsx` solo por nombre de clase.
 - `.dialog-backdrop` — fondo del diálogo de confirmación y del diálogo de creación de bosque.
@@ -122,6 +129,7 @@ Los tokens `--button-*` controlan borde, padding, radio, sombra y colores. Los e
 - `.date-field` y `.date-popover` con `.date-day` (`--selected`, `--today`, `--disabled`, `--blank`) — calendario propio, no el control nativo.
 - `.btn:disabled` — estado deshabilitado de los botones.
 - `.zoom-control`, `.zoom-button` — tres botones flotantes (acercar, alejar, restablecer); no hay slider ni porcentaje visible.
+- `.streak-chip` (con `--empty` cuando la racha es 0), `.streak-card` y sus partes (`__leaf`, `__count` con `--empty`, `__unit`, `__message`, `__close`), `.streak-strip`, `.streak-day` (modificadores `--planted`, `--today`) con `__leaf` y `__label` — racha diaria: píldora flotante con hoja en la esquina inferior izquierda y card del nuevo día; las animaciones propias son `streak-chip-in` y `streak-leaf-drop`.
 
 ## Cambiar el tema completo
 

@@ -1,4 +1,3 @@
-import { useState, type FocusEvent } from 'react'
 import { speciesConfig, speciesForFocusMin, stageMinuteMark } from '@/config/species'
 import { stageForElapsedMs, stageLabel } from '@/logic/growth'
 import { livePlanFocus, projectPlanting } from '@/logic/planting'
@@ -6,9 +5,9 @@ import { formatSessionStart, sessionName } from '@/logic/session'
 import { elapsedMs } from '@/logic/timer'
 import { selectActiveForest, selectStats } from '@/state/selectors'
 import { useStore } from '@/state/store'
-import { SESSION_TITLE_MAX_LENGTH } from '@/config/session'
 import { SessionDetails } from './SessionDetails'
 import { SessionTaskList } from './SessionTaskList'
+import { SessionTitle } from './SessionTitle'
 import { TreePreview } from './TreePreview'
 
 export function SessionCard({ now }: { now: number }) {
@@ -18,8 +17,6 @@ export function SessionCard({ now }: { now: number }) {
   const forests = useStore((state) => state.forests)
   const plans = useStore((state) => state.plans)
   const renamePlanTitle = useStore((state) => state.renamePlanTitle)
-  const [editingTitle, setEditingTitle] = useState(false)
-  const [titleDraft, setTitleDraft] = useState('')
 
   const forestId = active?.kind === 'focus' ? active.forestId : null
   const activeForest = selectActiveForest(forests, forestId)
@@ -56,60 +53,29 @@ export function SessionCard({ now }: { now: number }) {
     ? `${config.name} · ${creditedMin}/${requiredMin} min`
     : `${config.name} · ${stageLabel(species, stage)}`
 
-  const beginEditTitle = (event: FocusEvent<HTMLInputElement>) => {
-    if (!plan) {
-      event.currentTarget.blur()
-      return
-    }
-
-    setTitleDraft(active.title?.trim() || plan.title || '')
-    setEditingTitle(true)
-  }
-
-  const saveTitle = () => {
-    if (!editingTitle) {
-      return
-    }
-
-    const next = titleDraft.trim()
-    if (plan && next) {
-      renamePlanTitle(plan.id, next)
-    }
-    setEditingTitle(false)
-  }
-
   return (
     <section className="card card--session w-full" aria-label="Sesión actual">
       <p className="eyebrow">Sesión en curso</p>
+
+      <h2 className="type-title mt-1.5">
+        <SessionTitle
+          text={title}
+          editText={active.title?.trim() || plan?.title || ''}
+          editable={!!plan}
+          onSave={(next) => {
+            if (plan) {
+              renamePlanTitle(plan.id, next)
+            }
+          }}
+        />
+      </h2>
 
       <div className="mt-2.5 flex items-center gap-2.5">
         <span className="session-icon">
           <TreePreview species={species} stage={stage} />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="type-title">
-            <input
-              className="session-title-input"
-              value={editingTitle ? titleDraft : title}
-              onFocus={beginEditTitle}
-              onChange={(event) => setTitleDraft(event.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.currentTarget.blur()
-                }
-                if (event.key === 'Escape') {
-                  setTitleDraft(active.title?.trim() || plan?.title || '')
-                  setEditingTitle(false)
-                  event.currentTarget.blur()
-                }
-              }}
-              maxLength={SESSION_TITLE_MAX_LENGTH}
-              aria-label="Nombre de la sesión"
-              readOnly={!plan}
-            />
-          </h2>
-          <p className="type-micro type-muted mt-0.5">{detail}</p>
+          <p className="type-micro type-muted">{detail}</p>
           {active.title?.trim() && <p className="type-micro type-muted mt-0.5">{speciesDetail}</p>}
         </div>
       </div>

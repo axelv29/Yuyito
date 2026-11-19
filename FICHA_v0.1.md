@@ -21,7 +21,7 @@ Una app web de escritorio donde una persona completa pomodoros de 25 minutos y v
 | Pradera 8×8 con isla flotante | Editar, mover o quitar árboles; parcelas bloqueadas |
 | Zoom de vista de la pradera (0.5×–2×; mínimo 1× en desktop) | Ajustes de usuario, modo oscuro, selector de temas |
 | Pausa, reanudar y abandonar | Tienda, monedas, economía |
-| Estadísticas de hoy y totales | Gráficos, rachas, calendario, metas |
+| Estadísticas de hoy y totales; racha diaria con hoja | Gráficos, calendario, metas |
 | Guardado local con versión | Cuentas, Supabase, sincronización |
 | Contador "Pomodoros hoy: N" | Meta diaria fija o configurable |
 | Aviso al completar | Sonido, notificaciones del navegador |

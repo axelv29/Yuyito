@@ -15,13 +15,15 @@ Una app web de escritorio donde una persona completa pomodoros y ve crecer un bo
 | Nuevos tipos de árboles / sprites, con versiones extra de maduración y seteado fácil para agregar futuros sprites y tipos de árboles sin tocar la lógica de crecimiento. | Ajustes de usuario, modo oscuro, PWA, álbum. |
 | Más tiempo en el pomodoro, ligado a los nuevos árboles; decisión tomada: especie según la duración elegida (duración → especie), etapas proporcionales a la duración, una sesión = un árbol. La escalera concreta de especies es una sugerencia, no algo definitivo (ver §5 y §8). | Meta diaria fija o configurable. |
 | Menú nuevo para elegir el tiempo y los ajustes del pomodoro: tiempo de estudio y tiempo de descanso, además descanso largo tras 4 sesiones de pomodoro, que suene una pequeña alarma con 3 tonos predefinidos que puedan cambiarse y que llegue una notificación del navegador cuando sonó; todo esto modificable en la nueva ventana de ajustes que irá al costado de las ya existentes estadísticas y bosque. | Guardado en servidor. |
-| Sesiones nuevas con título y descripción que aparece en la card de información básica de la sesión, un texto corto que permita explicar brevemente qué se tratará en la sesión o incluso admita el uso de checkboxes para agregar tareas. | Gráficos, rachas, calendario, metas. |
+| Sesiones nuevas con título y descripción que aparece en la card de información básica de la sesión, un texto corto que permita explicar brevemente qué se tratará en la sesión o incluso admita el uso de checkboxes para agregar tareas. | Calendario y metas. |
 | Selección de una sesión al tocar cualquier árbol, que de información del mismo parecido a la card de la sección actual pero con algunos datos referentes a la sesión seleccionada pasada. | ... |
 | En cada bosque una pestaña de historial de sesiones con información breve relevante, y cada vez que se toque algún árbol del historial muestre la sesión correspondiente. | ... |
 | Árbol seleccionado: se prefiere opacidad distinta, bajando la de los demás árboles y dejando al 100% solo el árbol seleccionado; la alternativa (borde destacado en la grilla) queda descartada por ahora. | ... |
 | Pausa: cuando se pausa una sesión no pasa nada, pero si se cierra la página aparezca un mensaje diciendo que al cerrar la página sería como abandonar y el árbol quedará marchito; se agrega además una opción de pausa estricta al crear la sesión que haga que no se pueda pausar el pomodoro, y si se pausa que sea lo mismo que abandonarlo, con una opción extra activable o no que permita tener cierto tiempo antes que el árbol se marchite si está pausado (p. ej. 5 minutos); ese tiempo sea el mismo para toda la sesión, es decir, si pause una vez y gaste 3 minutos, luego podré volver a pausar pero solo con 2 minutos restantes en el contador de pausa. | ... |
 
 Además, de lo ya conocido y no absorbido en el alcance nuevo: guardado local con versión, avisos de datos corruptos / versión futura / storage bloqueado, HUD con selector Bosque / Estadísticas, pradera con zoom y drag, y los criterios de v0.1.
+
+Actualización 2026-11-18: los gráficos y las rachas pasan al alcance acordado. Estadísticas suma mapa de calor por día, barras por semana/mes, anillos de completados vs. abandonados y reparto por bosque, racha actual y mejor racha, promedio de los últimos 30 días y alcance *Este bosque / Todos*. Además entra la racha diaria con hoja: un chip discreto en la esquina inferior izquierda con los días seguidos y una card central que se abre sola una sola vez por día nuevo, con la tira de 7 días y un mensaje para volver mañana. Calendario, metas y modo oscuro siguen fuera.
 
 ## 3. Flujo
 
@@ -130,7 +132,7 @@ interface PersistedV3 {
 - **Alarma:** 3 tonos predefinidos editables + notificación del navegador al sonar.
 - **Pausa estricta:** no se puede pausar; si se pausa, se trata como abandono. Con tolerancia activable, el árbol solo marchita pasado el tiempo de tolerancia; ese tiempo es el mismo para toda la sesión.
 - **Persistencia:** clave `focus-forest`, versión 3, migración preparada. Los datos viejos se adjuntan a un bosque “Mi bosque” de 8×8; sin datos viejos no se crea un bosque vacío. Datos corruptos: copia en `focus-forest.broken` y reinicio, con aviso. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
-- **Estadísticas:** solo enfoques completados. "Hoy" usa el día local. Los abandonos y los descansos no suman.
+- **Estadísticas:** solo enfoques completados. "Hoy" usa el día local. Los abandonos y los descansos no suman. Desde 2026-11-18 incluyen gráficos propios (mapa de calor, barras por período y anillos) y rachas, con alcance por bosque o global.
 
 ## 6. Criterios de aceptación
 
@@ -165,8 +167,8 @@ interface PersistedV3 {
 
 Pendiente de decidir antes del cierre: la escalera definitiva de especies (la propuesta en §5 es una sugerencia) y la tolerancia exacta de la pausa estricta. Decidido: duración → especie, etapas proporcionales, una sesión = un árbol.
 
-## 9. Estado de implementación (2026-11-11)
+## 9. Estado de implementación (2026-11-18)
 
-Hecho: entidad `Forest` y `PersistedV3` con migración; creación de bosque con nombre, descripción, tamaño 4×4–8×8, fecha opcional con calendario propio y contador, meta de horas y vista previa pixel art; bienvenida con pradera 8×8 y CTA; cabecera con nombre y contador; estadísticas y sesión filtradas por bosque activo.
+Hecho: entidad `Forest` y `PersistedV3` con migración; creación de bosque con nombre, descripción, tamaño 4×4–8×8, fecha opcional con calendario propio y contador, meta de horas y vista previa pixel art; bienvenida con pradera 8×8 y CTA; cabecera con nombre y contador; estadísticas y sesión filtradas por bosque activo. Estadísticas renovada: alcance *Este bosque / Todos*, indicadores de hoy, total, racha y promedio, mapa de calor de 53 semanas, barras por semana/mes con flechas, anillos de completados/abandonados y reparto por bosque, y bosque favorito con ranking.
 
-Pendiente de esta serie: pantalla de cambio de bosque, edición/archivado/eliminación, toggles de nombre/contador en Ajustes, historial por bosque y vista por período.
+Pendiente de esta serie: toggles de nombre/contador en Ajustes. La vista por período de Estadísticas ya está.

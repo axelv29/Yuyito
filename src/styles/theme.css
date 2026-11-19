@@ -176,6 +176,30 @@
   --toast-warning-bg: color-mix(in srgb, var(--palette-blossom) 22%, var(--palette-card));
   --toast-info-bg: color-mix(in srgb, var(--palette-surface) 35%, var(--palette-card));
 
+  /* Estadísticas: mapa de calor, barras, anillos y ranking. */
+  --chart-heat-cell: 0.625rem;
+  --chart-heat-gap: 0.125rem;
+  --chart-heat-weekday-width: 1.5rem;
+  --chart-heat-empty: color-mix(in srgb, var(--palette-primary) 7%, var(--palette-card));
+  --chart-heat-1: color-mix(in srgb, var(--palette-accent) 30%, var(--palette-card));
+  --chart-heat-2: color-mix(in srgb, var(--palette-accent) 55%, var(--palette-card));
+  --chart-heat-3: color-mix(in srgb, var(--palette-primary) 60%, var(--palette-card));
+  --chart-heat-4: var(--palette-primary);
+  --chart-bars-height: 7.5rem;
+  --chart-bars-gap: 0.3rem;
+  --chart-bar-width: 3rem;
+  --chart-bar: color-mix(in srgb, var(--palette-primary) 70%, var(--palette-card));
+  --chart-bar-today: var(--palette-cta);
+  --chart-bar-track: rgba(32, 63, 59, 0.06);
+  --chart-grid-line: rgba(32, 63, 59, 0.08);
+  --chart-tip-bg: #fdfdf8;
+  --chart-series-1: var(--palette-primary);
+  --chart-series-2: var(--palette-accent);
+  --chart-series-3: #9aad86;
+  --chart-series-4: #c9b98f;
+  --chart-series-5: #b48a74;
+  --chart-series-6: #8fa7b0;
+
   /* Fondo del diálogo de confirmación. */
   --dialog-backdrop: color-mix(in srgb, var(--palette-ink) 32%, transparent);
 }

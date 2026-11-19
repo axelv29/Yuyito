@@ -26,7 +26,8 @@ Plan acordado antes de escribir la lógica. Lo marcado como **✅ Cerrado** ya s
 | Celdas | 60×30, grilla 8×8, escena lógica 480×400; escala base entera y zoom solo en escalas enteras |
 | Árbol adulto | 44 ancho × 89 alto; frames recortados por estado y dibujo a tamaño nativo |
 | Contador | "Pomodoros hoy: N", sin meta diaria |
-| Estadísticas | Hoy y totales; sin gráficos, rachas ni calendario |
+| Estadísticas | Hoy, totales, racha y promedio; heatmap, barras y anillos propios |
+| Racha diaria | Hoja en vez de fuego: chip discreto abajo a la izquierda y card central una vez por día nuevo; cuenta solo pomodoros completados, en todos los bosques |
 | Color | Paleta de la sección 9, sin colores fuera de ella |
 | Dependencias | Nada de router, gráficos, motor de juego, Supabase ni PWA en la v0.1 |
 
@@ -78,7 +79,7 @@ Las opciones, comparadas:
 - **Lienzo pixel-perfect:** la escena lógica mide 480×400: 240 de grilla, 128 de margen superior para que el árbol de la fila de atrás no se corte y 32 de tierra visible. La escala base se elige entera (1×, 2×, 3×…; 0.5× solo si el contenedor es más chico que la escena) y se muestra a tamaño físico. El zoom se limita a múltiplos enteros de la escala de origen (0.5× solo como ajuste mínimo): no hay medios pasos ni niveles intermedios, así que no se mezclan píxeles de 1/2 px. El zoom-out nunca baja de 1:1 si la escala base ya entra.
 - **Imágenes optimizadas:** PNG comprimidos y solo los sprites que se usan.
 - **Dos fuentes como máximo,** servidas localmente, con alternativa del sistema mientras cargan.
-- **Carga a demanda:** las estadísticas con gráficos y Supabase entran recién cuando se usan (v0.2/v0.3).
+- **Carga a demanda:** los gráficos de Estadísticas son SVG y CSS propios, sin librería; Supabase, si alguna vez entra, se carga cuando se usa (v0.3).
 - **Gráficos propios simples** (barras en CSS o SVG) en vez de una librería pesada.
 - **Meta inicial a medir:** menos de unos 200 KB de JavaScript comprimido y menos de 1 MB de imágenes en la primera carga.
 
@@ -90,7 +91,7 @@ Las opciones, comparadas:
 - **Descanso:** pausa configurable por sesión. Se ofrece al completar un bloque con un botón; no arranca solo. En modo continuo no hay pausas. No planta árbol ni suma estadísticas.
 - **Crecimiento:** cada especie tiene un costo fijo y etapas proporcionales: pino 25 (4), abedul 45 (5), roble 60 (7), ceibo 90 (7). La cola se recorre de a un árbol; el último puede quedar parcial y guardarse como `growing`. Al abandonar, el árbol actual queda marchito con la variante de la etapa alcanzada.
 - **Pradera:** grilla isométrica de 4×4 a 8×8, centrada, con isla flotante y árboles ordenados de atrás hacia adelante. La escala base es común a todos los tamaños; los bosques chicos se ven proporcionalmente más chicos y se pueden acercar con el zoom.
-- **Estadísticas:** pomodoros y minutos de hoy; pomodoros y minutos totales; árboles adultos, en crecimiento y marchitos. Sin gráficos.
+- **Estadísticas:** alcance por bosque o global; hoy, total, racha actual y promedio por día estudiado en los últimos 30 días; mapa de calor de 53 semanas, barras de días por semana o por mes, anillos de completados vs. abandonados y reparto por bosque, y bosque favorito con ranking. Solo los pomodoros completados suman minutos.
 - **Guardado:** local en el navegador, con versión de esquema V5 y migración preparada.
 - **Sesiones e historial:** una sesión combina ritmo y cola de árboles, con hasta 8 bloques y 8 árboles. El historial del bosque agrupa los bloques de cada sesión, incluye árboles en crecimiento y marchitos, y filtra por hoy, semana, series y marchitas.
 - **Interfaz:** vistas Bosque, Estadísticas y Bosques, con el selector dentro de la tarjeta del timer. El historial es una ventana flotante que se abre desde un botón discreto del timer y se apila bajo la tarjeta de sesión. La tarjeta de sesión queda visible durante el enfoque (también en pausa) y se oculta en descanso. El selector se deshabilita mientras hay una sesión activa; timer, pausa y abandonar siguen a mano. Iniciar abre el diálogo de sesión; la pradera permite seleccionar una sesión con doble clic para resaltar sus árboles.
@@ -105,7 +106,7 @@ Las opciones, comparadas:
 - **Creación:** diálogo con nombre, descripción, tamaño en un select con capacidad, fecha opcional con calendario propio y contador, meta de horas y vista previa con el atlas real. Se abre desde la bienvenida o desde Iniciar si todavía no hay bosque.
 - **Identidad visible:** la cabecera muestra el nombre del bosque y el contador de días. Los toggles para ocultarlos ya existen en el modelo (`display`) y se conectarán en Ajustes.
 - **Estadísticas por bosque:** el timer, la tarjeta de sesión y Estadísticas filtran por el bosque activo; Estadísticas muestra totales globales cuando hay más de un bosque.
-- **Pendiente de esta serie:** toggles de nombre/contador en Ajustes y vista por período (mes/semana/año). Edición, archivado, eliminación, cambio de bosque e historial por bosque ya están implementados.
+- **Pendiente de esta serie:** toggles de nombre/contador en Ajustes. La vista por período de Estadísticas ya está (2026-11-18). Edición, archivado, eliminación, cambio de bosque e historial por bosque ya están implementados.
 
 ### Sesiones e historial: implementado en esta etapa
 
