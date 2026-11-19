@@ -12,5 +12,7 @@ export const SESSION_MIN_BREAK_MIN = 1
 export const SESSION_MAX_BREAK_MIN = 30
 export const SESSION_BREAK_STEP = 1
 export const SESSION_MIN_LONG_BREAK_MIN = 5
+/** Enfoque sobrante desde el que se avisa antes de empezar la sesión. */
+export const SESSION_LEFTOVER_WARN_MIN = 10
 export const SESSION_MAX_LONG_BREAK_MIN = 60
 export const SESSION_LONG_BREAK_STEP = 5

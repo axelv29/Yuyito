@@ -1,4 +1,11 @@
-import type { FocusRecord, SessionKind, TaskStatus } from '@/state/types'
+import type {
+  FocusRecord,
+  PomodoroSettings,
+  SessionKind,
+  SessionMode,
+  SessionPlan,
+  TaskStatus,
+} from '@/state/types'
 import { localDayKey } from './day'
 
 /** Ciclo de un objetivo: neutral → completado → no completado → neutral. */
@@ -94,6 +101,27 @@ export function sessionTotalMinutes(rhythm: SessionRhythm): number {
   return sessionSegments(rhythm).reduce((sum, segment) => sum + segment.minutes, 0)
 }
 
+/** Tramo de la línea de tiempo del diálogo: enfoque, descanso corto o pausa larga. */
+export type SessionTimelineKind = 'enfoque' | 'descanso' | 'descansoLargo'
+
+export interface SessionTimelineSegment {
+  tipo: SessionTimelineKind
+  minutos: number
+}
+
+/**
+ * Tramos de la sesión para la rueda y la línea de tiempo: enfoque, descanso
+ * y pausa larga alternados, terminando siempre en enfoque. Reutiliza
+ * `sessionSegments` para no duplicar la regla de las pausas largas; el tramo
+ * de pausa larga lleva su propio tipo para poder pintarlo distinto.
+ */
+export function sessionTimeline(rhythm: SessionRhythm): SessionTimelineSegment[] {
+  return sessionSegments(rhythm).map((segment) => ({
+    tipo: segment.kind === 'focus' ? 'enfoque' : segment.kind === 'longBreak' ? 'descansoLargo' : 'descanso',
+    minutos: segment.minutes,
+  }))
+}
+
 /** Día y hora de inicio, con el formato corto de la tarjeta de sesión. */
 export function formatSessionStart(timestamp: number): string {
   const date = new Intl.DateTimeFormat('es', {
@@ -109,4 +137,60 @@ export function formatSessionStart(timestamp: number): string {
   }).format(new Date(timestamp))
 
   return `${date.charAt(0).toUpperCase()}${date.slice(1)}, ${time}`
+}
+
+/** Ritmo con el que abre el diálogo de nueva sesión. */
+export interface NewSessionDefaults {
+  mode: SessionMode
+  focusMin: number
+  breakMin: number
+  targetPomodoros: number
+  longBreaks: boolean
+  longBreakEvery: number
+  longBreakMin: number
+  strictPause: boolean
+}
+
+/**
+ * Repite el ritmo de la última sesión para no volver a cargarlo a mano. La
+ * primera vez no hay de dónde copiar: arranca sin ciclos, y los árboles son
+ * siempre elección de cada sesión.
+ */
+export function newSessionDefaults(
+  plans: readonly SessionPlan[],
+  settings: PomodoroSettings,
+): NewSessionDefaults {
+  let last: SessionPlan | null = null
+  for (const plan of plans) {
+    if (!last || plan.createdAt >= last.createdAt) {
+      last = plan
+    }
+  }
+
+  if (!last) {
+    return {
+      mode: 'continuous',
+      focusMin: settings.focusMin,
+      breakMin: settings.breakMin,
+      targetPomodoros: 1,
+      longBreaks: false,
+      longBreakEvery: settings.longBreakEvery,
+      longBreakMin: settings.longBreakMin,
+      strictPause: settings.strictPause,
+    }
+  }
+
+  const longBreakEvery = last.longBreakEvery ?? 0
+  const longBreakMin = last.longBreakMin ?? 0
+
+  return {
+    mode: last.mode,
+    focusMin: last.focusMin,
+    breakMin: last.breakMin,
+    targetPomodoros: Math.max(1, last.targetPomodoros),
+    longBreaks: longBreakEvery > 0 && longBreakMin > 0,
+    longBreakEvery: longBreakEvery > 0 ? longBreakEvery : settings.longBreakEvery,
+    longBreakMin: longBreakMin > 0 ? longBreakMin : settings.longBreakMin,
+    strictPause: last.strictPause ?? settings.strictPause,
+  }
 }

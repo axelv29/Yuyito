@@ -47,6 +47,15 @@
   --type-caption-size: 0.75rem;
   --type-micro-size: 0.65625rem;
 
+  /* Sección Tiempos de la card de nueva sesión: misma escala que el resto de la card. */
+  --type-session-title-size: var(--type-title-size);
+  --type-session-option-size: var(--type-caption-size);
+  --type-session-setting-size: var(--type-body-size);
+  --type-session-stepper-size: 0.875rem;
+  --type-session-legend-size: 0.6875rem;
+  --type-session-wheel-size: 1.0625rem;
+  --type-session-timeline-size: 0.625rem;
+
   /* Forma: esquinas suaves, bordes finos y sombras muy tenues. */
   --border-hairline: 1px;
   --border-medium: 2px;
@@ -159,6 +168,31 @@
   --ring-long-to: #6c92a8;
   --ring-tip-bg: #fdfdf8;
   --ring-tip-stroke: var(--palette-cta);
+
+  /* Card de nueva sesión: sección Tiempos. */
+  --session-times-gap: 0.6rem;
+  --session-times-radius: var(--radius-card);
+  --session-wheel-size: 4.5rem;
+  --session-segment-bg: color-mix(in srgb, var(--palette-primary) 8%, var(--palette-card));
+  --session-segment-fg: var(--palette-primary);
+  --session-segment-selected-bg: var(--button-primary-bg);
+  --session-segment-selected-fg: var(--button-primary-fg);
+  --session-segment-shadow: var(--shadow-button);
+  --session-switch-off: color-mix(in srgb, var(--palette-primary) 20%, var(--palette-card));
+  --session-switch-off-hover: color-mix(in srgb, var(--palette-primary) 28%, var(--palette-card));
+  --session-switch-on: var(--palette-cta);
+  --session-switch-knob: var(--palette-card);
+  --session-stepper-bg: color-mix(in srgb, var(--palette-primary) 7%, var(--palette-card));
+  /* Colores pastel de la subsección Tiempos: más claros que los botones y
+     solo para la rueda, la línea de tiempo y la leyenda. */
+  --session-focus-bar: color-mix(in srgb, var(--palette-accent) 70%, #ffffff);
+  --session-focus-bar-fg: color-mix(in srgb, var(--palette-primary) 75%, #000000);
+  --session-break-bar: color-mix(in srgb, var(--palette-danger) 80%, #ffffff);
+  --session-break-bar-fg: color-mix(in srgb, var(--palette-danger) 70%, #000000);
+  --session-long-break-bar: color-mix(in srgb, #56779e 65%, #ffffff);
+  --session-long-break-bar-fg: color-mix(in srgb, #56779e 55%, #000000);
+  --session-wheel-track: var(--ring-track);
+  --motion-wheel: 200ms;
 
   /* Control de zoom flotante. */
   --zoom-bg: rgba(253, 253, 248, 0.92);

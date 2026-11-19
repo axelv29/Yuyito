@@ -1,18 +1,8 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { finalStage, speciesConfig } from '@/config/species'
 import {
-  SESSION_BREAK_STEP,
   SESSION_DESCRIPTION_MAX_LENGTH,
-  SESSION_FOCUS_STEP,
-  SESSION_LONG_BREAK_STEP,
+  SESSION_LEFTOVER_WARN_MIN,
   SESSION_MAX_BREAK_MIN,
   SESSION_MAX_FOCUS_MIN,
   SESSION_MAX_LONG_BREAK_MIN,
@@ -27,12 +17,13 @@ import {
 } from '@/config/session'
 import { useEdgeScrollbar } from '@/hooks/useEdgeScrollbar'
 import { suggestPlanting, validatePlanting } from '@/logic/planting'
-import { sessionTotalMinutes } from '@/logic/session'
+import { newSessionDefaults } from '@/logic/session'
 import { useStore } from '@/state/store'
 import type { NewSessionInput, SessionMode, TreeSpecies } from '@/state/types'
 import { CloseIcon, MinusIcon, PineIcon, PlusIcon } from './icons'
 import { InfoTip } from './InfoTip'
-import { SessionTimeRing } from './SessionTimeRing'
+import { LeftoverWarning } from './LeftoverWarning'
+import { SessionTimes } from './SessionTimes'
 import { TreePreview } from './TreePreview'
 
 interface SessionCreateDialogProps {
@@ -44,106 +35,8 @@ interface SessionCreateDialogProps {
 
 const SPECIES_ORDER: readonly TreeSpecies[] = ['pino', 'abedul', 'roble', 'ceibo']
 
-const PRESETS: readonly { focus: number; brk: number }[] = [
-  { focus: 25, brk: 5 },
-  { focus: 50, brk: 10 },
-  { focus: 90, brk: 20 },
-]
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)))
-}
-
-interface NumberFieldProps {
-  /** Nombre accesible del campo y de sus botones. */
-  label: string
-  value: number
-  min: number
-  max: number
-  step?: number
-  unit?: string
-  onChange: (value: number) => void
-}
-
-/**
- * Número compacto con −/+ discretos y edición a mano: se puede escribir el
- * entero que se quiera y se ajusta a los límites al salir del campo.
- */
-function NumberField({ label, value, min, max, step = 1, unit, onChange }: NumberFieldProps) {
-  const [draft, setDraft] = useState(String(value))
-  const editing = useRef(false)
-
-  useEffect(() => {
-    if (!editing.current) {
-      setDraft(String(value))
-    }
-  }, [value])
-
-  const commit = (raw: string) => {
-    const parsed = Number.parseInt(raw, 10)
-    const next = Number.isFinite(parsed) ? clamp(parsed, min, max) : value
-    if (next !== value) {
-      onChange(next)
-    }
-    setDraft(String(next))
-  }
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const digits = event.target.value.replace(/\D/g, '').slice(0, 3)
-    setDraft(digits)
-    if (digits !== '') {
-      onChange(clamp(Number(digits), min, max))
-    }
-  }
-
-  return (
-    <span className="num-field">
-      <button
-        type="button"
-        className="num-field__btn"
-        onClick={() => onChange(clamp(value - step, min, max))}
-        disabled={value <= min}
-        aria-label={`Reducir ${label}`}
-      >
-        <MinusIcon />
-      </button>
-
-      <span className="num-field__value">
-        <input
-          className="num-field__input"
-          value={draft}
-          inputMode="numeric"
-          pattern="[0-9]*"
-          aria-label={label}
-          style={{ width: `${Math.max(1, draft.length)}ch` }}
-          onFocus={() => {
-            editing.current = true
-          }}
-          onChange={handleChange}
-          onBlur={() => {
-            editing.current = false
-            commit(draft)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.currentTarget.blur()
-            }
-          }}
-        />
-        {unit && <span className="num-field__unit">{unit}</span>}
-      </span>
-
-      <button
-        type="button"
-        className="num-field__btn"
-        onClick={() => onChange(clamp(value + step, min, max))}
-        disabled={value >= max}
-        aria-label={`Aumentar ${label}`}
-      >
-        <PlusIcon />
-      </button>
-    </span>
-  )
 }
 
 export function SessionCreateDialog({
@@ -155,31 +48,48 @@ export function SessionCreateDialog({
   const titleRef = useRef<HTMLInputElement>(null)
   const taskRefs = useRef<Array<HTMLInputElement | null>>([])
   const bodyScrollbar = useEdgeScrollbar<HTMLFormElement>()
+  const treesRef = useRef<HTMLElement>(null)
+  const startRef = useRef<HTMLButtonElement>(null)
   const settings = useStore((state) => state.settings)
-  // El diálogo se monta solo cuando abre (render condicional en App),
-  // así que el estado inicial nace de los ajustes y no hace falta resetear.
-  const initialFocus = clamp(settings.focusMin, SESSION_MIN_FOCUS_MIN, SESSION_MAX_FOCUS_MIN)
-  const initialBreak = clamp(settings.breakMin, SESSION_MIN_BREAK_MIN, SESSION_MAX_BREAK_MIN)
+  const plans = useStore((state) => state.plans)
+  // El diálogo se monta solo cuando abre (render condicional en App), así que
+  // el estado inicial nace de los datos y no hace falta resetear: repite el
+  // ritmo de la última sesión o, sin historial, los ajustes sin ciclos.
+  const defaults = useMemo(() => newSessionDefaults(plans, settings), [plans, settings])
+  const initialFocus = clamp(defaults.focusMin, SESSION_MIN_FOCUS_MIN, SESSION_MAX_FOCUS_MIN)
+  const initialBreak = clamp(defaults.breakMin, SESSION_MIN_BREAK_MIN, SESSION_MAX_BREAK_MIN)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [tasks, setTasks] = useState<string[]>([])
-  const [mode, setMode] = useState<SessionMode>('breaks')
+  const [mode, setMode] = useState<SessionMode>(defaults.mode)
   const [focusMin, setFocusMin] = useState(initialFocus)
   const [breakMin, setBreakMin] = useState(initialBreak)
-  // Personalizado se activa solo si los ajustes no caen en ningún preset.
-  const [custom, setCustom] = useState(
-    () => !PRESETS.some((preset) => preset.focus === initialFocus && preset.brk === initialBreak),
+  // Sin ciclos la sesión es un solo bloque, aunque el plan guardado diga otra cosa.
+  const [targetPomodoros, setTargetPomodoros] = useState(
+    defaults.mode === 'breaks' ? defaults.targetPomodoros : 1,
   )
-  const [targetPomodoros, setTargetPomodoros] = useState(3)
-  const [longBreaks, setLongBreaks] = useState(false)
-  const [strictPause, setStrictPause] = useState(settings.strictPause)
+  const [longBreaks, setLongBreaks] = useState(defaults.longBreaks)
+  const [strictPause, setStrictPause] = useState(defaults.strictPause)
   const [longBreakEvery, setLongBreakEvery] = useState(() =>
-    clamp(settings.longBreakEvery, 1, SESSION_MAX_POMODOROS),
+    clamp(defaults.longBreakEvery, 1, SESSION_MAX_POMODOROS),
   )
   const [longBreakMin, setLongBreakMin] = useState(() =>
-    clamp(settings.longBreakMin, SESSION_MIN_LONG_BREAK_MIN, SESSION_MAX_LONG_BREAK_MIN),
+    clamp(defaults.longBreakMin, SESSION_MIN_LONG_BREAK_MIN, SESSION_MAX_LONG_BREAK_MIN),
   )
-  const [queue, setQueue] = useState<TreeSpecies[]>(() => suggestPlanting(initialFocus * 3))
+  // Los árboles no se heredan: cada sesión se planta a mano.
+  const [queue, setQueue] = useState<TreeSpecies[]>([])
+  // Cambia con cada intento de empezar sin árboles: reinicia la burbuja de aviso.
+  const [warningId, setWarningId] = useState(0)
+  // El aviso de tiempo sobrante vive en una card encima del diálogo.
+  const [leftoverOpen, setLeftoverOpen] = useState(false)
+
+  useEffect(() => {
+    if (warningId === 0) {
+      return
+    }
+    const timer = window.setTimeout(() => setWarningId(0), 4000)
+    return () => window.clearTimeout(timer)
+  }, [warningId])
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => titleRef.current?.focus())
@@ -190,16 +100,33 @@ export function SessionCreateDialog({
     onClose()
   }, [onClose])
 
+  const closeLeftover = useCallback(() => {
+    setLeftoverOpen(false)
+    // El foco vuelve al botón que abrió el aviso.
+    window.requestAnimationFrame(() => startRef.current?.focus())
+  }, [])
+
+  const adjustPlanting = useCallback(() => {
+    closeLeftover()
+    treesRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [closeLeftover])
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        handleClose()
+      if (event.key !== 'Escape') {
+        return
       }
+      // Con el aviso de tiempo sobrante arriba, Escape cierra solo el aviso.
+      if (leftoverOpen) {
+        closeLeftover()
+        return
+      }
+      handleClose()
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [handleClose])
+  }, [closeLeftover, handleClose, leftoverOpen])
 
   const budget = focusMin * targetPomodoros
   const rhythm = useMemo(
@@ -212,7 +139,6 @@ export function SessionCreateDialog({
     }),
     [breakMin, focusMin, longBreakEvery, longBreakMin, longBreaks, mode, targetPomodoros],
   )
-  const totalClock = useMemo(() => sessionTotalMinutes(rhythm), [rhythm])
 
   const totalCost = useMemo(
     () => queue.reduce((sum, species) => sum + speciesConfig(species).minutes, 0),
@@ -228,16 +154,26 @@ export function SessionCreateDialog({
     [focusMin, queue, targetPomodoros],
   )
 
-  const activePreset = useMemo(
-    () => PRESETS.find((preset) => preset.focus === focusMin && preset.brk === breakMin) ?? null,
-    [breakMin, focusMin],
-  )
-
   const sobra = Math.max(0, budget - totalCost)
   const falta = Math.max(0, totalCost - budget)
   const barPct = budget > 0 ? Math.min(1, totalCost / budget) : 0
-  const canStart = queue.length > 0 && totalCost <= budget
-  // El tiempo sobrante se explica en el tooltip de la barra, no en un párrafo.
+  const noTrees = queue.length === 0
+  const overBudget = totalCost > budget
+  const canStart = !noTrees && !overBudget
+  // El botón queda inerte solo cuando los árboles no entran en el presupuesto;
+  // sin árboles tiene que responder para explicar qué falta.
+  const startDisabled = overBudget
+  const showTreeWarning = warningId > 0 && noTrees
+  let allocLabel = 'Justo'
+  if (noTrees) {
+    allocLabel = 'Sin árboles'
+  } else if (falta > 0) {
+    allocLabel = `Faltan ${falta} min`
+  } else if (sobra > 0) {
+    allocLabel = `Sobran ${sobra} min`
+  }
+  // El sobrante no se repite como mensaje fijo: vive en el tooltip de la barra
+  // y en la card que se muestra al empezar.
   const messages = validation.warnings.filter((warning) => !warning.startsWith('Sobran '))
 
   if (!open) {
@@ -275,31 +211,16 @@ export function SessionCreateDialog({
   }
 
   const handleCyclesToggle = (enabled: boolean) => {
-    if (enabled) {
-      const nextTarget = 3
-      setMode('breaks')
-      setTargetPomodoros(nextTarget)
-      setQueue(suggestPlanting(focusMin * nextTarget))
-      return
-    }
-
-    setMode('continuous')
-    setTargetPomodoros(1)
-    setQueue(suggestPlanting(focusMin))
+    setMode(enabled ? 'breaks' : 'continuous')
+    setTargetPomodoros(enabled ? 3 : 1)
   }
 
   const handlePreset = (preset: { focus: number; brk: number }) => {
-    setCustom(false)
     setFocusMin(preset.focus)
     setBreakMin(preset.brk)
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canStart) {
-      return
-    }
-
+  const startSession = () => {
     onStart({
       title: title.trim() || undefined,
       description: description.trim() || null,
@@ -316,6 +237,25 @@ export function SessionCreateDialog({
     handleClose()
   }
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (noTrees) {
+      setWarningId((value) => value + 1)
+      treesRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      return
+    }
+    if (!canStart) {
+      return
+    }
+    // Con mucho enfoque sin plantar, primero se avisa qué pasa al abandonar.
+    if (sobra >= SESSION_LEFTOVER_WARN_MIN) {
+      setLeftoverOpen(true)
+      return
+    }
+
+    startSession()
+  }
+
   return (
     <div
       className="dialog-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
@@ -330,6 +270,7 @@ export function SessionCreateDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="session-dialog-title"
+        inert={leftoverOpen}
       >
         <div className="forest-dialog__head">
           <div className="flex min-w-0 items-start gap-3">
@@ -462,190 +403,28 @@ export function SessionCreateDialog({
             </div>
           </section>
 
-          <section className="session-section" aria-label="Tiempos">
-            <div className="session-section__head">
-              <h3 className="type-title">Tiempos</h3>
-            </div>
+          <SessionTimes
+            focusMin={focusMin}
+            breakMin={breakMin}
+            rhythm={rhythm}
+            cyclesActive={mode === 'breaks'}
+            cycles={targetPomodoros}
+            longBreaks={longBreaks}
+            longBreakEvery={longBreakEvery}
+            longBreakMin={longBreakMin}
+            strictPause={strictPause}
+            onPreset={handlePreset}
+            onFocusChange={setFocusMin}
+            onBreakChange={setBreakMin}
+            onCyclesToggle={handleCyclesToggle}
+            onCyclesChange={setTargetPomodoros}
+            onLongBreaksToggle={setLongBreaks}
+            onLongBreakEveryChange={setLongBreakEvery}
+            onLongBreakMinChange={setLongBreakMin}
+            onStrictPauseToggle={setStrictPause}
+          />
 
-            <div className="session-time">
-              <div className="session-time__main">
-                <div className="session-presets" aria-label="Ritmos rápidos">
-                  {PRESETS.map((preset) => (
-                    <button
-                      key={`${preset.focus}-${preset.brk}`}
-                      type="button"
-                      className="session-preset"
-                      aria-pressed={!custom && activePreset === preset}
-                      onClick={() => handlePreset(preset)}
-                    >
-                      {preset.focus} / {preset.brk}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="session-preset"
-                    aria-pressed={custom}
-                    onClick={() => setCustom(true)}
-                  >
-                    Personalizado
-                  </button>
-                </div>
-
-                {/* Enfoque y pausa a mano: solo con el preset Personalizado. */}
-                {custom && (
-                  <div className="time-fields">
-                    <div className="time-field">
-                      <span className="time-field__label">Enfoque</span>
-                      <NumberField
-                        label="Minutos de enfoque"
-                        value={focusMin}
-                        min={SESSION_MIN_FOCUS_MIN}
-                        max={SESSION_MAX_FOCUS_MIN}
-                        step={SESSION_FOCUS_STEP}
-                        unit="min"
-                        onChange={setFocusMin}
-                      />
-                    </div>
-
-                    {mode === 'breaks' && (
-                      <div className="time-field">
-                        <span className="time-field__label">Pausa</span>
-                        <NumberField
-                          label="Minutos de pausa"
-                          value={breakMin}
-                          min={SESSION_MIN_BREAK_MIN}
-                          max={SESSION_MAX_BREAK_MIN}
-                          step={SESSION_BREAK_STEP}
-                          unit="min"
-                          onChange={setBreakMin}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="session-time__row">
-                  <span className="session-switch">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={mode === 'breaks'}
-                      className="session-toggle"
-                      onClick={() => handleCyclesToggle(mode !== 'breaks')}
-                    >
-                      <span className="session-toggle__track" aria-hidden="true">
-                        <span className="session-toggle__knob" />
-                      </span>
-                      <span className="session-toggle__label">Activar ciclos</span>
-                    </button>
-                    <InfoTip
-                      label="Más información sobre los ciclos"
-                      text="Con ciclos, la sesión alterna bloques de enfoque y pausas, y podés retomarla desde un descanso. Sin ciclos es un solo bloque: si salís, la sesión se cierra."
-                    />
-                  </span>
-                </div>
-
-                {mode === 'breaks' && (
-                  <>
-                    <div className="session-time__row session-time__row--sub">
-                      <div className="session-cycles">
-                        <span className="session-cycles__label">Ciclos</span>
-                        <NumberField
-                          label="Ciclos"
-                          value={targetPomodoros}
-                          min={1}
-                          max={SESSION_MAX_POMODOROS}
-                          onChange={setTargetPomodoros}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="session-time__row">
-                      <span className="session-switch">
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={longBreaks}
-                          className="session-toggle"
-                          onClick={() => setLongBreaks((value) => !value)}
-                        >
-                          <span className="session-toggle__track" aria-hidden="true">
-                            <span className="session-toggle__knob" />
-                          </span>
-                          <span className="session-toggle__label">Pausas largas</span>
-                        </button>
-                        <InfoTip
-                          label="Más información sobre las pausas largas"
-                          text="Una pausa más larga cada cierta cantidad de bloques. Elegí cada cuántos bloques va y cuánto dura."
-                        />
-                      </span>
-                    </div>
-
-                    {longBreaks && (
-                      <div className="session-time__row session-time__row--sub">
-                        <div className="session-cycles">
-                          <NumberField
-                            label="Cada cuántos bloques"
-                            value={longBreakEvery}
-                            min={1}
-                            max={SESSION_MAX_POMODOROS}
-                            unit="ciclos"
-                            onChange={setLongBreakEvery}
-                          />
-                          <NumberField
-                            label="Minutos de pausa larga"
-                            value={longBreakMin}
-                            min={SESSION_MIN_LONG_BREAK_MIN}
-                            max={SESSION_MAX_LONG_BREAK_MIN}
-                            step={SESSION_LONG_BREAK_STEP}
-                            unit="min"
-                            onChange={setLongBreakMin}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Ajuste básico de pomodoro; el detalle vive en Ajustes. */}
-                <div className="session-time__row">
-                  <span className="session-switch">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={strictPause}
-                      className="session-toggle"
-                      onClick={() => setStrictPause((value) => !value)}
-                    >
-                      <span className="session-toggle__track" aria-hidden="true">
-                        <span className="session-toggle__knob" />
-                      </span>
-                      <span className="session-toggle__label">Pausa estricta</span>
-                    </button>
-                    <InfoTip
-                      label="Más información sobre la pausa estricta"
-                      text="Si la activás, pausar equivale a abandonar: se pide confirmación y, si aceptás, el árbol se marchita y el pomodoro no suma minutos."
-                    />
-                  </span>
-                </div>
-
-                <div className="session-summary">
-                  <span>
-                    <strong>{budget}</strong> min de enfoque
-                  </span>
-                  {totalClock !== budget && (
-                    <span>
-                      <strong>{totalClock}</strong> min en total
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <SessionTimeRing rhythm={rhythm} totalMin={totalClock} />
-            </div>
-          </section>
-
-          <section className="session-section" aria-label="Árboles">
+          <section ref={treesRef} className="session-section" aria-label="Árboles">
             <div className="session-section__head">
               <h3 className="type-title">Árboles</h3>
               <button
@@ -719,8 +498,8 @@ export function SessionCreateDialog({
                   <strong>{totalCost}</strong> / {budget} min
                 </span>
                 <span className="alloc__state">
-                  {sobra > 0 ? `Sobran ${sobra} min` : falta > 0 ? `Faltan ${falta} min` : 'Justo'}
-                  {sobra > 0 && (
+                  {allocLabel}
+                  {sobra > 0 && !noTrees && (
                     <InfoTip
                       label="Más información sobre los minutos que sobran"
                       text={`Quedan ${sobra} min de enfoque sin plantar. Podés empezar igual; si abandonás antes de tiempo, el último árbol se marchita.`}
@@ -731,11 +510,13 @@ export function SessionCreateDialog({
             </div>
 
             <div className="session-messages">
-              {validation.errors.map((error) => (
-                <p key={error} className="session-message session-message--error">
-                  {error}
-                </p>
-              ))}
+              {/* Sin árboles el aviso vive en el botón, no como error fijo. */}
+              {!noTrees &&
+                validation.errors.map((error) => (
+                  <p key={error} className="session-message session-message--error">
+                    {error}
+                  </p>
+                ))}
               {messages.map((warning) => (
                 <p key={warning} className="session-message session-message--warning">
                   {warning}
@@ -746,19 +527,36 @@ export function SessionCreateDialog({
         </form>
 
         <div className="forest-dialog__actions">
+          {showTreeWarning && (
+            <span className="start-hint" role="status">
+              Elegí al menos un árbol para plantar.
+            </span>
+          )}
           <button type="button" className="btn btn-secondary" onClick={handleClose}>
             Cancelar
           </button>
           <button
+            ref={startRef}
             type="submit"
             form="session-form"
             className="btn btn-primary"
-            disabled={!canStart}
+            disabled={startDisabled}
+            aria-disabled={!canStart}
           >
             Plantar y empezar
           </button>
         </div>
       </div>
+
+      {leftoverOpen && (
+        <LeftoverWarning
+          leftoverMin={sobra}
+          totalCost={totalCost}
+          budget={budget}
+          onAdjust={adjustPlanting}
+          onStart={startSession}
+        />
+      )}
     </div>
   )
 }

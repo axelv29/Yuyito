@@ -1691,6 +1691,7 @@
   }
 
   .forest-dialog__actions {
+    position: relative;
     display: flex;
     flex-shrink: 0;
     justify-content: flex-end;
@@ -1698,6 +1699,26 @@
     margin-top: 0.8rem;
     padding-top: 0.9rem;
     border-top: var(--border-hairline) solid var(--card-border-color);
+  }
+
+  /* Aviso al tocar Plantar sin árboles: burbuja sobre el botón. */
+  .start-hint {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.5rem);
+    z-index: 46;
+    width: max-content;
+    max-width: min(16rem, 100%);
+    border-radius: var(--radius-control);
+    background-color: var(--palette-ink);
+    box-shadow: var(--card-shadow);
+    color: var(--palette-card);
+    font-size: var(--type-caption-size);
+    font-weight: 600;
+    line-height: 1.35;
+    padding: 0.35rem 0.6rem;
+    pointer-events: none;
+    animation: prompt-in 180ms var(--ease-soft) both;
   }
 
   .btn:disabled,
@@ -2268,115 +2289,238 @@
     margin: 0;
   }
 
-  /* Tiempos: contenido a la izquierda y anillo de resumen a la derecha. */
-  .session-time {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 1.35rem;
-  }
-
-  .session-time__main {
+  /* Tiempos: presets segmentados, ajustes y resumen de la sesión. */
+  .session-times {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: var(--session-times-gap);
+    width: 100%;
     min-width: 0;
   }
 
-  .session-time__row {
+  .session-times__title {
+    margin: 0;
+    color: var(--palette-primary);
+    font-size: var(--type-session-title-size);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .session-rhythm {
     display: flex;
-    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    gap: 0.1875rem;
+    padding: 0.1875rem;
+    border-radius: var(--radius-control);
+    background: var(--session-segment-bg);
+  }
+
+  .session-rhythm__option {
+    display: inline-flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1875rem;
+    min-width: 0;
+    min-height: 2.125rem;
+    padding: 0 0.25rem;
+    border: 0;
+    border-radius: 0.625rem;
+    background: transparent;
+    color: var(--session-segment-fg);
+    font: inherit;
+    font-size: var(--type-session-option-size);
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease;
+  }
+
+  .session-rhythm__icon {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+
+  .session-rhythm__option:not([aria-checked='true']):hover {
+    background: color-mix(in srgb, var(--palette-primary) 7%, transparent);
+  }
+
+  .session-rhythm__option[aria-checked='true'] {
+    background: var(--session-segment-selected-bg);
+    color: var(--session-segment-selected-fg);
+    font-weight: 800;
+    box-shadow: var(--session-segment-shadow);
+  }
+
+  :root.is-keyboard .session-rhythm__option:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: calc(var(--focus-ring-offset) * -1);
+  }
+
+  /* Ajustes en una sola card con filas separadas por una línea fina. */
+  .session-settings {
+    overflow: hidden;
+    width: 100%;
+    min-width: 0;
+    border: var(--border-hairline) solid var(--card-border-color);
+    border-radius: var(--session-times-radius);
+    background: var(--card-bg);
+  }
+
+  .session-setting {
+    display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.4rem 0.75rem;
-  }
-
-  .session-time__row--sub {
-    justify-content: flex-start;
-    margin-top: -0.15rem;
-  }
-
-  .session-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .session-toggle {
-    display: inline-flex;
-    align-items: center;
     gap: 0.5rem;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--color-ink);
-    font: inherit;
-    font-size: var(--type-caption-size);
-    font-weight: 600;
-    cursor: pointer;
+    min-height: 2.75rem;
+    padding: 0.15rem 0.75rem;
   }
 
-  .session-toggle__track {
+  .session-setting + .session-setting {
+    border-top: var(--border-hairline) solid var(--card-border-color);
+  }
+
+  .session-setting__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    color: var(--color-ink);
+    font-size: var(--type-session-setting-size);
+    font-weight: 600;
+  }
+
+  /* El ⓘ mide 20px pero su área táctil llega a 44px. */
+  .session-setting__label .info-tip__trigger {
+    position: relative;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .session-setting__label .info-tip__trigger::after {
+    position: absolute;
+    inset: -0.75rem;
+    content: '';
+  }
+
+  .session-setting__label .info-tip__trigger svg {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  .session-switch-control {
     position: relative;
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
-    width: 2.15rem;
-    height: 1.2rem;
-    padding: 0.14rem;
-    border-radius: 999px;
-    background: var(--control-bg-hover);
-    box-shadow: inset 0 0 0 var(--border-hairline) var(--control-border-color);
-    transition: background var(--motion-fast);
+    width: 2.25rem;
+    height: 1.25rem;
+    padding: 0.125rem;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--session-switch-off);
+    cursor: pointer;
+    transition: background var(--motion-fast) ease;
   }
 
-  .session-toggle__knob {
-    width: 0.92rem;
-    height: 0.92rem;
+  /* Zona táctil de 44px de alto sin agrandar el switch. */
+  .session-switch-control::before {
+    position: absolute;
+    inset: -0.5rem 0;
+    content: '';
+  }
+
+  .session-switch-control__knob {
+    width: 1rem;
+    height: 1rem;
     border-radius: 50%;
-    background: var(--palette-card);
-    box-shadow: 0 1px 2px rgba(32, 63, 59, 0.18);
-    transition: transform var(--motion-fast);
+    background: var(--session-switch-knob);
+    box-shadow: var(--session-segment-shadow);
+    transition: transform var(--motion-fast) ease;
   }
 
-  .session-toggle[aria-checked='true'] .session-toggle__track {
-    background: color-mix(in srgb, var(--palette-accent) 55%, var(--control-bg));
+  .session-switch-control[aria-checked='true'] {
+    background: var(--session-switch-on);
   }
 
-  .session-toggle[aria-checked='true'] .session-toggle__knob {
-    transform: translateX(0.95rem);
+  .session-switch-control[aria-checked='true'] .session-switch-control__knob {
+    transform: translateX(1rem);
   }
 
-  .session-toggle:hover .session-toggle__track {
-    background: var(--control-bg-hover);
+  .session-switch-control:hover {
+    background: var(--session-switch-off-hover);
   }
 
-  .session-toggle[aria-checked='true']:hover .session-toggle__track {
-    background: color-mix(in srgb, var(--palette-accent) 62%, var(--control-bg));
+  .session-switch-control[aria-checked='true']:hover {
+    background: var(--button-primary-bg-hover);
   }
 
-  :root.is-keyboard .session-toggle:focus-visible {
+  :root.is-keyboard .session-switch-control:focus-visible {
     outline: var(--focus-ring-width) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
-    border-radius: var(--radius-control);
   }
 
-  /* Selector de ciclos compacto: no ocupa todo el ancho de la card. */
-  .session-cycles {
+  /* Contador de ciclos: − 3 + en una pastilla verde clara. */
+  .session-stepper {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
-    gap: 0.3rem;
-    padding: 0.05rem 0.4rem;
-    border: var(--border-hairline) solid var(--control-border-color);
-    border-radius: 999px;
-    background: var(--control-bg);
+    border-radius: var(--radius-control);
+    background: var(--session-stepper-bg);
   }
 
-  .session-cycles__label {
-    font-size: var(--type-micro-size);
-    font-weight: 700;
-    letter-spacing: var(--type-eyebrow-tracking);
-    text-transform: uppercase;
-    color: var(--color-muted);
+  .session-stepper__btn {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--palette-primary);
+    cursor: pointer;
+    transition: background var(--motion-fast) ease;
+  }
+
+  /* Zona táctil de 44 px sin agrandar los botones. */
+  .session-stepper__btn::after {
+    position: absolute;
+    inset: -0.375rem;
+    content: '';
+  }
+
+  .session-stepper__btn svg {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+
+  .session-stepper__btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--palette-primary) 9%, transparent);
+  }
+
+  .session-stepper__btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .session-stepper__value {
+    min-width: 1.375rem;
+    color: var(--palette-primary);
+    font-size: var(--type-session-stepper-size);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  :root.is-keyboard .session-stepper__btn:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: calc(var(--focus-ring-offset) * -1);
   }
 
   /* Número compacto: −/+ discretos y valor editable a mano. */
@@ -2419,6 +2563,11 @@
     cursor: not-allowed;
   }
 
+  :root.is-keyboard .num-field__btn:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: 1px;
+  }
+
   .num-field__value {
     display: inline-flex;
     align-items: baseline;
@@ -2453,226 +2602,219 @@
     color: var(--color-muted);
   }
 
-  /* Enfoque y pausa: título fuera de la card y número adentro. */
+  /* Campos de "Otro": enfoque y descanso en dos columnas. */
   .time-fields {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 0.5rem 0.9rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
   }
 
   .time-field {
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    padding: 0.3rem 0.5rem;
+    border: var(--border-hairline) solid var(--card-border-color);
+    border-radius: var(--radius-control);
+    background: var(--card-bg);
   }
 
   .time-field__label {
-    font-size: var(--type-micro-size);
+    color: var(--color-ink);
+    font-size: var(--type-caption-size);
     font-weight: 700;
-    letter-spacing: var(--type-eyebrow-tracking);
-    text-transform: uppercase;
-    color: var(--color-muted);
   }
 
   .time-field > .num-field {
-    padding: 0.18rem 0.35rem;
-    border: var(--border-hairline) solid var(--control-border-color);
-    border-radius: var(--radius-control);
-    background: var(--control-bg);
+    padding: 0.1rem 0.2rem;
+    border-radius: calc(var(--radius-control) - 4px);
+    background: var(--session-stepper-bg);
   }
 
-  /* Anillo de resumen de la sesión planificada. */
-  .session-time-ring {
+  /* Los −/+ se ven chicos pero su área táctil llega a 44px. */
+  .time-field .num-field__btn,
+  .session-setting--sub .num-field__btn {
+    position: relative;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .time-field .num-field__btn::after,
+  .session-setting--sub .num-field__btn::after {
+    position: absolute;
+    inset: -0.6rem;
+    content: '';
+  }
+
+  .session-setting--sub .num-field {
+    padding: 0.1rem 0.2rem;
+    border-radius: calc(var(--radius-control) - 4px);
+    background: var(--session-stepper-bg);
+  }
+
+  /* Resumen: rueda, leyenda y línea de tiempo. */
+  .session-summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+    padding: 0.625rem 0.75rem;
+    border: var(--border-hairline) solid var(--card-border-color);
+    border-radius: var(--session-times-radius);
+    background: var(--card-bg);
+  }
+
+  .session-summary-card__top {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
+  }
+
+  .session-wheel {
     position: relative;
     flex: 0 0 auto;
-    width: 5.5rem;
-    height: 5.5rem;
-    margin-right: 0.35rem;
-    color: var(--palette-accent);
-    cursor: help;
+    width: var(--session-wheel-size);
+    height: var(--session-wheel-size);
   }
 
-  :root.is-keyboard .session-time-ring:focus-visible {
-    border-radius: 50%;
-    outline: var(--focus-ring-width) solid var(--focus-ring-color);
-    outline-offset: 3px;
-  }
-
-  .session-time-ring__svg {
+  .session-wheel__svg {
     width: 100%;
     height: 100%;
     overflow: visible;
-  }
-
-  .session-time-ring__track {
-    fill: none;
-    stroke: var(--ring-track);
-    stroke-width: 6;
-  }
-
-  .session-time-ring__arc {
-    fill: none;
-    stroke-width: 6;
-    stroke-linecap: butt;
     transform: rotate(-90deg);
-    transform-origin: 40px 40px;
+  }
+
+  .session-wheel__track {
+    fill: none;
+    stroke: var(--session-wheel-track);
+    stroke-width: 12;
+  }
+
+  .session-wheel__arc {
+    fill: none;
+    stroke-width: 12;
+    stroke-linecap: butt;
     transition:
-      stroke-dasharray var(--motion-fast) ease,
-      stroke-dashoffset var(--motion-fast) ease;
+      stroke-dasharray var(--motion-wheel) var(--ease-soft),
+      stroke-dashoffset var(--motion-wheel) var(--ease-soft);
   }
 
-  .session-time-ring__arc--focus {
-    stroke: url(#session-time-ring-gradient);
+  .session-wheel__arc--enfoque {
+    stroke: var(--session-focus-bar);
   }
 
-  .session-time-ring__arc--short-break {
-    stroke: var(--ring-short-to);
+  .session-wheel__arc--descanso {
+    stroke: var(--session-break-bar);
   }
 
-  .session-time-ring__arc--long-break {
-    stroke: var(--ring-long-to);
+  .session-wheel__arc--descansoLargo {
+    stroke: var(--session-long-break-bar);
   }
 
-  /* Punto 0 del anillo: una marca corta arriba, fuera del recorrido. */
-  .session-time-ring__start {
-    stroke: var(--color-muted);
-    stroke-width: 2.4;
-    stroke-linecap: round;
-    opacity: 0.55;
-  }
-
-  .session-time-ring__center {
+  .session-wheel__center {
     position: absolute;
     inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.05rem;
-    color: var(--color-ink);
+    line-height: 1;
   }
 
-  .session-time-ring__total {
-    font-size: var(--type-body-size);
+  .session-wheel__total {
+    color: var(--palette-primary);
+    font-size: var(--type-session-wheel-size);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    line-height: 1;
   }
 
-  .session-time-ring__unit {
-    font-size: var(--type-micro-size);
+  .session-wheel__unit {
+    margin-top: 0.15rem;
     color: var(--color-muted);
-    line-height: 1;
+    font-size: var(--type-micro-size);
+    font-weight: 700;
   }
 
-  /* Tooltip propio: tiempos con su punto de color. */
-  .session-time-ring__tip {
-    position: absolute;
-    right: 0;
-    bottom: calc(100% + 0.45rem);
-    z-index: 3;
+  .session-summary-card__legend {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    width: max-content;
-    max-width: 12rem;
-    padding: 0.45rem 0.55rem;
-    border: var(--control-border-width) solid var(--control-border-color);
-    border-radius: var(--control-menu-radius);
-    background-color: var(--control-bg);
-    box-shadow: var(--shadow-float);
+    gap: 0.3rem;
+    min-width: 0;
     color: var(--color-ink);
-    font-family: var(--theme-font-sans);
-    font-size: var(--type-micro-size);
-    font-weight: 500;
-    line-height: 1.35;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(0.2rem);
-    transition:
-      opacity var(--motion-fast) ease,
-      transform var(--motion-fast) ease,
-      visibility var(--motion-fast);
-    pointer-events: none;
+    font-size: var(--type-session-legend-size);
+    font-weight: 700;
   }
 
-  .session-time-ring:hover .session-time-ring__tip,
-  .session-time-ring:focus .session-time-ring__tip,
-  .session-time-ring:focus-visible .session-time-ring__tip {
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-  }
-
-  .session-time-ring__tip-row {
-    display: flex;
+  .session-summary-card__legend-row {
+    display: inline-flex;
     align-items: center;
     gap: 0.35rem;
     white-space: nowrap;
   }
 
-  .session-time-ring__dot {
+  .session-summary-card__dot {
     flex: 0 0 auto;
-    width: 0.45rem;
-    height: 0.45rem;
-    border-radius: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 0.125rem;
   }
 
-  .session-time-ring__dot--focus {
-    background-color: var(--palette-accent);
+  .session-summary-card__dot--focus {
+    background: var(--session-focus-bar);
   }
 
-  .session-time-ring__dot--short-break {
-    background-color: var(--ring-short-to);
+  .session-summary-card__dot--break {
+    background: var(--session-break-bar);
   }
 
-  .session-time-ring__dot--long-break {
-    background-color: var(--ring-long-to);
+  .session-summary-card__dot--long-break {
+    background: var(--session-long-break-bar);
   }
 
-  .session-time-ring__tip-label {
-    font-weight: 600;
-  }
-
-  .session-time-ring__tip-value {
-    margin-left: auto;
-    padding-left: 0.5rem;
+  .session-summary-card__total {
     color: var(--color-muted);
-    font-variant-numeric: tabular-nums;
+    font-size: var(--type-session-legend-size);
+    font-weight: 700;
   }
 
-  .session-time-ring__tip-row--total {
-    padding-top: 0.25rem;
-    border-top: var(--border-hairline) solid var(--card-border-color);
-  }
-
-  .session-presets {
+  .session-timeline {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 2px;
+    height: 1.375rem;
+    min-width: 0;
   }
 
-  .session-preset {
-    padding: 0.35rem 0.7rem;
-    border: var(--border-hairline) solid var(--control-border-color);
-    border-radius: 999px;
-    background: var(--control-bg);
-    color: var(--color-muted);
-    font: inherit;
-    font-size: var(--type-caption-size);
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      background var(--motion-fast),
-      color var(--motion-fast),
-      border-color var(--motion-fast);
+  .session-timeline__segment {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    min-width: 0.125rem;
+    overflow: hidden;
+    border-radius: 0.375rem;
+    font-size: var(--type-session-timeline-size);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    transition: flex-grow var(--motion-fast) ease;
   }
 
-  .session-preset[aria-pressed='true'] {
-    border-color: var(--palette-accent);
-    background: color-mix(in srgb, var(--palette-accent) 16%, var(--control-bg));
-    color: var(--color-ink);
+  .session-timeline__segment--enfoque {
+    background: var(--session-focus-bar);
+    color: var(--session-focus-bar-fg);
+  }
+
+  .session-timeline__segment--descanso {
+    background: var(--session-break-bar);
+    color: var(--session-break-bar-fg);
+  }
+
+  .session-timeline__segment--descansoLargo {
+    background: var(--session-long-break-bar);
+    color: var(--session-long-break-bar-fg);
   }
 
   /* Contador de las cards de árbol. */
@@ -2701,20 +2843,6 @@
   .stepper__btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-  }
-
-  .session-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 1rem;
-    padding-top: 0.15rem;
-    font-size: var(--type-caption-size);
-    color: var(--color-muted);
-  }
-
-  .session-summary strong {
-    color: var(--color-ink);
-    font-variant-numeric: tabular-nums;
   }
 
   .tree-grid {
@@ -3815,17 +3943,6 @@
 
     .tree-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .session-time {
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 1.1rem;
-    }
-
-    .session-time-ring {
-      width: 4.75rem;
-      height: 4.75rem;
-      margin-right: 0.15rem;
     }
 
     .forest-dialog__actions {
