@@ -7,6 +7,7 @@ import { ViewSwitch } from '@/components/ViewSwitch'
 import { GRID_COLS, GRID_ROWS } from '@/config/grid'
 import type { View } from '@/config/views'
 import { localDayNumber, startOfWeek } from '@/logic/day'
+import { occupiedCells } from '@/logic/placement'
 import {
   dailyFocus,
   forestFocus,
@@ -106,6 +107,10 @@ export function StatsPanel({ now, view, onChangeView }: StatsPanelProps) {
   const effectiveScope: StatsScope = activeForest && scope === 'forest' ? 'forest' : 'all'
   const forestId = effectiveScope === 'forest' ? activeForest?.id : undefined
   const totalCells = activeForest ? activeForest.size * activeForest.size : GRID_COLS * GRID_ROWS
+  const occupied = useMemo(
+    () => (activeForest ? Math.min(occupiedCells(trees, activeForest.id), totalCells) : 0),
+    [trees, activeForest, totalCells],
+  )
 
   const days = useMemo(() => dailyFocus(sessions, forestId), [sessions, forestId])
   const summary = useMemo(
@@ -386,9 +391,13 @@ export function StatsPanel({ now, view, onChangeView }: StatsPanelProps) {
         {effectiveScope === 'forest' && activeForest ? (
           <StatCard
             label="Pradera"
-            value={`${totalCells}`}
-            unit="celdas"
-            detail={`Grilla ${activeForest.size} × ${activeForest.size} del bosque`}
+            value={`${occupied}`}
+            unit={`de ${totalCells} celdas`}
+            detail={
+              occupied >= totalCells
+                ? 'Pradera llena: sin celdas libres'
+                : `${plural(totalCells - occupied, 'celda libre', 'celdas libres')} para plantar`
+            }
           />
         ) : (
           <StatCard

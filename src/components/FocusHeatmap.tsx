@@ -63,6 +63,28 @@ export function FocusHeatmap({ columns, today }: FocusHeatmapProps) {
 
     return { studied: studied.length, minutes }
   }, [columns])
+  const monthLabels = useMemo(() => {
+    const labels = new Map<number, string>()
+    let last = -Infinity
+
+    for (let index = 0; index < columns.length; index++) {
+      const first = columns[index][0]
+      if (!first) {
+        continue
+      }
+
+      const previous = columns[index - 1]?.[0]
+      const startsMonth = index === 0 || !previous || monthOf(first.day) !== monthOf(previous.day)
+      if (!startsMonth || index - last < 3) {
+        continue
+      }
+
+      labels.set(index, monthName(first.day))
+      last = index
+    }
+
+    return labels
+  }, [columns])
 
   const showTip = (event: MouseEvent<HTMLSpanElement>, day: PeriodDay) => {
     const host = hostRef.current
@@ -95,18 +117,11 @@ export function FocusHeatmap({ columns, today }: FocusHeatmapProps) {
       <div className="stats-heatmap__scroll" onScroll={() => setTip(null)}>
         <div className="stats-heatmap__inner">
           <div className="stats-heatmap__months" aria-hidden="true">
-            {columns.map((column, index) => {
-              const first = column[0]
-              const previous = columns[index - 1]?.[0]
-              const startsMonth =
-                index === 0 || !previous || monthOf(first.day) !== monthOf(previous.day)
-
-              return (
-                <span className="stats-heatmap__month" key={first.day}>
-                  {startsMonth ? monthName(first.day) : ''}
-                </span>
-              )
-            })}
+            {columns.map((column, index) => (
+              <span className="stats-heatmap__month" key={column[0]?.day ?? index}>
+                {monthLabels.get(index) ?? ''}
+              </span>
+            ))}
           </div>
 
           <div className="stats-heatmap__body">

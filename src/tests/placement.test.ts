@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { cellKey, cellOrder, choosePlacement, isCellInside, nextFreeCell } from '@/logic/placement'
+import {
+  cellKey,
+  cellOrder,
+  choosePlacement,
+  isCellInside,
+  nextFreeCell,
+  occupiedCells,
+} from '@/logic/placement'
 import type { Cell, Tree, TreeState } from '@/state/types'
 
 function treeAt(id: string, cell: Cell, state: TreeState, createdAt: number): Tree {
@@ -71,6 +78,25 @@ describe('isCellInside', () => {
     expect(isCellInside({ col: 7, row: 7 })).toBe(true)
     expect(isCellInside({ col: -1, row: 0 })).toBe(false)
     expect(isCellInside({ col: 8, row: 0 })).toBe(false)
+  })
+})
+
+describe('occupiedCells', () => {
+  it('cuenta celdas distintas aunque haya más de un árbol en la misma', () => {
+    const trees = [
+      treeAt('a', { col: 0, row: 0 }, 'mature', 1),
+      treeAt('b', { col: 0, row: 0 }, 'withered', 2),
+      treeAt('c', { col: 1, row: 0 }, 'growing', 3),
+    ]
+
+    expect(occupiedCells(trees, 'forest-test')).toBe(2)
+  })
+
+  it('ignora los árboles de otros bosques', () => {
+    const own = treeAt('a', { col: 0, row: 0 }, 'mature', 1)
+    const other = { ...treeAt('b', { col: 1, row: 1 }, 'mature', 2), forestId: 'forest-otro' }
+
+    expect(occupiedCells([own, other], 'forest-test')).toBe(1)
   })
 })
 

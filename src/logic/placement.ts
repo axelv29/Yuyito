@@ -9,6 +9,19 @@ export function isCellInside(cell: Cell, cols = GRID_COLS, rows = GRID_ROWS): bo
   return cell.col >= 0 && cell.col < cols && cell.row >= 0 && cell.row < rows
 }
 
+/** Celdas distintas ocupadas por los árboles de un bosque. */
+export function occupiedCells(trees: readonly Tree[], forestId: string): number {
+  const cells = new Set<string>()
+
+  for (const tree of trees) {
+    if (tree.forestId === forestId) {
+      cells.add(cellKey(tree.cell))
+    }
+  }
+
+  return cells.size
+}
+
 /**
  * Orden de candidatos: del centro hacia afuera.
  * Los empates se resuelven por fila y después por columna, para que el
@@ -59,7 +72,6 @@ export interface Placement {
   /** Si la grilla está llena, la celda pertenece a este árbol marchito. */
   replacedTreeId: string | null
 }
-
 /**
  * Elige dónde va el próximo árbol: aleatoriamente entre las celdas libres.
  * Si la grilla está llena, reemplaza el marchito más viejo; si solo quedan
