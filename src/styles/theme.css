@@ -196,7 +196,8 @@
 
   /* Control de zoom flotante. */
   --zoom-bg: rgba(253, 253, 248, 0.92);
-  --zoom-border-color: var(--card-border-color);
+  /* Borde del chip de zoom y del botón colapsado del temporizador: el gris de la tarjeta, medio de opacidad. */
+  --zoom-border-color: rgba(32, 63, 59, 0.045);
   --zoom-border-width: var(--border-hairline);
   --zoom-radius: 14px;
   --zoom-shadow: var(--shadow-float);

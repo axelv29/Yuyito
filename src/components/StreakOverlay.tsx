@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { addDays, localDayKey, localDayNumber } from '@/logic/day'
 import { dailyStreak } from '@/logic/streak'
 import { useStore } from '@/state/store'
@@ -18,7 +18,13 @@ import { StreakIntroCard } from './StreakIntroCard'
  * El panel dev puede correr el día (`devDayOffset`) para probar el cambio de
  * día sin tocar el reloj del sistema.
  */
-export function StreakOverlay({ now }: { now: number }) {
+interface StreakOverlayProps {
+  now: number
+  /** Notifica al App cuando la card de racha se abre o se cierra (para auto-ocultar el temporizador en móvil). */
+  onOpenChange?: (open: boolean) => void
+}
+
+export function StreakOverlay({ now, onOpenChange }: StreakOverlayProps) {
   const sessions = useStore((state) => state.sessions)
   const active = useStore((state) => state.active)
   const pendingBreak = useStore((state) => state.pendingBreak)
@@ -51,6 +57,10 @@ export function StreakOverlay({ now }: { now: number }) {
   }, [dayKey, markStreakIntroShown])
 
   const open = autoOpen || manualOpen
+
+  useEffect(() => {
+    onOpenChange?.(open)
+  }, [open, onOpenChange])
 
   const toggle = () => {
     if (open) {

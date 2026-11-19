@@ -350,6 +350,46 @@ export function UnarchiveIcon({ className }: IconProps) {
   )
 }
 
+/** Ojo tachado: ocultar la card del temporizador. */
+export function EyeOffIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M10.7 5.1A9.8 9.8 0 0 1 12 5c6 0 9.5 6 9.5 6a17 17 0 0 1-3.2 4.1M6.6 6.6A16.4 16.4 0 0 0 1.5 12s3.5 7 10.5 7a9.5 9.5 0 0 0 3.4-.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="M3 3l18 18" />
+    </svg>
+  )
+}
+
+/** Reloj simple: estado de reposo del temporizador colapsado. */
+export function TimerIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="13.5" r="7.5" />
+      <path d="M12 10v3.5l2.2 2.2" />
+      <path d="M9.5 2.5h5" />
+    </svg>
+  )
+}
+
 /** Bote de basura: eliminar un bosque. */
 export function TrashIcon({ className }: IconProps) {
   return (

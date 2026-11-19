@@ -40,12 +40,12 @@
   body {
     margin: 0;
     min-width: 320px;
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
   }
 
   #root {
-    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   button {
@@ -840,6 +840,118 @@
     opacity: 0.8;
   }
 
+  /* Botón flotante del temporizador oculto: rueda mínima en sesión, reloj en
+     reposo. En escritorio queda arriba a la derecha (donde vive la card); en
+     móvil, abajo a la derecha (donde vivía el zoom-control). Botón redondo: el
+     borde, el fondo y la sombra replican la cápsula de zoom. */
+  .timer-mini {
+    position: fixed;
+    top: 4.25rem;
+    right: 1rem;
+    z-index: 40;
+    display: flex;
+    border: var(--zoom-border-width) solid var(--zoom-border-color);
+    border-radius: 50%;
+    background-color: var(--zoom-bg);
+    box-shadow: var(--zoom-shadow);
+    padding: var(--zoom-padding);
+  }
+
+  .timer-mini__button {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--palette-primary);
+    cursor: pointer;
+    transition: background-color var(--motion-normal) ease;
+  }
+
+  .timer-mini__button:hover {
+    background-color: rgba(32, 63, 59, 0.07);
+  }
+
+  .timer-mini__svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .timer-mini__track {
+    fill: none;
+    stroke: var(--ring-track);
+    stroke-width: 6;
+  }
+
+  .timer-mini__fill {
+    fill: none;
+    stroke: var(--ring-to);
+    stroke-width: 6;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 32px 32px;
+    transition: stroke-dashoffset var(--motion-progress) linear;
+  }
+
+  .timer-mini--short-break .timer-mini__fill {
+    stroke: var(--ring-short-to);
+  }
+
+  .timer-mini--long-break .timer-mini__fill {
+    stroke: var(--ring-long-to);
+  }
+
+  .timer-mini--paused .timer-mini__fill {
+    opacity: 0.45;
+  }
+
+  .timer-mini__icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  /* Tooltip en pill oscuro, anclado a la izquierda del botón. */
+  .timer-mini__tip {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 0.5rem);
+    z-index: 40;
+    white-space: nowrap;
+    border: var(--border-hairline) solid var(--card-border-color);
+    border-radius: var(--radius-pill);
+    background-color: var(--palette-ink);
+    color: var(--palette-card);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 0.24rem 0.6rem;
+    box-shadow: var(--card-shadow);
+    opacity: 0;
+    transform: translateY(-50%) translateX(4px);
+    pointer-events: none;
+    transition:
+      opacity var(--motion-normal) ease,
+      transform var(--motion-normal) ease;
+  }
+
+  .timer-mini:hover .timer-mini__tip,
+  .timer-mini__button:focus-visible + .timer-mini__tip {
+    opacity: 1;
+    transform: translateY(-50%);
+  }
+
+  /* Botón para ocultar el temporizador, junto a la tuerca de ajustes. */
+  .timer-hide-button {
+    position: absolute;
+    top: 50%;
+    right: 1.5rem;
+    transform: translateY(-50%);
+    z-index: 1;
+  }
+
   .timer-today {
     display: flex;
     align-items: center;
@@ -1133,12 +1245,14 @@
     animation: prompt-in 320ms var(--ease-soft) both;
   }
 
-  /* Racha diaria: chip en la esquina inferior izquierda y card del nuevo día. */
+  /* Racha diaria: chip arriba a la derecha, a la altura del encabezado, y card del nuevo día. */
   .streak-chip {
     position: fixed;
-    left: 1rem;
-    bottom: 1rem;
-    z-index: 5;
+    left: auto;
+    bottom: auto;
+    top: 0.55rem;
+    right: 1rem;
+    z-index: 40;
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
@@ -3970,6 +4084,16 @@
     .forests-grid {
       grid-template-columns: 1fr;
       gap: 0.75rem;
+    }
+
+    .zoom-control {
+      display: none;
+    }
+
+    .timer-mini {
+      top: auto;
+      bottom: 1rem;
+      right: 1rem;
     }
   }
 }

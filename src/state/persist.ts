@@ -13,7 +13,7 @@ import type {
   Forest,
   LegacySessionPlan,
   LegacyTree,
-  PersistedV7,
+  PersistedV8,
   PlantingItem,
   PomodoroSettings,
   SessionMode,
@@ -27,7 +27,7 @@ import type {
 import { DEFAULT_DISPLAY_SETTINGS, DEFAULT_POMODORO_SETTINGS } from './types'
 
 export const STORAGE_KEY = 'focus-forest'
-export const PERSIST_VERSION = 7
+export const PERSIST_VERSION = 8
 
 export const DEFAULT_FOREST_ID = 'forest-default'
 
@@ -45,9 +45,9 @@ export function createDefaultForest(createdAt = 0): Forest {
   }
 }
 
-export function emptyState(): PersistedV7 {
+export function emptyState(): PersistedV8 {
   return {
-    version: 7,
+    version: 8,
     forests: [createDefaultForest()],
     activeForestId: DEFAULT_FOREST_ID,
     trees: [],
@@ -466,7 +466,8 @@ function isDisplaySettings(value: unknown): value is DisplaySettings {
   return (
     isRecord(value) &&
     typeof value.showForestName === 'boolean' &&
-    typeof value.showCountdown === 'boolean'
+    typeof value.showCountdown === 'boolean' &&
+    (value.hideTimerCard === undefined || typeof value.hideTimerCard === 'boolean')
   )
 }
 
@@ -492,7 +493,7 @@ function isPomodoroSettings(value: unknown): value is PomodoroSettings {
 }
 
 /** Valida el estado completo; se usa al leer la versión actual. */
-export function isPersistedState(value: unknown): value is PersistedV7 {
+export function isPersistedState(value: unknown): value is PersistedV8 {
   return (
     isRecord(value) &&
     value.version === PERSIST_VERSION &&
@@ -588,7 +589,7 @@ function buildLegacyPlanting(
  * esperada. Los datos anteriores a la v3 se agrupan en un bosque inicial de
  * 8×8; los árboles huérfanos se recuperan en lugar de perderse.
  */
-export function migrate(persisted: unknown, _version: number): PersistedV7 {
+export function migrate(persisted: unknown, _version: number): PersistedV8 {
   const data = isRecord(persisted) ? persisted : {}
 
   const settings = isPomodoroSettings(data.settings)
@@ -816,7 +817,7 @@ export function migrate(persisted: unknown, _version: number): PersistedV7 {
   const activeForestId = active?.forestId ?? savedActiveForestId ?? fallbackId ?? null
 
   return {
-    version: 7,
+    version: 8,
     forests,
     activeForestId,
     trees,
@@ -883,7 +884,7 @@ function hasSaveShape(value: unknown): value is Record<string, unknown> {
  * entero. `migrate` ya descarta elemento por elemento; si aun así el
  * resultado no es un estado íntegro, no se rescata nada.
  */
-function recoverState(state: unknown): PersistedV7 | null {
+function recoverState(state: unknown): PersistedV8 | null {
   if (!hasSaveShape(state)) {
     return null
   }
@@ -1039,4 +1040,4 @@ export function createSafeStorage(
 }
 
 export const safeStorage = createSafeStorage()
-export const persistStorage = createJSONStorage<PersistedV7>(() => safeStorage)
+export const persistStorage = createJSONStorage<PersistedV8>(() => safeStorage)

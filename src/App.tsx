@@ -14,10 +14,12 @@ import { SessionDetailCard } from '@/components/SessionDetailCard'
 import { StatsPanel } from '@/components/StatsPanel'
 import { StorageNotice } from '@/components/StorageNotice'
 import { StreakOverlay } from '@/components/StreakOverlay'
+import { TimerMiniButton } from '@/components/TimerMiniButton'
 import { TimerPanel } from '@/components/TimerPanel'
 import type { View } from '@/config/views'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useKeyboardFocus } from '@/hooks/useKeyboardFocus'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { stageForElapsedMs } from '@/logic/growth'
 import { livePlanFocus, projectPlanting } from '@/logic/planting'
 import { elapsedMs } from '@/logic/timer'
@@ -28,6 +30,7 @@ import { useStore } from '@/state/store'
 import { speciesForFocusMin } from '@/config/species'
 import { describeForestCountdown } from '@/logic/forest'
 import { selectActiveForest } from '@/state/selectors'
+import { useStorageStatus } from '@/state/storageStatus'
 import type { Forest, NewForestInput, NewSessionInput, Tree } from '@/state/types'
 
 type ConfirmMode = 'abandon' | 'strictPause' | 'newSession'
@@ -40,6 +43,7 @@ interface ConfirmRequest {
 function App() {
   const now = useCountdown()
   useKeyboardFocus()
+  const isMobile = useMediaQuery('(max-width: 767px)')
   const active = useStore((state) => state.active)
   const trees = useStore((state) => state.trees)
   const sessions = useStore((state) => state.sessions)
@@ -48,6 +52,9 @@ function App() {
   const forests = useStore((state) => state.forests)
   const activeForestId = useStore((state) => state.activeForestId)
   const display = useStore((state) => state.display)
+  const updateDisplay = useStore((state) => state.updateDisplay)
+  const notice = useStore((state) => state.notice)
+  const storageIssue = useStorageStatus((state) => state.issue)
   const pendingBreak = useStore((state) => state.pendingBreak)
   const startBreak = useStore((state) => state.startBreak)
   const startFocus = useStore((state) => state.startFocus)
@@ -65,6 +72,8 @@ function App() {
   const [pendingSessionAfterForest, setPendingSessionAfterForest] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [timerPeek, setTimerPeek] = useState(false)
+  const [streakMenuOpen, setStreakMenuOpen] = useState(false)
 
   const currentForestId = active?.kind === 'focus' ? active.forestId : activeForestId
   const activeForest = selectActiveForest(forests, currentForestId)
@@ -321,15 +330,49 @@ function App() {
 
   const scrollableView = !inSession && (view === 'forests' || view === 'stats')
 
+  // Alguna vista flotante (avisos, diálogos, paneles extra) tiene la prioridad sobre la card del temporizador en móvil.
+  const breakPromptOpen = pendingBreak === true && pendingPlan?.mode !== 'continuous'
+  const anyFloatingMenuOpen =
+    notice !== null ||
+    storageIssue !== null ||
+    breakPromptOpen ||
+    showConfirm ||
+    historyOpen ||
+    selectedEntry !== null ||
+    streakMenuOpen ||
+    sessionDialogOpen ||
+    forestDialogOpen
+  const autoHide = isMobile && anyFloatingMenuOpen && !timerPeek
+  const timerCardHidden = display.hideTimerCard || autoHide
+
+  // Ajuste en render (patrón oficial de React): al cerrarse el último menú, soltamos el "peek".
+  const [wasMenuOpen, setWasMenuOpen] = useState(anyFloatingMenuOpen)
+  if (wasMenuOpen !== anyFloatingMenuOpen) {
+    setWasMenuOpen(anyFloatingMenuOpen)
+    if (!anyFloatingMenuOpen && timerPeek) {
+      setTimerPeek(false)
+    }
+  }
+
+  const hideTimer = useCallback(() => updateDisplay({ hideTimerCard: true }), [updateDisplay])
+  const restoreTimer = useCallback(() => {
+    updateDisplay({ hideTimerCard: false })
+    // El "peek" solo aplica con un menú abierto: sin menú, autoHide ya es falso.
+    // Fijarlo fuera de un menú lo dejaba pegado para siempre.
+    if (anyFloatingMenuOpen) {
+      setTimerPeek(true)
+    }
+  }, [updateDisplay, anyFloatingMenuOpen])
+
   return (
     <div
       className={
         scrollableView
-          ? 'min-h-screen overflow-x-hidden bg-background text-ink'
-          : 'min-h-screen overflow-hidden bg-background text-ink'
+          ? 'min-h-dvh overflow-x-hidden bg-background text-ink'
+          : 'h-dvh overflow-hidden bg-background text-ink flex flex-col'
       }
     >
-      <header className="relative z-30 flex w-full items-center gap-3 px-4 py-3">
+      <header className="relative z-30 flex w-full shrink-0 items-center gap-3 px-4 py-3">
         <div className="brand">
           <h1 className="app-title">Focus Forest</h1>
         </div>
@@ -351,7 +394,7 @@ function App() {
         className={
           scrollableView
             ? 'pb-12'
-            : 'max-[767px]:h-[calc(100vh-3.5rem)] max-[767px]:overflow-x-hidden max-[767px]:overflow-y-auto pb-8 min-[768px]:pb-0'
+            : 'min-h-0 flex-1 max-[767px]:overflow-y-auto max-[767px]:overflow-x-hidden min-[768px]:overflow-visible'
         }
       >
         {view === 'forests' ? (
@@ -365,8 +408,8 @@ function App() {
             onEditForest={openEditForest}
           />
         ) : view === 'garden' || inSession ? (
-          <div className="relative w-full">
-            <div className="relative mx-auto w-full max-w-[1024px]">
+          <div className="relative flex min-h-full w-full flex-col">
+            <div className="relative mx-auto aspect-[6/5] w-full max-w-[1024px] shrink-0">
               <GardenCanvas
                 trees={forestTrees}
                 active={activePreview}
@@ -379,8 +422,8 @@ function App() {
               />
             </div>
 
-            <div className="garden-left-rail relative z-10 mx-auto mt-4 flex w-full max-w-sm flex-col gap-3 px-4 min-[768px]:absolute min-[768px]:left-4 min-[768px]:top-4 min-[768px]:mt-0 min-[768px]:w-[clamp(200px,16vw,300px)] min-[768px]:px-0">
-              {active?.kind === 'focus' && <SessionCard now={now} />}
+            <div className="garden-left-rail relative z-10 mx-auto mt-auto flex w-full max-w-sm flex-col gap-3 px-4 min-[768px]:absolute min-[768px]:left-4 min-[768px]:top-4 min-[768px]:mt-0 min-[768px]:w-[clamp(200px,16vw,300px)] min-[768px]:px-0">
+              {!display.hideTimerCard && active?.kind === 'focus' && <SessionCard now={now} />}
 
               {!active && selectedEntry && activeForest && (
                 <SessionDetailCard
@@ -400,27 +443,31 @@ function App() {
               )}
             </div>
 
-            <div className="relative z-10 mx-auto mt-4 flex w-full max-w-md flex-col gap-3 px-4 min-[768px]:absolute min-[768px]:right-4 min-[768px]:top-4 min-[768px]:mt-0 min-[768px]:w-[clamp(350px,20vw,420px)] min-[768px]:px-0">
-              <TimerPanel
-                now={now}
-                view={view}
-                onChangeView={setView}
-                onAbandonRequest={requestAbandon}
-                onStrictPauseRequest={requestStrictPause}
-                onStartSession={openSessionDialog}
-                onContinueSession={handleContinueSession}
-                historyOpen={historyOpen}
-                onToggleHistory={() => setHistoryOpen((open) => !open)}
-              />
-
-              {active && selectedEntry && activeForest && (
-                <SessionDetailCard
-                  entry={selectedEntry}
-                  forestName={activeForest.name}
-                  onClose={() => setSelectedKey(null)}
+            {!timerCardHidden && (
+              <div className="relative z-10 mx-auto mt-4 flex w-full max-w-md flex-col gap-3 px-4 min-[768px]:absolute min-[768px]:right-4 min-[768px]:top-4 min-[768px]:mt-0 min-[768px]:w-[clamp(350px,20vw,420px)] min-[768px]:px-0">
+                <TimerPanel
+                  now={now}
+                  view={view}
+                  onChangeView={setView}
+                  onAbandonRequest={requestAbandon}
+                  onStrictPauseRequest={requestStrictPause}
+                  onStartSession={openSessionDialog}
+                  onContinueSession={handleContinueSession}
+                  historyOpen={historyOpen}
+                  onToggleHistory={() => setHistoryOpen((open) => !open)}
+                  onHide={hideTimer}
                 />
-              )}
-            </div>
+
+                {active && selectedEntry && activeForest && (
+                  <SessionDetailCard
+                    entry={selectedEntry}
+                    forestName={activeForest.name}
+                    onClose={() => setSelectedKey(null)}
+                  />
+                )}
+              </div>
+            )}
+            {timerCardHidden && <TimerMiniButton now={now} onRestore={restoreTimer} />}
           </div>
         ) : (
           <StatsPanel now={now} view={view} onChangeView={setView} />
@@ -429,7 +476,7 @@ function App() {
 
       {import.meta.env.DEV && <DevPanel now={now} />}
 
-      <StreakOverlay now={now} />
+      <StreakOverlay now={now} onOpenChange={setStreakMenuOpen} />
       <CompletionToast />
       <BreakPrompt />
       <ConfirmDialog

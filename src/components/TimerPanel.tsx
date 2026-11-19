@@ -5,7 +5,7 @@ import type { View } from '@/config/views'
 import { elapsedMs, remainingMs } from '@/logic/timer'
 import { selectActiveForest, selectStats } from '@/state/selectors'
 import { useStore } from '@/state/store'
-import { CloseIcon, GearIcon, PauseIcon, PlayIcon } from './icons'
+import { CloseIcon, EyeOffIcon, GearIcon, PauseIcon, PlayIcon } from './icons'
 import { SettingsPanel } from './SettingsPanel'
 import { TimerRing } from './TimerRing'
 import { ViewSwitch } from './ViewSwitch'
@@ -20,6 +20,7 @@ interface TimerPanelProps {
   onContinueSession: () => void
   historyOpen: boolean
   onToggleHistory: () => void
+  onHide: () => void
 }
 
 export function TimerPanel({
@@ -32,6 +33,7 @@ export function TimerPanel({
   onContinueSession,
   historyOpen,
   onToggleHistory,
+  onHide,
 }: TimerPanelProps) {
   const active = useStore((state) => state.active)
   const sessions = useStore((state) => state.sessions)
@@ -100,6 +102,15 @@ export function TimerPanel({
 
           <div className="timer-phase-row">
             <p className="eyebrow timer-phase">{phase}</p>
+            <button
+              type="button"
+              className="icon-button timer-hide-button"
+              onClick={onHide}
+              aria-label="Ocultar temporizador"
+              title="Ocultar temporizador"
+            >
+              <EyeOffIcon />
+            </button>
             <button
               type="button"
               className="icon-button timer-settings-button"

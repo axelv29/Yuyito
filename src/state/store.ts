@@ -46,7 +46,7 @@ import type {
   Forest,
   NewForestInput,
   NewSessionInput,
-  PersistedV7,
+  PersistedV8,
   PlantingItem,
   PomodoroSettings,
   SessionPlan,
@@ -70,7 +70,7 @@ export interface Notice {
   text: string
 }
 
-interface StoreState extends PersistedV7 {
+interface StoreState extends PersistedV8 {
   pendingBreak: boolean
   notice: Notice | null
   /** Dev: tamaño del bosque en celdas por lado para el preview del panel. */

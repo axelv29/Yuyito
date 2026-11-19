@@ -12,6 +12,7 @@ import {
   SCENE_HEIGHT,
   SCENE_WIDTH,
   TILE_HEIGHT,
+  TILE_WIDTH,
   TOP_PADDING,
 } from '@/config/grid'
 import { DEFAULT_ZOOM, MAX_ZOOM } from '@/config/zoom'
@@ -124,6 +125,10 @@ export function GardenCanvas({
   // quedan anclados abajo en la escena y necesitan más desplazamiento.
   const islandCenterY = meadowTop + (gardenSize * TILE_HEIGHT + ISLAND_DEPTH) / 2
   const mapCenterOffsetY = ((islandCenterY - SCENE_HEIGHT / 2) * pixelScale) / dpr
+  // La isla nunca debe quedar por completo fuera de la pantalla: el medio alto
+  // y el medio ancho de la isla (en px de escena) acotan cuánto se puede arrastrar.
+  const islandHalfHeight = (gardenSize * TILE_HEIGHT + ISLAND_DEPTH) / 2
+  const islandHalfWidth = (gardenSize * TILE_WIDTH) / 2
   // El límite crece con el zoom y con el desborde real del canvas. Guardamos la
   // posición como fracción del límite para que al cambiar de zoom se mantenga
   // proporcional y no salte al volver a acercar.
@@ -133,6 +138,8 @@ export function GardenCanvas({
     canvasCssHeight,
     gardenBox.width,
     gardenBox.height,
+    islandHalfHeight,
+    islandHalfWidth,
   )
   const pan = useMemo(
     () => ({
@@ -531,8 +538,7 @@ export function GardenCanvas({
   return (
     <div
       ref={gardenRef}
-      className="relative z-0 w-full select-none"
-      style={{ aspectRatio: `${SCENE_WIDTH} / ${SCENE_HEIGHT}` }}
+      className="relative z-0 h-full w-full select-none"
       onPointerMove={moveDrag}
       onPointerUp={finishDrag}
       onPointerCancel={finishDrag}

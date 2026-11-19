@@ -203,11 +203,13 @@ export const DEFAULT_POMODORO_SETTINGS: PomodoroSettings = {
 export interface DisplaySettings {
   showForestName: boolean
   showCountdown: boolean
+  hideTimerCard: boolean
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showForestName: true,
   showCountdown: true,
+  hideTimerCard: false,
 }
 
 /** Forma de un árbol antes de la v5 (sin progreso acumulado). */
@@ -316,6 +318,22 @@ export interface PersistedV6 {
 /** v7: como v6 más el día en que se mostró la card de racha diaria. */
 export interface PersistedV7 {
   version: 7
+  forests: Forest[]
+  activeForestId: string | null
+  trees: Tree[]
+  sessions: FocusRecord[]
+  plans: SessionPlan[]
+  active: ActiveSession | null
+  activePlanId: string | null
+  settings: PomodoroSettings
+  display: DisplaySettings
+  /** Día local (YYYY-MM-DD) en que se mostró la card de racha; null si nunca. */
+  streakIntroShownOn: string | null
+}
+
+/** v8: como v7 más el flag para ocultar la card del temporizador. */
+export interface PersistedV8 {
+  version: 8
   forests: Forest[]
   activeForestId: string | null
   trees: Tree[]
