@@ -222,22 +222,29 @@ describe('monthDays', () => {
 })
 
 describe('heatmapWeeks', () => {
-  it('arma 53 columnas de lunes a domingo que terminan en la semana de hoy', () => {
+  it('arma las semanas del año, de enero a diciembre', () => {
     const weeks = heatmapWeeks(focusDays([]), TODAY_DAY)
 
-    expect(weeks).toHaveLength(53)
+    expect(weeks.length).toBeGreaterThanOrEqual(52)
     expect(weeks.every((week) => week.length === 7)).toBe(true)
     expect(weekdayIndex(weeks[0][0].day)).toBe(0)
-    expect(weeks[0][0].day).toBe(startOfWeek(TODAY_DAY) - 52 * 7)
-    expect(weeks.at(-1)?.some((day) => day.day === TODAY_DAY)).toBe(true)
+
+    const jan1 = dayNumberOf(2026, 0, 1)
+    const dec31 = dayNumberOf(2026, 11, 31)
+    expect(weeks[0][0].day).toBe(startOfWeek(jan1))
+    expect(weeks.at(-1)?.[0].day).toBe(startOfWeek(dec31))
+    expect(weeks.flat().some((day) => day.day === jan1)).toBe(true)
+    expect(weeks.flat().some((day) => day.day === dec31)).toBe(true)
+    expect(weeks.flat().some((day) => day.day === TODAY_DAY)).toBe(true)
   })
 
-  it('atenúa solo los días futuros de la última semana', () => {
+  it('marca como futuros los días posteriores a hoy', () => {
     const weeks = heatmapWeeks(focusDays([]), TODAY_DAY)
     const future = weeks.flat().filter((day) => day.future)
+    const lastDay = weeks.at(-1)?.at(-1)?.day ?? TODAY_DAY
 
     expect(future.every((day) => day.day > TODAY_DAY)).toBe(true)
-    expect(future).toHaveLength(weekdayIndex(TODAY_DAY) === 6 ? 0 : 6 - weekdayIndex(TODAY_DAY))
+    expect(future).toHaveLength(lastDay - TODAY_DAY)
   })
 })
 

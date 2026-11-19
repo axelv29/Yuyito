@@ -7,6 +7,8 @@ import {
   startOfWeek,
 } from './day'
 
+const DAY_MS = 86_400_000
+
 export interface StatsSummary {
   todayPomodoros: number
   todayMinutes: number
@@ -221,19 +223,23 @@ export function monthDays(
 }
 
 /**
- * Columnas semanales (lunes a domingo) del mapa de calor.
+ * Columnas semanales (lunes a domingo) del mapa de calor del año en curso.
  *
- * La última columna es la semana de hoy, así que la grilla termina siempre
- * en el día actual.
+ * Cubre desde la semana que contiene el 1 de enero hasta la que contiene el
+ * 31 de diciembre, así que los meses se ven en orden de enero a diciembre.
  */
 export function heatmapWeeks(
   days: ReadonlyMap<number, DayFocus>,
   today: number,
-  weeks = 53,
 ): PeriodDay[][] {
-  const firstMonday = startOfWeek(today) - (weeks - 1) * 7
+  const year = new Date(today * DAY_MS).getUTCFullYear()
+  const jan1 = dayNumberOf(year, 0, 1)
+  const dec31 = dayNumberOf(year, 11, 31)
+  const firstMonday = startOfWeek(jan1)
+  const lastMonday = startOfWeek(dec31)
+  const weekCount = (lastMonday - firstMonday) / 7 + 1
 
-  return Array.from({ length: weeks }, (_, week) =>
+  return Array.from({ length: weekCount }, (_, week) =>
     Array.from({ length: 7 }, (_, index) =>
       periodDay(firstMonday + week * 7 + index, days, today),
     ),

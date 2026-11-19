@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
+import { dayNumberOf } from '@/logic/day'
 import { formatFocusMinutes } from '@/logic/stats'
 import type { PeriodDay } from '@/logic/stats'
 
@@ -48,11 +49,12 @@ function levelOf(minutes: number, max: number): number {
   return Math.min(LEVELS, Math.max(1, Math.ceil((minutes / max) * LEVELS)))
 }
 
-/** Mapa de calor de un año, al estilo de un calendario de contribuciones. */
+/** Mapa de calor del año, al estilo de un calendario de contribuciones. */
 export function FocusHeatmap({ columns, today }: FocusHeatmapProps) {
   const [tip, setTip] = useState<HeatmapTip | null>(null)
   const hostRef = useRef<HTMLDivElement>(null)
 
+  const year = useMemo(() => new Date(today * DAY_MS).getUTCFullYear(), [today])
   const max = useMemo(
     () => Math.max(1, ...columns.flatMap((column) => column.map((day) => day.minutes))),
     [columns],
@@ -66,25 +68,37 @@ export function FocusHeatmap({ columns, today }: FocusHeatmapProps) {
   const monthLabels = useMemo(() => {
     const labels = new Map<number, string>()
     let last = -Infinity
+    let lastMonth = -1
+    const jan1 = dayNumberOf(year, 0, 1)
+    const dec31 = dayNumberOf(year, 11, 31)
 
     for (let index = 0; index < columns.length; index++) {
-      const first = columns[index][0]
-      if (!first) {
+      const column = columns[index]
+      if (!column) {
         continue
       }
 
-      const previous = columns[index - 1]?.[0]
-      const startsMonth = index === 0 || !previous || monthOf(first.day) !== monthOf(previous.day)
-      if (!startsMonth || index - last < 3) {
+      const inYear = column.find((day) => day.day >= jan1 && day.day <= dec31)
+      if (!inYear) {
         continue
       }
 
-      labels.set(index, monthName(first.day))
+      const month = monthOf(inYear.day)
+      if (month === lastMonth) {
+        continue
+      }
+
+      lastMonth = month
+      if (index - last < 3) {
+        continue
+      }
+
+      labels.set(index, monthName(inYear.day))
       last = index
     }
 
     return labels
-  }, [columns])
+  }, [columns, year])
 
   const showTip = (event: MouseEvent<HTMLSpanElement>, day: PeriodDay) => {
     const host = hostRef.current
@@ -111,7 +125,7 @@ export function FocusHeatmap({ columns, today }: FocusHeatmapProps) {
       ref={hostRef}
       className="stats-heatmap"
       role="img"
-      aria-label={`Enfoque por día del último año: ${summary.studied} días estudiados, ${formatFocusMinutes(summary.minutes)} en total.`}
+      aria-label={`Enfoque por día de ${year}: ${summary.studied} días estudiados, ${formatFocusMinutes(summary.minutes)} en total.`}
       onMouseLeave={() => setTip(null)}
     >
       <div className="stats-heatmap__scroll" onScroll={() => setTip(null)}>
