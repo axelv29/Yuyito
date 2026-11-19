@@ -11,6 +11,10 @@ import { StreakIntroCard } from './StreakIntroCard'
  * local— y se posterga mientras hay sesión en curso, descanso pendiente o
  * aviso visible; se marca recién al cerrarse.
  *
+ * La hoja alterna abrir y cerrar la card. Cuando se abre desde la hoja, la
+ * card queda fija hasta que la cierre el usuario; solo el aviso del nuevo día
+ * se cierra solo.
+ *
  * El panel dev puede correr el día (`devDayOffset`) para probar el cambio de
  * día sin tocar el reloj del sistema.
  */
@@ -29,9 +33,12 @@ export function StreakOverlay({ now }: { now: number }) {
   const streak = useMemo(() => dailyStreak(sessions, today), [sessions, today])
 
   const [manualOpen, setManualOpen] = useState(false)
+  // Día en el que la card ya se cerró: el aviso no vuelve a abrirse solo.
+  const [dismissedDay, setDismissedDay] = useState<string | null>(null)
 
   const autoOpen =
     dayKey !== streakIntroShownOn &&
+    dayKey !== dismissedDay &&
     sessions.length > 0 &&
     active === null &&
     !pendingBreak &&
@@ -39,8 +46,19 @@ export function StreakOverlay({ now }: { now: number }) {
 
   const close = useCallback(() => {
     setManualOpen(false)
+    setDismissedDay(dayKey)
     markStreakIntroShown(dayKey)
   }, [dayKey, markStreakIntroShown])
+
+  const open = autoOpen || manualOpen
+
+  const toggle = () => {
+    if (open) {
+      close()
+    } else {
+      setManualOpen(true)
+    }
+  }
 
   return (
     <>
@@ -48,13 +66,14 @@ export function StreakOverlay({ now }: { now: number }) {
         type="button"
         className={`streak-chip${streak.current === 0 ? ' streak-chip--empty' : ''}`}
         aria-label={`Racha de ${streak.current} días`}
+        aria-expanded={open}
         title={`Racha de ${streak.current} días`}
-        onClick={() => setManualOpen(true)}
+        onClick={toggle}
       >
         <LeafIcon />
         <span>{streak.current}</span>
       </button>
-      {(autoOpen || manualOpen) && <StreakIntroCard streak={streak} onClose={close} />}
+      {open && <StreakIntroCard streak={streak} autoClose={!manualOpen} onClose={close} />}
     </>
   )
 }

@@ -6,14 +6,18 @@ const AUTO_DISMISS_MS = 8000
 
 /**
  * Card del nuevo día: número grande, tira de 7 días con hojas y un mensaje
- * para conservar la racha. Se cierra sola, con la × o con Escape.
+ * para conservar la racha. Como aviso del día se cierra sola (`autoClose`);
+ * abierta desde la hoja queda hasta que el usuario la cierre. Siempre se
+ * cierra con la × o con Escape.
  */
 export function StreakIntroCard({
   streak,
   onClose,
+  autoClose = true,
 }: {
   streak: DailyStreak
   onClose: () => void
+  autoClose?: boolean
 }) {
   useEffect(() => {
     let timeout: number | null = null
@@ -44,10 +48,12 @@ export function StreakIntroCard({
       }
     }
 
-    if (document.visibilityState === 'visible') {
-      start()
+    if (autoClose) {
+      if (document.visibilityState === 'visible') {
+        start()
+      }
+      document.addEventListener('visibilitychange', onVisibilityChange)
     }
-    document.addEventListener('visibilitychange', onVisibilityChange)
     window.addEventListener('keydown', onKeyDown)
 
     return () => {
@@ -55,7 +61,7 @@ export function StreakIntroCard({
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [onClose])
+  }, [autoClose, onClose])
 
   const message = streak.plantedToday
     ? 'Volvé mañana y plantá un árbol para conservar la racha.'
