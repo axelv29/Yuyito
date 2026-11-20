@@ -1,8 +1,9 @@
+import { TREE_SPECIES } from '@/config/species'
 import type { FocusRecord } from '@/state/types'
-import { weekdayIndex } from './day'
-import { dailyFocus, studyStreak } from './stats'
+import { localDayNumber, weekdayIndex } from './day'
+import { studyStreak } from './stats'
 
-/** Un día de la tira de 7, con su letra (L M X J V S D) y si se plantó. */
+/** Un día de la tira de 7, con su letra (L M X J V S D) y si contó. */
 export interface StreakDay {
   day: number
   label: string
@@ -11,12 +12,20 @@ export interface StreakDay {
   isToday: boolean
 }
 
-/** Racha diaria derivada de las sesiones completadas. */
+/** Racha diaria derivada del enfoque real de cada día. */
 export interface DailyStreak {
   current: number
   plantedToday: boolean
   recent: StreakDay[]
 }
+
+/**
+ * Enfoque mínimo para que un día cuente: el árbol más chico (25 min).
+ *
+ * No hace falta completar un árbol: dejar un ceibo casi terminado también
+ * suma, porque lo que importa es el tiempo estudiado.
+ */
+export const STREAK_MIN_FOCUS_MIN = TREE_SPECIES.pino.minutes
 
 const WEEKDAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const
 
@@ -35,23 +44,56 @@ function recentDays(today: number, planted: ReadonlySet<number>): StreakDay[] {
 }
 
 /**
- * Racha diaria: días consecutivos con al menos un pomodoro completado.
+ * Días que cuentan para la racha: al menos `STREAK_MIN_FOCUS_MIN` minutos de
+ * enfoque real, sean de un árbol completado o de uno marchito.
  *
- * Reutiliza `dailyFocus` y `studyStreak`: solo los pomodoros completados
- * plantan un día y, si hoy todavía no hay, la racha sigue viva hasta que
- * termina el día. `today` es el ordinal local (`localDayNumber`) para que el
- * componente pueda memorizar con dependencias exactas.
+ * Los minutos de un árbol abandonado son tiempo estudiado, así que suman. Los
+ * descansos no dejan registros y no entran. `durationMin` ya guarda los minutos
+ * reales de los abandonos.
+ */
+export function streakDays(sessions: readonly FocusRecord[], forestId?: string): Set<number> {
+  const minutes = new Map<number, number>()
+
+  for (const session of sessions) {
+    if (session.status === 'running' || (forestId && session.forestId !== forestId)) {
+      continue
+    }
+
+    if (session.durationMin <= 0) {
+      continue
+    }
+
+    const day = localDayNumber(session.endedAt)
+    minutes.set(day, (minutes.get(day) ?? 0) + session.durationMin)
+  }
+
+  const days = new Set<number>()
+  for (const [day, total] of minutes) {
+    if (total >= STREAK_MIN_FOCUS_MIN) {
+      days.add(day)
+    }
+  }
+
+  return days
+}
+
+/**
+ * Racha diaria: días consecutivos con al menos 25 minutos de enfoque real.
+ *
+ * Reutiliza `streakDays` y `studyStreak`: si hoy todavía no llega al mínimo, la
+ * racha sigue viva hasta que termina el día. `today` es el ordinal local
+ * (`localDayNumber`) para que el componente pueda memorizar con dependencias
+ * exactas.
  */
 export function dailyStreak(
   sessions: readonly FocusRecord[],
   today: number,
   forestId?: string,
 ): DailyStreak {
-  const days = dailyFocus(sessions, forestId)
-  const planted = new Set(days.keys())
+  const planted = streakDays(sessions, forestId)
 
   return {
-    current: studyStreak(days, today).current,
+    current: studyStreak(planted, today).current,
     plantedToday: planted.has(today),
     recent: recentDays(today, planted),
   }

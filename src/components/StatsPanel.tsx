@@ -8,6 +8,7 @@ import { GRID_COLS, GRID_ROWS } from '@/config/grid'
 import type { View } from '@/config/views'
 import { localDayNumber, startOfWeek } from '@/logic/day'
 import { occupiedCells } from '@/logic/placement'
+import { STREAK_MIN_FOCUS_MIN, streakDays } from '@/logic/streak'
 import {
   dailyFocus,
   forestFocus,
@@ -117,7 +118,8 @@ export function StatsPanel({ now, view, onChangeView }: StatsPanelProps) {
     () => summarizeStats(sessions, trees, now, forestId),
     [sessions, trees, now, forestId],
   )
-  const streak = useMemo(() => studyStreak(days, today), [days, today])
+  const plantedDays = useMemo(() => streakDays(sessions, forestId), [sessions, forestId])
+  const streak = useMemo(() => studyStreak(plantedDays, today), [plantedDays, today])
   const average = useMemo(() => studyAverage(days, today), [days, today])
   const status = useMemo(() => statusCounts(sessions, forestId), [sessions, forestId])
   const ranking = useMemo(
@@ -250,7 +252,7 @@ export function StatsPanel({ now, view, onChangeView }: StatsPanelProps) {
           detail={
             streak.studiedDays > 0
               ? `Mejor racha: ${plural(streak.best, 'día', 'días')}`
-              : 'Todavía no hay días con enfoque'
+              : `Todavía no hay días con ${STREAK_MIN_FOCUS_MIN} min de enfoque`
           }
         />
         <StatCard
@@ -410,7 +412,9 @@ export function StatsPanel({ now, view, onChangeView }: StatsPanelProps) {
       </div>
 
       <p className="type-body type-muted mt-6">
-        Solo los pomodoros completados suman minutos. Los descansos no plantan árboles.
+        Solo los pomodoros completados suman minutos en las estadísticas. La racha cuenta{' '}
+        {STREAK_MIN_FOCUS_MIN} min de enfoque real por día, aunque el árbol quede marchito. Los
+        descansos no plantan árboles.
       </p>
     </section>
   )

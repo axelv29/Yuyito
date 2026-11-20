@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { STREAK_MIN_FOCUS_MIN } from '@/logic/streak'
 import type { DailyStreak } from '@/logic/streak'
 import { CloseIcon, LeafIcon } from './icons'
 
@@ -64,10 +65,10 @@ export function StreakIntroCard({
   }, [autoClose, onClose])
 
   const message = streak.plantedToday
-    ? 'Volvé mañana y plantá un árbol para conservar la racha.'
+    ? `Volvé mañana y sumá ${STREAK_MIN_FOCUS_MIN} minutos para conservar la racha.`
     : streak.current >= 1
-      ? 'Plantá un árbol hoy y volvé mañana para conservarla.'
-      : 'Empezá una racha: plantá un árbol hoy.'
+      ? `Sumá ${STREAK_MIN_FOCUS_MIN} minutos hoy y volvé mañana para conservarla.`
+      : `Empezá una racha: sumá ${STREAK_MIN_FOCUS_MIN} minutos hoy.`
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">

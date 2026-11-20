@@ -85,6 +85,10 @@ function focusDays(entries: ReadonlyArray<[number, number]>): Map<number, DayFoc
   )
 }
 
+function daySet(...days: number[]): Set<number> {
+  return new Set(days)
+}
+
 describe('summarizeStats', () => {
   it('cuenta solo los enfoques completados de hoy y los totales', () => {
     const stats = summarizeStats(SESSIONS, TREES, TODAY)
@@ -133,7 +137,7 @@ describe('dailyFocus', () => {
 
 describe('studyStreak', () => {
   it('cuenta los días seguidos que terminan hoy', () => {
-    const streak = studyStreak(focusDays([[TODAY_DAY, 25], [TODAY_DAY - 1, 50], [TODAY_DAY - 2, 25]]), TODAY_DAY)
+    const streak = studyStreak(daySet(TODAY_DAY, TODAY_DAY - 1, TODAY_DAY - 2), TODAY_DAY)
 
     expect(streak.current).toBe(3)
     expect(streak.best).toBe(3)
@@ -141,13 +145,13 @@ describe('studyStreak', () => {
   })
 
   it('mantiene la racha viva si hoy todavía no hay enfoques', () => {
-    const streak = studyStreak(focusDays([[TODAY_DAY - 1, 25], [TODAY_DAY - 2, 25]]), TODAY_DAY)
+    const streak = studyStreak(daySet(TODAY_DAY - 1, TODAY_DAY - 2), TODAY_DAY)
 
     expect(streak.current).toBe(2)
   })
 
   it('no cuenta como racha un hueco de un día', () => {
-    const streak = studyStreak(focusDays([[TODAY_DAY, 25], [TODAY_DAY - 2, 25]]), TODAY_DAY)
+    const streak = studyStreak(daySet(TODAY_DAY, TODAY_DAY - 2), TODAY_DAY)
 
     expect(streak.current).toBe(1)
     expect(streak.best).toBe(1)
@@ -155,13 +159,13 @@ describe('studyStreak', () => {
 
   it('guarda la mejor racha del historial', () => {
     const streak = studyStreak(
-      focusDays([
-        [TODAY_DAY - 10, 25],
-        [TODAY_DAY - 9, 25],
-        [TODAY_DAY - 8, 25],
-        [TODAY_DAY - 7, 25],
-        [TODAY_DAY - 1, 25],
-      ]),
+      daySet(
+        TODAY_DAY - 10,
+        TODAY_DAY - 9,
+        TODAY_DAY - 8,
+        TODAY_DAY - 7,
+        TODAY_DAY - 1,
+      ),
       TODAY_DAY,
     )
 

@@ -27,7 +27,7 @@ Plan acordado antes de escribir la lógica. Lo marcado como **✅ Cerrado** ya s
 | Árbol adulto | 44 ancho × 89 alto; frames recortados por estado y dibujo a tamaño nativo |
 | Contador | "Pomodoros hoy: N", sin meta diaria |
 | Estadísticas | Hoy, totales, racha y promedio; heatmap, barras y anillos propios |
-| Racha diaria | Hoja en vez de fuego: chip discreto abajo a la izquierda y card central una vez por día nuevo; cuenta solo pomodoros completados, en todos los bosques |
+| Racha diaria | Hoja en vez de fuego: chip discreto abajo a la izquierda y card central una vez por día nuevo; cuenta días con al menos 25 min de enfoque real, completado o abandonado, en todos los bosques |
 | Color | Paleta de la sección 9, sin colores fuera de ella |
 | Dependencias | Nada de router, gráficos, motor de juego, Supabase ni PWA en la v0.1 |
 
@@ -91,7 +91,7 @@ Las opciones, comparadas:
 - **Descanso:** pausa configurable por sesión. Se ofrece al completar un bloque con un botón; no arranca solo. En modo continuo no hay pausas. No planta árbol ni suma estadísticas.
 - **Crecimiento:** cada especie tiene un costo fijo y etapas proporcionales: pino 25 (4), abedul 45 (5), roble 60 (7), ceibo 90 (7). La cola se recorre de a un árbol; el último puede quedar parcial y guardarse como `growing`. Al abandonar, el árbol actual queda marchito con la variante de la etapa alcanzada.
 - **Pradera:** grilla isométrica de 4×4 a 8×8, centrada, con isla flotante y árboles ordenados de atrás hacia adelante. La escala base es común a todos los tamaños; los bosques chicos se ven proporcionalmente más chicos y se pueden acercar con el zoom.
-- **Estadísticas:** alcance por bosque o global; hoy, total, racha actual y promedio por día estudiado en los últimos 30 días; mapa de calor de 53 semanas, barras de días por semana o por mes, anillos de completados vs. abandonados y reparto por bosque, y bosque favorito con ranking. Solo los pomodoros completados suman minutos.
+- **Estadísticas:** alcance por bosque o global; hoy, total, racha actual y promedio por día estudiado en los últimos 30 días; mapa de calor de 53 semanas, barras de días por semana o por mes, anillos de completados vs. abandonados y reparto por bosque, y bosque favorito con ranking. Solo los pomodoros completados suman minutos; la racha diaria suma 25 min de enfoque real por día, incluso de un árbol marchito.
 - **Guardado:** local en el navegador, con versión de esquema V5 y migración preparada.
 - **Sesiones e historial:** una sesión combina ritmo y cola de árboles, con hasta 8 bloques y 8 árboles. El historial del bosque agrupa los bloques de cada sesión, incluye árboles en crecimiento y marchitos, y filtra por hoy, semana, series y marchitas.
 - **Interfaz:** vistas Bosque, Estadísticas y Bosques, con el selector dentro de la tarjeta del timer. El historial es una ventana flotante que se abre desde un botón discreto del timer y se apila bajo la tarjeta de sesión. La tarjeta de sesión queda visible durante el enfoque (también en pausa) y se oculta en descanso. El selector se deshabilita mientras hay una sesión activa; timer, pausa y abandonar siguen a mano. Iniciar abre el diálogo de sesión; la pradera permite seleccionar una sesión con doble clic para resaltar sus árboles.

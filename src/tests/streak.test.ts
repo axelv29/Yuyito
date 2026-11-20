@@ -11,14 +11,15 @@ function record(
   id: string,
   endedAt: number,
   status: FocusRecord['status'] = 'completed',
+  durationMin = 25,
   forestId = 'forest-test',
 ): FocusRecord {
   return {
     id,
     forestId,
-    startedAt: endedAt - 25 * MINUTE,
+    startedAt: endedAt - durationMin * MINUTE,
     endedAt,
-    durationMin: 25,
+    durationMin,
     status,
     treeId: `tree-${id}`,
   }
@@ -62,8 +63,8 @@ describe('dailyStreak', () => {
     expect(streak.plantedToday).toBe(false)
   })
 
-  it('no cuenta los pomodoros abandonados', () => {
-    const sessions = [record('abandonada', TODAY, 'abandoned')]
+  it('no cuenta un abandono corto que no llega al mínimo', () => {
+    const sessions = [record('abandonada', TODAY, 'abandoned', 10)]
 
     const streak = dailyStreak(sessions, TODAY_DAY)
 
@@ -72,18 +73,46 @@ describe('dailyStreak', () => {
     expect(streak.recent[3]?.planted).toBe(false)
   })
 
+  it('cuenta un abandono largo aunque el árbol quede marchito', () => {
+    const sessions = [record('ceibo', TODAY, 'abandoned', 80)]
+
+    const streak = dailyStreak(sessions, TODAY_DAY)
+
+    expect(streak.current).toBe(1)
+    expect(streak.plantedToday).toBe(true)
+    expect(streak.recent[3]?.planted).toBe(true)
+  })
+
+  it('suma enfoques del mismo día hasta llegar a los 25 minutos', () => {
+    const sessions = [
+      record('corto', TODAY, 'abandoned', 10),
+      record('completado', TODAY, 'completed', 15),
+    ]
+
+    expect(dailyStreak(sessions, TODAY_DAY).current).toBe(1)
+  })
+
+  it('cuenta justo al llegar a los 25 minutos', () => {
+    const sessions = [record('justo', TODAY, 'abandoned', 25)]
+
+    expect(dailyStreak(sessions, TODAY_DAY).current).toBe(1)
+  })
+
   it('filtra por bosque cuando se pasa forestId', () => {
     const sessions = [
       record('propia', TODAY),
-      record('otra', day(1), 'completed', 'forest-otro'),
+      record('otra', day(1), 'completed', 25, 'forest-otro'),
     ]
 
     expect(dailyStreak(sessions, TODAY_DAY).current).toBe(2)
     expect(dailyStreak(sessions, TODAY_DAY, 'forest-test').current).toBe(1)
     expect(dailyStreak(sessions, TODAY_DAY, 'forest-otro').current).toBe(1)
     expect(
-      dailyStreak([record('otra', day(1), 'completed', 'forest-otro')], TODAY_DAY, 'forest-test')
-        .current,
+      dailyStreak(
+        [record('otra', day(1), 'completed', 25, 'forest-otro')],
+        TODAY_DAY,
+        'forest-test',
+      ).current,
     ).toBe(0)
   })
 

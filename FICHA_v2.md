@@ -132,7 +132,7 @@ interface PersistedV3 {
 - **Alarma:** 3 tonos predefinidos editables + notificación del navegador al sonar.
 - **Pausa estricta:** no se puede pausar; si se pausa, se trata como abandono. Con tolerancia activable, el árbol solo marchita pasado el tiempo de tolerancia; ese tiempo es el mismo para toda la sesión.
 - **Persistencia:** clave `focus-forest`, versión 3, migración preparada. Los datos viejos se adjuntan a un bosque “Mi bosque” de 8×8; sin datos viejos no se crea un bosque vacío. Datos corruptos: copia en `focus-forest.broken` y reinicio, con aviso. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
-- **Estadísticas:** solo enfoques completados. "Hoy" usa el día local. Los abandonos y los descansos no suman. Desde 2026-11-18 incluyen gráficos propios (mapa de calor, barras por período y anillos) y rachas, con alcance por bosque o global.
+- **Estadísticas:** solo enfoques completados. "Hoy" usa el día local. Los abandonos y los descansos no suman. Desde 2026-11-18 incluyen gráficos propios (mapa de calor, barras por período y anillos) y rachas, con alcance por bosque o global. La racha diaria es la excepción: cuenta días con al menos 25 min de enfoque real, incluidos los minutos de un árbol marchito.
 
 ## 6. Criterios de aceptación
 

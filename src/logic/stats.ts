@@ -127,15 +127,13 @@ export function dailyFocus(
 }
 
 /**
- * Racha de días estudiando.
+ * Racha de días consecutivos que cuentan para estudiar.
  *
- * Si hoy todavía no hay enfoques, la racha sigue viva hasta que termina el
- * día: se cuenta desde ayer.
+ * Si hoy todavía no está en el conjunto, la racha sigue viva hasta que termina
+ * el día: se cuenta desde ayer. Quién decide qué días cuentan es el llamador
+ * (`streakDays` aplica el mínimo de enfoque de la racha diaria).
  */
-export function studyStreak(
-  days: ReadonlyMap<number, DayFocus>,
-  today: number,
-): StudyStreak {
+export function studyStreak(days: ReadonlySet<number>, today: number): StudyStreak {
   let current = 0
   let cursor = days.has(today) ? today : today - 1
 
@@ -144,7 +142,7 @@ export function studyStreak(
     cursor -= 1
   }
 
-  const sorted = [...days.keys()].sort((a, b) => a - b)
+  const sorted = [...days].sort((a, b) => a - b)
   let best = 0
   let run = 0
   let previous: number | null = null
