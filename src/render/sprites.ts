@@ -259,20 +259,25 @@ export interface FrameBounds {
   bottom: number
 }
 
-/** Rectángulo que ocupa un frame en la escena; se usa para seleccionar con doble clic. */
+/**
+ * Rectángulo que ocupa un frame en la escena; se usa para seleccionar con doble
+ * clic. Con `flipX` el rectángulo se espeja sobre el ancla, igual que el dibujo.
+ */
 export function atlasFrameBounds(
   atlas: Atlas,
   name: string,
   baseX: number,
   baseY: number,
   scale = 1,
+  flipX = false,
 ): FrameBounds | null {
   const frame = atlas.frames[name]
   if (!frame) {
     return null
   }
 
-  const left = baseX - frame.anchorX * scale
+  const anchor = flipX ? frame.w - frame.anchorX : frame.anchorX
+  const left = baseX - anchor * scale
   const top = baseY - frame.anchorY * scale
 
   return {
@@ -286,7 +291,8 @@ export function atlasFrameBounds(
 /**
  * Dibuja un frame anclado abajo al centro. `scale` adapta el arte de cada
  * especie al tamaño de la pradera. `baseX` y `baseY` son el punto de apoyo
- * del árbol en la escena.
+ * del árbol en la escena. Con `flipX` el frame se espeja horizontalmente
+ * sobre la base del tronco, así la copa cambia de lado sin mover el árbol.
  */
 export function drawAtlasFrame(
   ctx: CanvasRenderingContext2D,
@@ -295,23 +301,37 @@ export function drawAtlasFrame(
   baseX: number,
   baseY: number,
   scale = 1,
+  flipX = false,
 ): boolean {
   const frame = atlas.frames[name]
-  const image = frame ? atlas.images[frame.sheet] : undefined
-  if (!frame || !image) {
+  if (!frame) {
     return false
   }
 
-  ctx.drawImage(
-    image,
-    frame.x,
-    frame.y,
-    frame.w,
-    frame.h,
-    baseX - frame.anchorX * scale,
-    baseY - frame.anchorY * scale,
-    frame.w * scale,
-    frame.h * scale,
-  )
+  const image = atlas.images[frame.sheet]
+  if (!image) {
+    return false
+  }
+
+  const dx = baseX - frame.anchorX * scale
+  const dy = baseY - frame.anchorY * scale
+  const dw = frame.w * scale
+  const dh = frame.h * scale
+
+  if (!flipX) {
+    ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh)
+    return true
+  }
+
+  // Espejo horizontal alrededor del ancla del tronco: el punto baseX queda fijo
+  // y la copa cambia de lado. Se dibuja el mismo frame con el mismo destino;
+  // la transformación refleja el espacio de la escena sobre baseX.
+  ctx.save()
+  ctx.translate(baseX, 0)
+  ctx.scale(-1, 1)
+  ctx.translate(-baseX, 0)
+  ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh)
+  ctx.restore()
+
   return true
 }

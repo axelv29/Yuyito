@@ -2,6 +2,7 @@ import {
   GRID_COLS,
   ISLAND_DEPTH,
   ORIGIN_X,
+  SCENE_CANVAS_WIDTH,
   SCENE_HEIGHT,
   SCENE_WIDTH,
   TILE_HEIGHT,
@@ -11,7 +12,9 @@ import {
 import { speciesConfig, speciesFromKind } from '@/config/species'
 import type { Cell, Tree, TreeSpecies, TreeStage, TreeState } from '@/state/types'
 import { cellToScreen, sortByDepth } from './iso'
+import { treeFlipped } from './orientation'
 import { drawAtlasFrame, sheetScale, treeFrameName, type Atlas } from './sprites'
+import { drawSunlight, sunlightRange } from './sunlight'
 
 export interface ActiveTreePreview {
   cell: Cell
@@ -42,6 +45,8 @@ interface DrawableTree {
   state: TreeState
   sessionId: string | null
   selected: boolean
+  /** Se dibuja espejado horizontalmente, fijo por árbol. */
+  flipped: boolean
 }
 
 const STAGE_SCALE: Record<TreeStage, number> = {
@@ -89,6 +94,8 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
   }
 
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY)
+  ctx.imageSmoothingEnabled = false
+  ctx.imageSmoothingQuality = 'high'
 
   const meadowShift = meadowTop - TOP_PADDING
   const selected = options.selectedSessionIds ?? null
@@ -102,6 +109,7 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
       state: tree.state,
       sessionId: tree.sessionId,
       selected: selected?.has(tree.sessionId) ?? false,
+      flipped: treeFlipped(tree.id),
     }))
 
   if (options.active && isInsideGarden(options.active.cell, size)) {
@@ -137,6 +145,7 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
         state: 'mature',
         sessionId: activeId,
         selected: activeId !== null && selected?.has(activeId) === true,
+        flipped: treeFlipped(activeTreeId ?? activeId ?? `${active.cell.col}:${active.cell.row}`),
       })
     }
   }
@@ -161,12 +170,21 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
         drawTree(ctx, tree, options.atlas ?? null, meadowShift)
       }
     }
-    return
+  } else {
+    for (const tree of ordered) {
+      drawTree(ctx, tree, options.atlas ?? null, meadowShift)
+    }
   }
 
-  for (const tree of ordered) {
-    drawTree(ctx, tree, options.atlas ?? null, meadowShift)
-  }
+  // La luz se aplica al final, sobre suelo y árboles a la vez: es el sol del
+  // bosque completo, no un tinte por árbol.
+  const { backY, frontY } = sunlightRange(meadowTop, size)
+  drawSunlight(ctx, {
+    width: pixelWidth,
+    height: pixelHeight,
+    backY: offsetY + backY * scale,
+    frontY: offsetY + frontY * scale,
+  })
 }
 
 /** Base de un árbol en coordenadas de escena, compartida con el hit-test. */
@@ -176,6 +194,21 @@ export function treeBasePoint(cell: Cell, gardenSize: number): { x: number; base
   const point = cellToScreen(cell)
 
   return { x: point.x, baseY: point.y + meadowShift + 4 }
+}
+
+/**
+ * Punto de escena (480×400) para una posición relativa al canvas del jardín.
+ * El canvas suma aire a los costados para las copas anchas, así que el 0 de la
+ * escena no coincide con el borde del canvas.
+ */
+export function scenePointFromCanvas(
+  fractionX: number,
+  fractionY: number,
+): { x: number; y: number } {
+  return {
+    x: -((SCENE_CANVAS_WIDTH - SCENE_WIDTH) / 2) + fractionX * SCENE_CANVAS_WIDTH,
+    y: fractionY * SCENE_HEIGHT,
+  }
 }
 
 /** Los árboles fuera del bosque elegido no se dibujan en la preview. */
@@ -278,7 +311,7 @@ function drawTree(
     const frameName = treeFrameName(tree.species, tree.stage, tree.state)
     const frame = atlas.frames[frameName]
     const frameScale = frame ? sheetScale(frame.sheet) : speciesConfig(tree.species).scale
-    if (drawAtlasFrame(ctx, atlas, frameName, x, baseY, frameScale)) {
+    if (drawAtlasFrame(ctx, atlas, frameName, x, baseY, frameScale, tree.flipped)) {
       return
     }
   }

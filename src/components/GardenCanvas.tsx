@@ -9,6 +9,7 @@ import {
 import {
   GRID_COLS,
   ISLAND_DEPTH,
+  SCENE_CANVAS_WIDTH,
   SCENE_HEIGHT,
   SCENE_WIDTH,
   TILE_HEIGHT,
@@ -26,7 +27,12 @@ import {
   stepPixelPerfectZoom,
   wheelZoomStep,
 } from '@/logic/zoom'
-import { drawGarden, treeBasePoint, type ActiveTreePreview } from '@/render/drawGarden'
+import {
+  drawGarden,
+  scenePointFromCanvas,
+  treeBasePoint,
+  type ActiveTreePreview,
+} from '@/render/drawGarden'
 import {
   atlasFrameBounds,
   GROUND_TILE_SIZES,
@@ -37,6 +43,7 @@ import {
   treeFrameName,
   type Atlas,
 } from '@/render/sprites'
+import { treeFlipped } from '@/render/orientation'
 import { speciesFromKind } from '@/config/species'
 import type { Cell, Tree } from '@/state/types'
 import { MinusIcon, PineIcon, PlusIcon, ResetIcon } from './icons'
@@ -114,10 +121,10 @@ export function GardenCanvas({
   // escena. Así el zoom-out nunca pierde píxeles por muestreo.
   const minZoom = minPixelPerfectZoom(basePixelScale)
   const pixelScale = snapPixelScale(basePixelScale * zoom)
-  // Margen horizontal escalado: el nuevo tileset tiene detalles de textura que
-  // sobresalen ~1,5 px a la izquierda del diamante; con un margen fijo de 2 px
-  // (no escalado) se recortaba al hacer zoom. Se escalan 4 px (2 por lado).
-  const canvasWidth = Math.max(1, Math.round((SCENE_WIDTH + 4) * pixelScale))
+  // Aire lateral del canvas: las copas anchas (ceibo adulto) sobresalen de la
+  // punta del rombo y se cortaban contra el borde. El ancho suma ese aire y
+  // 2 px por lado para la textura del sheet de suelo.
+  const canvasWidth = Math.max(1, Math.round(SCENE_CANVAS_WIDTH * pixelScale))
   const canvasHeight = Math.max(1, Math.round(SCENE_HEIGHT * pixelScale))
   const canvasCssWidth = canvasWidth / dpr
   const canvasCssHeight = canvasHeight / dpr
@@ -405,10 +412,10 @@ export function GardenCanvas({
       return
     }
 
-    const point = {
-      x: -2 + ((clientX - rect.left) / rect.width) * (SCENE_WIDTH + 4),
-      y: ((clientY - rect.top) / rect.height) * SCENE_HEIGHT,
-    }
+    const point = scenePointFromCanvas(
+      (clientX - rect.left) / rect.width,
+      (clientY - rect.top) / rect.height,
+    )
     const ordered = sortByDepth(
       trees.filter(
         (tree) =>
@@ -431,6 +438,7 @@ export function GardenCanvas({
             base.x,
             base.baseY,
             sheetScale(frame.sheet),
+            treeFlipped(tree.id),
           )
           if (
             bounds &&

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { drawGarden, type ActiveTreePreview } from '@/render/drawGarden'
+import { SCENE_CANVAS_WIDTH, SCENE_HEIGHT, SCENE_WIDTH } from '@/config/grid'
+import { drawGarden, scenePointFromCanvas, type ActiveTreePreview } from '@/render/drawGarden'
+import { treeFlipped } from '@/render/orientation'
 import type { Atlas, AtlasFrame } from '@/render/sprites'
 import type { Cell, Tree, TreeStage } from '@/state/types'
 
 interface DrawnFrame {
   sheet: string
   stage: number
+  flipped: boolean
 }
 
 const STAGE_OFFSET = 100
@@ -32,22 +35,43 @@ function makeAtlas(stages: readonly TreeStage[]): Atlas {
 
 /** Contexto mínimo: solo lo que usa drawGarden con atlas y sheet de suelo. */
 function makeContext(drawn: DrawnFrame[]): CanvasRenderingContext2D {
+  const mirrorStack: boolean[] = []
+  let mirrored = false
+
   const ctx = {
     canvas: { width: 480, height: 400 },
     imageSmoothingEnabled: true,
     imageSmoothingQuality: 'high',
     globalAlpha: 1,
+    globalCompositeOperation: 'source-over',
+    fillStyle: '#000',
     setTransform: () => {},
     clearRect: () => {},
-    save: () => {},
-    restore: () => {},
+    save: () => {
+      mirrorStack.push(mirrored)
+    },
+    restore: () => {
+      mirrored = mirrorStack.pop() ?? false
+    },
+    translate: () => {},
+    scale: (x: number) => {
+      if (x < 0) {
+        mirrored = !mirrored
+      }
+    },
+    fillRect: () => {},
+    createLinearGradient: () => ({ addColorStop: () => {} }),
     drawImage: (...args: unknown[]) => {
       // Los frames se dibujan con 9 argumentos; el suelo, con 4.
       if (args.length !== 9) {
         return
       }
 
-      drawn.push({ sheet: 'pino', stage: Number(args[1]) / STAGE_OFFSET })
+      drawn.push({
+        sheet: 'pino',
+        stage: Math.floor(Number(args[1]) / STAGE_OFFSET),
+        flipped: mirrored,
+      })
     },
   }
 
@@ -97,6 +121,25 @@ function draw(trees: readonly Tree[], active: ActiveTreePreview | null): DrawnFr
   return drawn
 }
 
+describe('scenePointFromCanvas', () => {
+  it('mapea el centro del canvas al centro de la escena', () => {
+    expect(scenePointFromCanvas(0.5, 0.5)).toEqual({
+      x: SCENE_WIDTH / 2,
+      y: SCENE_HEIGHT / 2,
+    })
+  })
+
+  it('deja aire a los costados para las copas anchas', () => {
+    const left = scenePointFromCanvas(0, 0)
+    const right = scenePointFromCanvas(1, 1)
+
+    expect(left.x).toBeLessThan(0)
+    expect(right.x).toBeGreaterThan(SCENE_WIDTH)
+    expect(left.x + right.x).toBe(SCENE_WIDTH)
+    expect(SCENE_CANVAS_WIDTH).toBeGreaterThan(SCENE_WIDTH + 40)
+  })
+})
+
 describe('drawGarden · árbol activo', () => {
   it('dibuja el árbol en crecimiento una sola vez, con la etapa viva', () => {
     const drawn = draw([makeTree({ stage: 1 })], activePreview({ stage: 3 }))
@@ -129,5 +172,26 @@ describe('drawGarden · árbol activo', () => {
 
     expect(drawn).toHaveLength(1)
     expect(drawn[0].stage).toBe(2)
+  })
+})
+
+describe('drawGarden · orientación', () => {
+  const ids = ['tree-1', 'tree-2', 'tree-3', 'tree-4', 'tree-5', 'tree-6']
+  const flippedId = ids.find((id) => treeFlipped(id))!
+  const normalId = ids.find((id) => !treeFlipped(id))!
+
+  it('espeja solo los árboles cuyo id lo pide', () => {
+    expect(draw([makeTree({ id: flippedId })], null)[0].flipped).toBe(true)
+    expect(draw([makeTree({ id: normalId })], null)[0].flipped).toBe(false)
+  })
+
+  it('conserva el lado mientras el árbol activo avanza de etapa', () => {
+    const drawn = draw(
+      [makeTree({ id: flippedId, stage: 1 })],
+      activePreview({ treeId: flippedId, stage: 3 }),
+    )
+
+    expect(drawn).toHaveLength(1)
+    expect(drawn[0].flipped).toBe(true)
   })
 })
