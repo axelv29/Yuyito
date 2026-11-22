@@ -27,7 +27,11 @@ export function sendNotification(title: string, body: string): boolean {
     return false
   }
   try {
-    new Notification(title, { body })
+    const notification = new Notification(title, { body })
+    notification.onclick = () => {
+      window.focus()
+      notification.close()
+    }
     return true
   } catch {
     return false

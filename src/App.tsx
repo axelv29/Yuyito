@@ -273,13 +273,35 @@ function App() {
 
   // Alarma al completar un enfoque (aparece el aviso de descanso).
   useEffect(() => {
-    if (active === null && prevActiveRef.current?.kind === 'focus') {
+    const prev = prevActiveRef.current
+    if (active === null && prev?.kind === 'focus') {
       playTone(settings.alarmTone, settings.alarmVolume)
       if (settings.notification) {
-        sendNotification('Focus Forest', '¡Pomodoro completado! El árbol quedó plantado.')
+        const record = useStore.getState().sessions.find((session) => session.id === prev.id)
+        if (record?.status === 'abandoned') {
+          sendNotification('Focus Forest', 'El árbol se marchitó. Podés empezar otro cuando quieras.')
+        } else {
+          const index = prev.pomoIndex ?? 1
+          const total = prev.pomoTotal ?? 1
+          const isSeries = total > 1
+          const isLast = index >= total
+          let body: string
+          if (isSeries) {
+            if (isLast) {
+              body = `Bloque ${index}/${total} completado. ¡Sesión terminada!`
+            } else if (prev.mode === 'continuous') {
+              body = `Bloque ${index}/${total} completado. Sigue el siguiente bloque.`
+            } else {
+              body = `Bloque ${index}/${total} completado. Tomá un descanso.`
+            }
+          } else {
+            body = '¡Pomodoro completado! El árbol quedó en la pradera.'
+          }
+          sendNotification('Focus Forest', body)
+        }
       }
     }
-    if (active === null && prevActiveRef.current?.kind === 'break') {
+    if (active === null && prev?.kind === 'break') {
       playTone(settings.alarmTone, settings.alarmVolume)
       if (settings.notification) {
         sendNotification('Focus Forest', 'Descanso terminado.')
