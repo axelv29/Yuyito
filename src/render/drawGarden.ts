@@ -14,7 +14,7 @@ import type { Cell, Tree, TreeSpecies, TreeStage, TreeState } from '@/state/type
 import { cellToScreen, sortByDepth } from './iso'
 import { treeFlipped } from './orientation'
 import { drawAtlasFrame, sheetScale, treeFrameName, type Atlas } from './sprites'
-import { drawSunlight, sunlightRange } from './sunlight'
+import { sunlightRange, treeTint, type SunlightRange } from './sunlight'
 
 export interface ActiveTreePreview {
   cell: Cell
@@ -152,6 +152,7 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
 
   const ordered = sortByDepth(trees)
   const hasSelection = ordered.some((tree) => tree.selected)
+  const range = sunlightRange(meadowTop, size)
 
   // Con una sesión seleccionada, sus árboles se dibujan al final y a opacidad
   // completa; el resto queda detrás y atenuado para poder leer el conjunto.
@@ -162,29 +163,19 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
       }
       ctx.save()
       ctx.globalAlpha = 0.32
-      drawTree(ctx, tree, options.atlas ?? null, meadowShift)
+      drawTree(ctx, tree, options.atlas ?? null, meadowShift, range)
       ctx.restore()
     }
     for (const tree of ordered) {
       if (tree.selected) {
-        drawTree(ctx, tree, options.atlas ?? null, meadowShift)
+        drawTree(ctx, tree, options.atlas ?? null, meadowShift, range)
       }
     }
   } else {
     for (const tree of ordered) {
-      drawTree(ctx, tree, options.atlas ?? null, meadowShift)
+      drawTree(ctx, tree, options.atlas ?? null, meadowShift, range)
     }
   }
-
-  // La luz se aplica al final, sobre suelo y árboles a la vez: es el sol del
-  // bosque completo, no un tinte por árbol.
-  const { backY, frontY } = sunlightRange(meadowTop, size)
-  drawSunlight(ctx, {
-    width: pixelWidth,
-    height: pixelHeight,
-    backY: offsetY + backY * scale,
-    frontY: offsetY + frontY * scale,
-  })
 }
 
 /** Base de un árbol en coordenadas de escena, compartida con el hit-test. */
@@ -300,18 +291,20 @@ function drawTree(
   tree: DrawableTree,
   atlas: Atlas | null,
   meadowShift: number,
+  range: SunlightRange,
 ): void {
   const { x, y } = cellToScreen(tree.cell)
   // En bosques más chicos la pradera entera baja (8 − size) filas.
   const groundY = y + meadowShift
   const baseY = groundY + 4
+  const tint = treeTint(baseY, range)
 
   // Los atlas incluyen la sombra pixelada, vivos y marchitos.
   if (atlas) {
     const frameName = treeFrameName(tree.species, tree.stage, tree.state)
     const frame = atlas.frames[frameName]
     const frameScale = frame ? sheetScale(frame.sheet) : speciesConfig(tree.species).scale
-    if (drawAtlasFrame(ctx, atlas, frameName, x, baseY, frameScale, tree.flipped)) {
+    if (drawAtlasFrame(ctx, atlas, frameName, x, baseY, frameScale, tree.flipped, tint)) {
       return
     }
   }

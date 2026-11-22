@@ -288,11 +288,41 @@ export function atlasFrameBounds(
   }
 }
 
+export interface SpriteTint {
+  color: readonly [number, number, number]
+  alpha: number
+}
+
+let tintScratch: OffscreenCanvas | HTMLCanvasElement | null = null
+
+function getTintScratch(width: number, height: number): OffscreenCanvas | HTMLCanvasElement | null {
+  if (typeof OffscreenCanvas !== 'undefined') {
+    if (!tintScratch || !(tintScratch instanceof OffscreenCanvas)) {
+      tintScratch = new OffscreenCanvas(width, height)
+    }
+    if (tintScratch.width !== width) tintScratch.width = width
+    if (tintScratch.height !== height) tintScratch.height = height
+    return tintScratch
+  }
+
+  if (typeof document !== 'undefined') {
+    if (!tintScratch || tintScratch instanceof OffscreenCanvas) {
+      tintScratch = document.createElement('canvas')
+    }
+    if (tintScratch.width !== width) tintScratch.width = width
+    if (tintScratch.height !== height) tintScratch.height = height
+    return tintScratch
+  }
+
+  return null
+}
+
 /**
  * Dibuja un frame anclado abajo al centro. `scale` adapta el arte de cada
  * especie al tamaño de la pradera. `baseX` y `baseY` son el punto de apoyo
  * del árbol en la escena. Con `flipX` el frame se espeja horizontalmente
- * sobre la base del tronco, así la copa cambia de lado sin mover el árbol.
+ * sobre la base del tronco. Con `tint` se aplica una capa uniforme solo al
+ * sprite, sin afectar el pasto.
  */
 export function drawAtlasFrame(
   ctx: CanvasRenderingContext2D,
@@ -302,6 +332,7 @@ export function drawAtlasFrame(
   baseY: number,
   scale = 1,
   flipX = false,
+  tint?: SpriteTint | null,
 ): boolean {
   const frame = atlas.frames[name]
   if (!frame) {
@@ -318,20 +349,56 @@ export function drawAtlasFrame(
   const dw = frame.w * scale
   const dh = frame.h * scale
 
+  type DrawCtx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+  const draw = (target: DrawCtx, x: number, y: number, w: number, h: number) => {
+    target.drawImage(image, frame.x, frame.y, frame.w, frame.h, x, y, w, h)
+  }
+
+  const blit = (source: CanvasImageSource, w: number, h: number) => {
+    if (!flipX) {
+      ctx.drawImage(source, dx, dy, w, h)
+      return
+    }
+
+    ctx.save()
+    ctx.translate(baseX, 0)
+    ctx.scale(-1, 1)
+    ctx.translate(-baseX, 0)
+    ctx.drawImage(source, dx, dy, w, h)
+    ctx.restore()
+  }
+
+  if (tint && tint.alpha > 0) {
+    const sw = Math.max(1, Math.ceil(dw))
+    const sh = Math.max(1, Math.ceil(dh))
+    const scratch = getTintScratch(sw, sh)
+    const scratchCtx = scratch?.getContext('2d') as DrawCtx | null
+
+    if (scratch && scratchCtx) {
+      scratchCtx.setTransform(1, 0, 0, 1, 0, 0)
+      scratchCtx.clearRect(0, 0, sw, sh)
+      scratchCtx.imageSmoothingEnabled = false
+      draw(scratchCtx, 0, 0, sw, sh)
+      scratchCtx.globalCompositeOperation = 'source-atop'
+      const [r, g, b] = tint.color
+      scratchCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${tint.alpha})`
+      scratchCtx.fillRect(0, 0, sw, sh)
+      scratchCtx.globalCompositeOperation = 'source-over'
+      blit(scratch as unknown as CanvasImageSource, sw, sh)
+      return true
+    }
+  }
+
   if (!flipX) {
-    ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh)
+    draw(ctx, dx, dy, dw, dh)
     return true
   }
 
-  // Espejo horizontal alrededor del ancla del tronco: el punto baseX queda fijo
-  // y la copa cambia de lado. Se dibuja el mismo frame con el mismo destino;
-  // la transformación refleja el espacio de la escena sobre baseX.
   ctx.save()
   ctx.translate(baseX, 0)
   ctx.scale(-1, 1)
   ctx.translate(-baseX, 0)
-  ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh)
+  draw(ctx, dx, dy, dw, dh)
   ctx.restore()
-
   return true
 }
