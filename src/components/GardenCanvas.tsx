@@ -59,6 +59,8 @@ interface GardenCanvasProps {
   selectedSessionIds?: ReadonlySet<string> | null
   /** Cambia cuando se elige otra sesión, para recentrar una sola vez. */
   selectionKey?: string | null
+  /** Sombras diagonales de prueba sobre el pasto. */
+  treeShadows?: boolean
   onSelectTree?: (tree: Tree | null) => void
 }
 
@@ -88,6 +90,7 @@ export function GardenCanvas({
   hasForest,
   selectedSessionIds = null,
   selectionKey = null,
+  treeShadows = true,
   onSelectTree,
 }: GardenCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -301,6 +304,7 @@ export function GardenCanvas({
       groundTile: groundTiles[gardenSize] ?? null,
       gardenSize,
       selectedSessionIds,
+      treeShadows,
     })
   }, [
     trees,
@@ -312,6 +316,7 @@ export function GardenCanvas({
     spritesReady,
     gardenSize,
     selectedSessionIds,
+    treeShadows,
   ])
 
   useEffect(() => {

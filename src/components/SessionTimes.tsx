@@ -11,6 +11,7 @@ import {
   SESSION_MIN_FOCUS_MIN,
   SESSION_MIN_LONG_BREAK_MIN,
 } from '@/config/session'
+import { availableFocusMinutes } from '@/config/species'
 import { sessionTimeline, type SessionRhythm, type SessionTimelineSegment } from '@/logic/session'
 import { InfoTip } from './InfoTip'
 import { MinusIcon, PencilIcon, PlusIcon } from './icons'
@@ -50,6 +51,8 @@ interface SessionTimesProps {
   longBreakEvery: number
   longBreakMin: number
   strictPause: boolean
+  openEnded: boolean
+  onOpenEndedChange: (enabled: boolean) => void
   onPreset: (preset: { focus: number; brk: number }) => void
   onFocusChange: (value: number) => void
   onBreakChange: (value: number) => void
@@ -157,9 +160,10 @@ interface SwitchProps {
   checked: boolean
   label: string
   onChange: (checked: boolean) => void
+  disabled?: boolean
 }
 
-function Switch({ checked, label, onChange }: SwitchProps) {
+function Switch({ checked, label, onChange, disabled }: SwitchProps) {
   return (
     <button
       type="button"
@@ -167,6 +171,7 @@ function Switch({ checked, label, onChange }: SwitchProps) {
       aria-checked={checked}
       aria-label={label}
       className="session-switch-control"
+      disabled={disabled}
       onClick={() => onChange(!checked)}
     >
       <span className="session-switch-control__knob" aria-hidden="true" />
@@ -311,6 +316,8 @@ export function SessionTimes({
   longBreakEvery,
   longBreakMin,
   strictPause,
+  openEnded,
+  onOpenEndedChange,
   onPreset,
   onFocusChange,
   onBreakChange,
@@ -325,6 +332,7 @@ export function SessionTimes({
     () => !PRESETS.some((preset) => preset.focus === focusMin && preset.brk === breakMin),
   )
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const canOpenEnded = focusMin >= Math.min(...availableFocusMinutes())
 
   const segments = sessionTimeline(rhythm)
   const total = segments.reduce((sum, segment) => sum + segment.minutos, 0)
@@ -450,12 +458,41 @@ export function SessionTimes({
       )}
 
       <div className="session-settings">
-        <div className="session-setting">
-          <span className="session-setting__label">Repetir en ciclos</span>
-          <Switch checked={cyclesActive} label="Repetir en ciclos" onChange={onCyclesToggle} />
-        </div>
+        {custom && (
+          <>
+            <div className="session-setting">
+              <span className="session-setting__label">
+                Ciclos indefinidos
+                <InfoTip
+                  label="Más información sobre ciclos indefinidos"
+                  text="No hay objetivo fijo: después de cada bloque elegís el próximo árbol o terminás la sesión."
+                />
+              </span>
+              <Switch
+                checked={openEnded}
+                label="Ciclos indefinidos"
+                onChange={onOpenEndedChange}
+                disabled={!canOpenEnded}
+              />
+            </div>
+            {!canOpenEnded && (
+              <div className="session-setting session-setting--sub">
+                <span className="session-setting__hint">
+                  Necesitás al menos 25 min por ciclo para plantar un árbol.
+                </span>
+              </div>
+            )}
+          </>
+        )}
 
-        {cyclesActive && (
+        {!openEnded && (
+          <div className="session-setting">
+            <span className="session-setting__label">Repetir en ciclos</span>
+            <Switch checked={cyclesActive} label="Repetir en ciclos" onChange={onCyclesToggle} />
+          </div>
+        )}
+
+        {!openEnded && cyclesActive && (
           <div className="session-setting">
             <span className="session-setting__label">Cantidad de ciclos</span>
             <CycleStepper value={cycles} onChange={onCyclesChange} />
@@ -507,52 +544,66 @@ export function SessionTimes({
             Pausa estricta
             <InfoTip
               label="Más información sobre la pausa estricta"
-              text="Si la activás, pausar equivale a abandonar: se pide confirmación y, si aceptás, el árbol se marchita y el pomodoro no suma minutos."
+              text="Si la activás, el botón de pausa desaparece: una vez empezado el bloque no se puede pausar."
             />
           </span>
           <Switch checked={strictPause} label="Pausa estricta" onChange={onStrictPauseToggle} />
         </div>
       </div>
 
-      <div className="session-summary-card">
-        <div className="session-summary-card__top">
-          <SessionWheel segments={segments} total={total} />
-
-          <div className="session-summary-card__legend">
-            <span className="session-summary-card__legend-row">
-              <span
-                className="session-summary-card__dot session-summary-card__dot--focus"
-                aria-hidden="true"
-              />
-              Enfoque {focusTotal} min
-            </span>
-
-            {shortBreakTotal > 0 || longBreakTotal === 0 ? (
-              <span className="session-summary-card__legend-row">
-                <span
-                  className="session-summary-card__dot session-summary-card__dot--break"
-                  aria-hidden="true"
-                />
-                Descanso {shortBreakTotal} min
-              </span>
-            ) : null}
-
-            {longBreakTotal > 0 ? (
-              <span className="session-summary-card__legend-row">
-                <span
-                  className="session-summary-card__dot session-summary-card__dot--long-break"
-                  aria-hidden="true"
-                />
-                Pausa larga {longBreakTotal} min
-              </span>
-            ) : null}
-
-            <span className="session-summary-card__total">{formatTotal(total)} en total</span>
+      {openEnded ? (
+        <div className="session-summary-card">
+          <div className="session-summary-card__top">
+            <SessionWheel segments={[{ tipo: 'enfoque', minutos: focusMin }]} total={focusMin} />
+            <div className="session-summary-card__legend">
+              <span className="session-summary-card__total">Sin límite de ciclos</span>
+            </div>
+          </div>
+          <div className="session-summary-card__note">
+            Después de cada bloque elegís el próximo árbol o terminás la sesión.
           </div>
         </div>
+      ) : (
+        <div className="session-summary-card">
+          <div className="session-summary-card__top">
+            <SessionWheel segments={segments} total={total} />
 
-        <SessionTimeline segments={segments} total={total} />
-      </div>
+            <div className="session-summary-card__legend">
+              <span className="session-summary-card__legend-row">
+                <span
+                  className="session-summary-card__dot session-summary-card__dot--focus"
+                  aria-hidden="true"
+                />
+                Enfoque {focusTotal} min
+              </span>
+
+              {shortBreakTotal > 0 || longBreakTotal === 0 ? (
+                <span className="session-summary-card__legend-row">
+                  <span
+                    className="session-summary-card__dot session-summary-card__dot--break"
+                    aria-hidden="true"
+                  />
+                  Descanso {shortBreakTotal} min
+                </span>
+              ) : null}
+
+              {longBreakTotal > 0 ? (
+                <span className="session-summary-card__legend-row">
+                  <span
+                    className="session-summary-card__dot session-summary-card__dot--long-break"
+                    aria-hidden="true"
+                  />
+                  Pausa larga {longBreakTotal} min
+                </span>
+              ) : null}
+
+              <span className="session-summary-card__total">{formatTotal(total)} en total</span>
+            </div>
+          </div>
+
+          <SessionTimeline segments={segments} total={total} />
+        </div>
+      )}
     </section>
   )
 }

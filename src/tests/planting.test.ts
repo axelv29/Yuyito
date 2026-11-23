@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   planBudget,
+  projectOpenPlanting,
   projectPlanting,
   suggestPlanting,
   totalPlantingCost,
+  validateOpenPlanting,
   validatePlanting,
 } from '@/logic/planting'
 import type { SessionPlan, TreeSpecies } from '@/state/types'
@@ -71,6 +73,71 @@ describe('projectPlanting', () => {
     expect(projection.leftoverMin).toBe(25)
     expect(projection.shortfallMin).toBe(0)
     expect(projection.unstartedCount).toBe(0)
+  })
+})
+
+describe('projectOpenPlanting', () => {
+  it('acompleta el único árbol del ciclo y no hereda minutos sobrantes', () => {
+    const projection = projectOpenPlanting(
+      { planting: [{ species: 'pino', cell: { col: 0, row: 0 }, treeId: null }] },
+      50,
+    )
+
+    expect(projection.budget).toBe(25)
+    expect(projection.totalCost).toBe(25)
+    expect(projection.focusMin).toBe(50)
+    expect(projection.completedCount).toBe(1)
+    expect(projection.currentIndex).toBeNull()
+    expect(projection.current).toBeNull()
+    expect(projection.leftoverMin).toBe(0)
+    expect(projection.shortfallMin).toBe(0)
+    expect(projection.willPartial).toBe(false)
+    expect(projection.unstartedCount).toBe(0)
+  })
+
+  it('acredita solo los minutos del árbol en curso del bloque', () => {
+    const projection = projectOpenPlanting(
+      { planting: [{ species: 'ceibo', cell: { col: 0, row: 0 }, treeId: null }] },
+      30,
+    )
+
+    expect(projection.current?.species).toBe('ceibo')
+    expect(projection.current?.creditedMin).toBe(30)
+    expect(projection.current?.partial).toBe(true)
+    expect(projection.current?.complete).toBe(false)
+  })
+})
+
+describe('validateOpenPlanting', () => {
+  it('permite solo árboles que caben en un bloque', () => {
+    const validation = validateOpenPlanting(50, ['ceibo'])
+
+    expect(validation.ok).toBe(false)
+    expect(validation.errors[0]).toContain('Ceibo necesita 90 min')
+  })
+
+  it('acepta pinos o abedules en un ciclo de 50 min', () => {
+    const pino = validateOpenPlanting(50, ['pino'])
+    const abedul = validateOpenPlanting(50, ['abedul'])
+
+    expect(pino.ok).toBe(true)
+    expect(abedul.ok).toBe(true)
+    expect(pino.allowed).toContain('pino')
+    expect(pino.allowed).toContain('abedul')
+  })
+
+  it('rechaza ciclos más cortos que el árbol más barato', () => {
+    const validation = validateOpenPlanting(20, ['pino'])
+
+    expect(validation.ok).toBe(false)
+    expect(validation.errors[0]).toContain('Necesitás al menos 25 min')
+  })
+
+  it('avisa cuando el árbol del ciclo deja minutos sin plantar', () => {
+    const validation = validateOpenPlanting(50, ['abedul'])
+
+    expect(validation.ok).toBe(true)
+    expect(validation.warnings[0]).toContain('Sobran 5 min')
   })
 })
 

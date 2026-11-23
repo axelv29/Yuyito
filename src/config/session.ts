@@ -5,6 +5,8 @@ export const SESSION_TASK_MAX_LENGTH = 80
 export const SESSION_MAX_TASKS = 6
 export const SESSION_MAX_POMODOROS = 8
 export const SESSION_MAX_TREES = 8
+/** Tope de árboles que puede acumular una sesión de ciclos indefinidos. */
+export const SESSION_MAX_OPEN_TREES = 64
 export const SESSION_MIN_FOCUS_MIN = 5
 export const SESSION_MAX_FOCUS_MIN = 120
 export const SESSION_FOCUS_STEP = 5

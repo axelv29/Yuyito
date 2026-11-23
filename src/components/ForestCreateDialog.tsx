@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   FOREST_DESCRIPTION_MAX_LENGTH,
   FOREST_GOAL_HOURS_MAX,
@@ -27,7 +27,7 @@ const SIZE_OPTIONS = FOREST_SIZES.map((size) => ({
   label: `${size}×${size}`,
 }))
 
-export function ForestCreateDialog({ open, onClose, onCreate, forest }: ForestCreateDialogProps) {
+export const ForestCreateDialog = memo(function ForestCreateDialog({ open, onClose, onCreate, forest }: ForestCreateDialogProps) {
   const nameRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -382,4 +382,4 @@ export function ForestCreateDialog({ open, onClose, onCreate, forest }: ForestCr
       </div>
     </div>
   )
-}
+})

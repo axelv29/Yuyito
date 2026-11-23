@@ -1,6 +1,6 @@
 import { speciesConfig, speciesForFocusMin, stageMinuteMark } from '@/config/species'
 import { stageForElapsedMs, stageLabel } from '@/logic/growth'
-import { livePlanFocus, projectPlanting } from '@/logic/planting'
+import { livePlanFocus, projectOpenPlanting, projectPlanting } from '@/logic/planting'
 import { formatSessionStart, sessionName } from '@/logic/session'
 import { elapsedMs } from '@/logic/timer'
 import { selectActiveForest, selectStats } from '@/state/selectors'
@@ -28,7 +28,9 @@ export function SessionCard({ now }: { now: number }) {
 
   const plan = active.planId ? plans.find((item) => item.id === active.planId) : undefined
   const projection = plan
-    ? projectPlanting(plan, livePlanFocus(plan, elapsedMs(active, now)))
+    ? plan.openEnded
+      ? projectOpenPlanting(plan, elapsedMs(active, now) / 60_000)
+      : projectPlanting(plan, livePlanFocus(plan, elapsedMs(active, now)))
     : null
   const current = projection
     ? (projection.current ?? projection.items[projection.items.length - 1])
@@ -47,7 +49,9 @@ export function SessionCard({ now }: { now: number }) {
   const detail =
     active.pomoIndex && active.pomoTotal && active.pomoTotal > 1
       ? `Pomodoro ${active.pomoIndex} de ${active.pomoTotal}${treeDetail}`
-      : `Etapa ${stage} de ${config.stages.length} · ${requiredMin} min`
+      : plan?.openEnded
+        ? `Pomodoro ${active.pomoIndex ?? 1} · Árbol ${treeIndex}`
+        : `Etapa ${stage} de ${config.stages.length} · ${requiredMin} min`
   const creditedMin = current ? Math.min(requiredMin, Math.floor(current.creditedMin)) : 0
   const speciesDetail = current?.partial
     ? `${config.name} · ${creditedMin}/${requiredMin} min`

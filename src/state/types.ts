@@ -88,8 +88,10 @@ export interface SessionPlan {
   longBreakEvery?: number
   /** Pausa estricta de esta sesión; si falta, se usan los ajustes. */
   strictPause?: boolean
-  /** Cantidad de bloques de enfoque (1–8). */
+  /** Cantidad de bloques de enfoque (1–8). En ciclos indefinidos se ignora. */
   targetPomodoros: number
+  /** true = ciclos indefinidos; no hay objetivo y el usuario decide cuándo terminar. */
+  openEnded?: boolean
   completedPomodoros: number
   mode: SessionMode
   /** Árboles en orden, con su celda reservada. */
@@ -116,6 +118,8 @@ export interface NewSessionInput {
   targetPomodoros: number
   mode: SessionMode
   planting: TreeSpecies[]
+  /** true = ciclos indefinidos. */
+  openEnded?: boolean
 }
 
 export interface ActiveSession {
@@ -334,6 +338,22 @@ export interface PersistedV7 {
 /** v8: como v7 más el flag para ocultar la card del temporizador. */
 export interface PersistedV8 {
   version: 8
+  forests: Forest[]
+  activeForestId: string | null
+  trees: Tree[]
+  sessions: FocusRecord[]
+  plans: SessionPlan[]
+  active: ActiveSession | null
+  activePlanId: string | null
+  settings: PomodoroSettings
+  display: DisplaySettings
+  /** Día local (YYYY-MM-DD) en que se mostró la card de racha; null si nunca. */
+  streakIntroShownOn: string | null
+}
+
+/** v9: como v8 más las sesiones de ciclos indefinidos. */
+export interface PersistedV9 {
+  version: 9
   forests: Forest[]
   activeForestId: string | null
   trees: Tree[]

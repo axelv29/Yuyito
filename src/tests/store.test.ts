@@ -212,3 +212,62 @@ describe('store: pausa estricta por sesión', () => {
     expect(useStore.getState().plans[0].strictPause).toBe(false)
   })
 })
+
+describe('store: ciclos indefinidos', () => {
+  it('arranca con un árbol que entra en el bloque y sin total de pomodoros', () => {
+    useStore
+      .getState()
+      .startSession(
+        { ...session(['pino']), focusMin: 50, targetPomodoros: 1, openEnded: true },
+        START,
+      )
+
+    const state = useStore.getState()
+    expect(state.plans[0].openEnded).toBe(true)
+    expect(state.plans[0].mode).toBe('breaks')
+    expect(state.plans[0].targetPomodoros).toBe(1)
+    expect(state.active?.pomoIndex).toBe(1)
+    expect(state.active?.pomoTotal).toBeUndefined()
+  })
+
+  it('mantiene el plan abierto tras completar y permite terminar sin marchitar', () => {
+    useStore
+      .getState()
+      .startSession(
+        { ...session(['pino']), focusMin: 50, targetPomodoros: 1, openEnded: true },
+        START,
+      )
+    finishCurrentBlock()
+
+    const completed = useStore.getState()
+    expect(completed.active).toBeNull()
+    expect(completed.pendingBreak).toBe(true)
+    expect(completed.plans[0].completedPomodoros).toBe(1)
+    expect(completed.plans[0].finishedAt).toBeNull()
+    expect(completed.trees[0].state).toBe('mature')
+
+    useStore.getState().endOpenPlan(START + 26 * 60_000)
+
+    const ended = useStore.getState()
+    expect(ended.plans[0].finishedAt).not.toBeNull()
+    expect(ended.activePlanId).toBeNull()
+    expect(ended.trees[0].state).toBe('mature')
+  })
+
+  it('continúa con el siguiente árbol cuando el plan está abierto', () => {
+    useStore
+      .getState()
+      .startSession(
+        { ...session(['pino']), focusMin: 50, targetPomodoros: 1, openEnded: true },
+        START,
+      )
+    finishCurrentBlock()
+    useStore.getState().continueOpenPlan('abedul', START + 26 * 60_000)
+
+    const state = useStore.getState()
+    expect(state.active?.pomoIndex).toBe(2)
+    expect(state.active?.pomoTotal).toBeUndefined()
+    expect(state.plans[0].planting).toHaveLength(2)
+    expect(state.trees[0].state).toBe('mature')
+  })
+})

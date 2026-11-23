@@ -1,7 +1,7 @@
 import { createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { DEFAULT_FOREST_NAME, DEFAULT_FOREST_SIZE, FOREST_SIZES } from '@/config/forest'
 import { GRID_COLS, GRID_ROWS } from '@/config/grid'
-import { SESSION_MAX_POMODOROS, SESSION_MAX_TREES } from '@/config/session'
+import { SESSION_MAX_OPEN_TREES, SESSION_MAX_POMODOROS, SESSION_MAX_TREES } from '@/config/session'
 import { speciesConfig, speciesForFocusMin, speciesFromKind } from '@/config/species'
 import { cellKey, cellOrder } from '@/logic/placement'
 import { reportStorageIssue, useStorageStatus, type StorageIssue } from './storageStatus'
@@ -13,7 +13,7 @@ import type {
   Forest,
   LegacySessionPlan,
   LegacyTree,
-  PersistedV8,
+  PersistedV9,
   PlantingItem,
   PomodoroSettings,
   SessionMode,
@@ -27,7 +27,7 @@ import type {
 import { DEFAULT_DISPLAY_SETTINGS, DEFAULT_POMODORO_SETTINGS } from './types'
 
 export const STORAGE_KEY = 'focus-forest'
-export const PERSIST_VERSION = 8
+export const PERSIST_VERSION = 9
 
 export const DEFAULT_FOREST_ID = 'forest-default'
 
@@ -45,9 +45,9 @@ export function createDefaultForest(createdAt = 0): Forest {
   }
 }
 
-export function emptyState(): PersistedV8 {
+export function emptyState(): PersistedV9 {
   return {
-    version: 8,
+    version: 9,
     forests: [createDefaultForest()],
     activeForestId: DEFAULT_FOREST_ID,
     trees: [],
@@ -368,6 +368,7 @@ function isSessionPlan(value: unknown): value is SessionPlan {
         value.longBreakEvery >= 0 &&
         value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
     (value.strictPause === undefined || typeof value.strictPause === 'boolean') &&
+    (value.openEnded === undefined || typeof value.openEnded === 'boolean') &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
     value.targetPomodoros >= 1 &&
@@ -375,11 +376,12 @@ function isSessionPlan(value: unknown): value is SessionPlan {
     typeof value.completedPomodoros === 'number' &&
     Number.isInteger(value.completedPomodoros) &&
     value.completedPomodoros >= 0 &&
-    value.completedPomodoros <= value.targetPomodoros &&
+    (value.openEnded === true || value.completedPomodoros <= value.targetPomodoros) &&
     isSessionMode(value.mode) &&
     Array.isArray(value.planting) &&
     value.planting.length >= 1 &&
-    value.planting.length <= SESSION_MAX_TREES &&
+    value.planting.length <=
+      (value.openEnded === true ? SESSION_MAX_OPEN_TREES : SESSION_MAX_TREES) &&
     value.planting.every(isPlantingItem) &&
     typeof value.focusElapsedMin === 'number' &&
     Number.isFinite(value.focusElapsedMin) &&
@@ -418,6 +420,7 @@ function isStoredSessionPlan(
         value.longBreakEvery >= 0 &&
         value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
     (value.strictPause === undefined || typeof value.strictPause === 'boolean') &&
+    (value.openEnded === undefined || typeof value.openEnded === 'boolean') &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
     value.targetPomodoros >= 1 &&
@@ -425,11 +428,12 @@ function isStoredSessionPlan(
     typeof value.completedPomodoros === 'number' &&
     Number.isInteger(value.completedPomodoros) &&
     value.completedPomodoros >= 0 &&
-    value.completedPomodoros <= value.targetPomodoros &&
+    (value.openEnded === true || value.completedPomodoros <= value.targetPomodoros) &&
     isSessionMode(value.mode) &&
     Array.isArray(value.planting) &&
     value.planting.length >= 1 &&
-    value.planting.length <= SESSION_MAX_TREES &&
+    value.planting.length <=
+      (value.openEnded === true ? SESSION_MAX_OPEN_TREES : SESSION_MAX_TREES) &&
     value.planting.every(isPlantingItem) &&
     typeof value.focusElapsedMin === 'number' &&
     Number.isFinite(value.focusElapsedMin) &&
@@ -493,7 +497,7 @@ function isPomodoroSettings(value: unknown): value is PomodoroSettings {
 }
 
 /** Valida el estado completo; se usa al leer la versión actual. */
-export function isPersistedState(value: unknown): value is PersistedV8 {
+export function isPersistedState(value: unknown): value is PersistedV9 {
   return (
     isRecord(value) &&
     value.version === PERSIST_VERSION &&
@@ -589,7 +593,7 @@ function buildLegacyPlanting(
  * esperada. Los datos anteriores a la v3 se agrupan en un bosque inicial de
  * 8×8; los árboles huérfanos se recuperan en lugar de perderse.
  */
-export function migrate(persisted: unknown, _version: number): PersistedV8 {
+export function migrate(persisted: unknown, _version: number): PersistedV9 {
   const data = isRecord(persisted) ? persisted : {}
 
   const settings = isPomodoroSettings(data.settings)
@@ -753,7 +757,14 @@ export function migrate(persisted: unknown, _version: number): PersistedV8 {
         return []
       }
       value.planting.forEach((item) => usedCells.add(cellKey(item.cell)))
-      return [{ ...value, tasks: toTaskList(value.tasks), forestId }]
+      return [
+        {
+          ...value,
+          tasks: toTaskList(value.tasks),
+          forestId,
+          openEnded: value.openEnded === true,
+        },
+      ]
     }
 
     if (!isLegacySessionPlan(value)) {
@@ -778,6 +789,7 @@ export function migrate(persisted: unknown, _version: number): PersistedV8 {
         breakMin: settings.breakMin,
         longBreakMin: settings.longBreakMin,
         mode: 'breaks',
+        openEnded: false,
         planting: buildLegacyPlanting(value, records, trees, usedCells),
         focusElapsedMin: value.completedPomodoros * settings.focusMin,
       },
@@ -817,7 +829,7 @@ export function migrate(persisted: unknown, _version: number): PersistedV8 {
   const activeForestId = active?.forestId ?? savedActiveForestId ?? fallbackId ?? null
 
   return {
-    version: 8,
+    version: 9,
     forests,
     activeForestId,
     trees,
@@ -884,7 +896,7 @@ function hasSaveShape(value: unknown): value is Record<string, unknown> {
  * entero. `migrate` ya descarta elemento por elemento; si aun así el
  * resultado no es un estado íntegro, no se rescata nada.
  */
-function recoverState(state: unknown): PersistedV8 | null {
+function recoverState(state: unknown): PersistedV9 | null {
   if (!hasSaveShape(state)) {
     return null
   }
@@ -1040,4 +1052,4 @@ export function createSafeStorage(
 }
 
 export const safeStorage = createSafeStorage()
-export const persistStorage = createJSONStorage<PersistedV8>(() => safeStorage)
+export const persistStorage = createJSONStorage<PersistedV9>(() => safeStorage)

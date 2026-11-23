@@ -190,6 +190,34 @@ describe('buildHistory', () => {
     expect(entries[0].trees).toHaveLength(1)
   })
 
+  it('marca una sesión indefinida abierta como en curso y sin límite de bloques', () => {
+    const openPlan: SessionPlan = {
+      ...PLAN,
+      openEnded: true,
+      targetPomodoros: 1,
+      completedPomodoros: 1,
+      finishedAt: null,
+      planting: [{ species: 'pino', cell: { col: 0, row: 0 }, treeId: 'tree-session-a' }],
+      focusElapsedMin: 25,
+    }
+
+    const entries = buildHistory(
+      [record('session-a', EARLIER)],
+      [openPlan],
+      [tree('session-a')],
+      FOREST,
+      'all',
+      NOW,
+    )
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0].openEnded).toBe(true)
+    expect(entries[0].status).toBe('running')
+    expect(entries[0].isMulti).toBe(true)
+    expect(entries[0].completedPomodoros).toBe(1)
+    expect(entries[0].targetPomodoros).toBe(1)
+  })
+
   it('mezcla el pomodoro completado con la sesión en curso de una serie', () => {
     const running = {
       ...createFocusSession('session-b2', NOW - 60_000, { col: 2, row: 2 }, 25, FOREST),

@@ -6,6 +6,7 @@ import { elapsedMs, remainingMs } from '@/logic/timer'
 import { selectActiveForest, selectStats } from '@/state/selectors'
 import { useStore } from '@/state/store'
 import { CloseIcon, EyeOffIcon, GearIcon, PauseIcon, PlayIcon } from './icons'
+import { OpenEndedContinue } from './OpenEndedContinue'
 import { SettingsPanel } from './SettingsPanel'
 import { TimerRing } from './TimerRing'
 import { ViewSwitch } from './ViewSwitch'
@@ -15,7 +16,6 @@ interface TimerPanelProps {
   view: View
   onChangeView: (view: View) => void
   onAbandonRequest: () => void
-  onStrictPauseRequest: () => void
   onStartSession: () => void
   onContinueSession: () => void
   historyOpen: boolean
@@ -28,7 +28,6 @@ export function TimerPanel({
   view,
   onChangeView,
   onAbandonRequest,
-  onStrictPauseRequest,
   onStartSession,
   onContinueSession,
   historyOpen,
@@ -47,6 +46,8 @@ export function TimerPanel({
   const resume = useStore((state) => state.resume)
   const skipBreak = useStore((state) => state.skipBreak)
   const updateSettings = useStore((state) => state.updateSettings)
+  const continueOpenPlan = useStore((state) => state.continueOpenPlan)
+  const endOpenPlan = useStore((state) => state.endOpenPlan)
   const forestId = active?.kind === 'focus' ? active.forestId : activeForestId
   const activeForest = selectActiveForest(forests, forestId)
   const stats = selectStats(sessions, trees, now, activeForest?.id)
@@ -70,18 +71,14 @@ export function TimerPanel({
   const pomoProgress =
     active?.pomoIndex && active.pomoTotal
       ? { index: active.pomoIndex, total: active.pomoTotal }
-      : openPlan
+      : openPlan && !openPlan.openEnded
         ? { index: openPlan.completedPomodoros + 1, total: openPlan.targetPomodoros }
         : null
+  const strictPause = active?.strictPause ?? openPlan?.strictPause ?? settings.strictPause
 
   const handlePause = () => {
     if (isPaused) {
       resume(now)
-      return
-    }
-
-    if (active?.strictPause) {
-      onStrictPauseRequest()
       return
     }
 
@@ -150,10 +147,14 @@ export function TimerPanel({
 
           {!active && openPlan && (
             <div className="session-resume">
-              <p className="eyebrow">Sesión pendiente</p>
+              <p className="eyebrow">
+                {openPlan.openEnded ? 'Sesión indefinida' : 'Sesión pendiente'}
+              </p>
               <p className="type-title session-resume__title">{openPlan.title}</p>
               <p className="type-micro type-muted">
-                {openPlan.completedPomodoros} de {openPlan.targetPomodoros} pomodoros
+                {openPlan.openEnded
+                  ? `${openPlan.completedPomodoros} ${openPlan.completedPomodoros === 1 ? 'pomodoro' : 'pomodoros'} · ${openPlan.planting.length} ${openPlan.planting.length === 1 ? 'árbol' : 'árboles'} en la cosecha`
+                  : `${openPlan.completedPomodoros} de ${openPlan.targetPomodoros} pomodoros`}
                 {planForest ? ` · ${planForest.name}` : ''}
               </p>
               <p className="type-micro type-muted">
@@ -161,6 +162,15 @@ export function TimerPanel({
                 {openPlan.planting.length} {openPlan.planting.length === 1 ? 'árbol' : 'árboles'} en
                 la cosecha
               </p>
+
+              {openPlan.openEnded && (
+                <OpenEndedContinue
+                  key={`${openPlan.id}-${openPlan.completedPomodoros}`}
+                  plan={openPlan}
+                  onContinue={(species) => continueOpenPlan(species, now)}
+                  onEnd={() => endOpenPlan(now)}
+                />
+              )}
             </div>
           )}
 
@@ -176,20 +186,22 @@ export function TimerPanel({
               </button>
             )}
 
-            {!active && openPlan && (
+            {!active && openPlan && !openPlan.openEnded && (
               <button type="button" className="btn btn-primary" onClick={onContinueSession}>
                 <PlayIcon />
                 Continuar
               </button>
             )}
 
+            {active && !strictPause && (
+              <button type="button" className="btn btn-primary" onClick={handlePause}>
+                {isPaused ? <PlayIcon /> : <PauseIcon />}
+                {isPaused ? 'Reanudar' : 'Pausar'}
+              </button>
+            )}
+
             {active && (
               <>
-                <button type="button" className="btn btn-primary" onClick={handlePause}>
-                  {isPaused ? <PlayIcon /> : <PauseIcon />}
-                  {isPaused ? 'Reanudar' : 'Pausar'}
-                </button>
-
                 {active.kind === 'break' ? (
                   <button type="button" className="btn btn-secondary" onClick={skipBreak}>
                     Saltar

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { finalStage, speciesConfig } from '@/config/species'
+import { finalStage, speciesConfig, speciesFittingFocus } from '@/config/species'
 import {
   SESSION_DESCRIPTION_MAX_LENGTH,
   SESSION_LEFTOVER_WARN_MIN,
@@ -16,7 +16,7 @@ import {
   SESSION_TITLE_MAX_LENGTH,
 } from '@/config/session'
 import { useEdgeScrollbar } from '@/hooks/useEdgeScrollbar'
-import { suggestPlanting, validatePlanting } from '@/logic/planting'
+import { suggestPlanting, validateOpenPlanting, validatePlanting } from '@/logic/planting'
 import { newSessionDefaults } from '@/logic/session'
 import { useStore } from '@/state/store'
 import type { NewSessionInput, SessionMode, TreeSpecies } from '@/state/types'
@@ -39,7 +39,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)))
 }
 
-export function SessionCreateDialog({
+export const SessionCreateDialog = memo(function SessionCreateDialog({
   open,
   forestName,
   onClose,
@@ -76,6 +76,7 @@ export function SessionCreateDialog({
   const [longBreakMin, setLongBreakMin] = useState(() =>
     clamp(defaults.longBreakMin, SESSION_MIN_LONG_BREAK_MIN, SESSION_MAX_LONG_BREAK_MIN),
   )
+  const [openEnded, setOpenEnded] = useState(false)
   // Los árboles no se heredan: cada sesión se planta a mano.
   const [queue, setQueue] = useState<TreeSpecies[]>([])
   // Cambia con cada intento de empezar sin árboles: reinicia la burbuja de aviso.
@@ -128,7 +129,7 @@ export function SessionCreateDialog({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [closeLeftover, handleClose, leftoverOpen])
 
-  const budget = focusMin * targetPomodoros
+  const budget = openEnded ? focusMin : focusMin * targetPomodoros
   const rhythm = useMemo(
     () => ({
       focusMin,
@@ -144,26 +145,33 @@ export function SessionCreateDialog({
     () => queue.reduce((sum, species) => sum + speciesConfig(species).minutes, 0),
     [queue],
   )
+  const allowedSpecies = useMemo(
+    () => (openEnded ? speciesFittingFocus(focusMin) : SPECIES_ORDER),
+    [openEnded, focusMin],
+  )
+  const openValidation = useMemo(() => validateOpenPlanting(focusMin, queue), [focusMin, queue])
   const validation = useMemo(
     () =>
-      validatePlanting({
-        focusMin,
-        targetPomodoros,
-        planting: queue,
-      }),
-    [focusMin, queue, targetPomodoros],
+      openEnded
+        ? openValidation
+        : validatePlanting({
+            focusMin,
+            targetPomodoros,
+            planting: queue,
+          }),
+    [openEnded, openValidation, focusMin, queue, targetPomodoros],
   )
 
-  const sobra = Math.max(0, budget - totalCost)
+  const sobra = openEnded ? 0 : Math.max(0, budget - totalCost)
   const falta = Math.max(0, totalCost - budget)
   const barPct = budget > 0 ? Math.min(1, totalCost / budget) : 0
-  const noTrees = queue.length === 0
-  const overBudget = totalCost > budget
-  const canStart = !noTrees && !overBudget
+  const noTrees = openEnded ? queue.length !== 1 : queue.length === 0
+  const overBudget = openEnded ? false : totalCost > budget
+  const canStart = openEnded ? queue.length === 1 && openValidation.ok : !noTrees && !overBudget
   // El botón queda inerte solo cuando los árboles no entran en el presupuesto;
   // sin árboles tiene que responder para explicar qué falta.
-  const startDisabled = overBudget
-  const showTreeWarning = warningId > 0 && noTrees
+  const startDisabled = openEnded ? !openValidation.ok : overBudget
+  const showTreeWarning = warningId > 0 && (openEnded ? queue.length !== 1 : noTrees)
   let allocLabel = 'Justo'
   if (noTrees) {
     allocLabel = 'Sin árboles'
@@ -174,7 +182,7 @@ export function SessionCreateDialog({
   }
   // El sobrante no se repite como mensaje fijo: vive en el tooltip de la barra
   // y en la card que se muestra al empezar.
-  const messages = validation.warnings.filter((warning) => !warning.startsWith('Sobran '))
+  const messages = openValidation.warnings.filter((warning) => !warning.startsWith('Sobran '))
 
   if (!open) {
     return null
@@ -193,6 +201,11 @@ export function SessionCreateDialog({
   }
 
   const addSpecies = (species: TreeSpecies) => {
+    if (openEnded) {
+      setQueue((current) => (current[0] === species ? current : [species]))
+      return
+    }
+
     const cost = speciesConfig(species).minutes
     if (queue.length >= SESSION_MAX_TREES || totalCost + cost > budget) {
       return
@@ -201,6 +214,10 @@ export function SessionCreateDialog({
   }
 
   const removeSpecies = (species: TreeSpecies) => {
+    if (openEnded) {
+      return
+    }
+
     setQueue((current) => {
       const index = current.lastIndexOf(species)
       if (index === -1) {
@@ -211,11 +228,31 @@ export function SessionCreateDialog({
   }
 
   const handleCyclesToggle = (enabled: boolean) => {
+    setOpenEnded(false)
     setMode(enabled ? 'breaks' : 'continuous')
     setTargetPomodoros(enabled ? 3 : 1)
   }
 
+  const handleOpenEndedChange = (enabled: boolean) => {
+    setOpenEnded(enabled)
+    if (enabled) {
+      const firstAllowed = speciesFittingFocus(focusMin)[0]
+      setQueue(firstAllowed ? [firstAllowed] : [])
+      setMode('breaks')
+      setTargetPomodoros(1)
+    }
+  }
+
+  const handleFocusChange = (value: number) => {
+    setFocusMin(value)
+    if (openEnded) {
+      const allowed = speciesFittingFocus(value)
+      setQueue(allowed.length > 0 ? [allowed[0]] : [])
+    }
+  }
+
   const handlePreset = (preset: { focus: number; brk: number }) => {
+    setOpenEnded(false)
     setFocusMin(preset.focus)
     setBreakMin(preset.brk)
   }
@@ -232,7 +269,8 @@ export function SessionCreateDialog({
       strictPause,
       targetPomodoros,
       mode,
-      planting: queue,
+      planting: openEnded ? (queue.length > 0 ? [queue[0]] : []) : queue,
+      openEnded,
     })
     handleClose()
   }
@@ -248,7 +286,7 @@ export function SessionCreateDialog({
       return
     }
     // Con mucho enfoque sin plantar, primero se avisa qué pasa al abandonar.
-    if (sobra >= SESSION_LEFTOVER_WARN_MIN) {
+    if (!openEnded && sobra >= SESSION_LEFTOVER_WARN_MIN) {
       setLeftoverOpen(true)
       return
     }
@@ -413,8 +451,10 @@ export function SessionCreateDialog({
             longBreakEvery={longBreakEvery}
             longBreakMin={longBreakMin}
             strictPause={strictPause}
+            openEnded={openEnded}
+            onOpenEndedChange={handleOpenEndedChange}
             onPreset={handlePreset}
-            onFocusChange={setFocusMin}
+            onFocusChange={handleFocusChange}
             onBreakChange={setBreakMin}
             onCyclesToggle={handleCyclesToggle}
             onCyclesChange={setTargetPomodoros}
@@ -427,90 +467,131 @@ export function SessionCreateDialog({
           <section ref={treesRef} className="session-section" aria-label="Árboles">
             <div className="session-section__head">
               <h3 className="type-title">Árboles</h3>
-              <button
-                type="button"
-                className="btn btn-secondary btn--sm"
-                onClick={() => setQueue(suggestPlanting(budget))}
-                disabled={budget <= 0}
-              >
-                Sugerir
-              </button>
+              {!openEnded && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn--sm"
+                  onClick={() => setQueue(suggestPlanting(budget))}
+                  disabled={budget <= 0}
+                >
+                  Sugerir
+                </button>
+              )}
             </div>
 
-            <div className="tree-grid">
-              {SPECIES_ORDER.map((species) => {
-                const config = speciesConfig(species)
-                const count = queue.filter((item) => item === species).length
-                const cost = config.minutes
-                const blocked = totalCost + cost > budget || queue.length >= SESSION_MAX_TREES
-                return (
-                  <div
-                    key={species}
-                    className={`tree-card${count > 0 ? ' tree-card--active' : ''}`}
-                  >
-                    <button
-                      type="button"
-                      className="tree-card__main"
-                      onClick={() => addSpecies(species)}
-                      disabled={blocked}
+            {openEnded ? (
+              <div className="tree-grid">
+                {allowedSpecies.map((species) => {
+                  const config = speciesConfig(species)
+                  const cost = config.minutes
+                  const selected = queue[0] === species
+                  const blocked = cost > focusMin
+                  return (
+                    <div
+                      key={species}
+                      className={`tree-card${selected ? ' tree-card--active' : ''}`}
                     >
-                      <span className="tree-card__tree">
-                        <TreePreview species={species} stage={finalStage(species)} />
-                      </span>
-                      <span className="tree-card__name">{config.name}</span>
-                      <span className="tree-card__cost">{cost} min</span>
-                    </button>
-                    <div className="tree-card__counter">
                       <button
                         type="button"
-                        className="stepper__btn"
-                        onClick={() => removeSpecies(species)}
-                        disabled={count === 0}
-                        aria-label={`Quitar ${config.name}`}
-                      >
-                        <MinusIcon />
-                      </button>
-                      <span className="tree-card__count">{count}</span>
-                      <button
-                        type="button"
-                        className="stepper__btn"
+                        className="tree-card__main"
                         onClick={() => addSpecies(species)}
                         disabled={blocked}
-                        aria-label={`Agregar ${config.name}`}
                       >
-                        <PlusIcon />
+                        <span className="tree-card__tree">
+                          <TreePreview species={species} stage={finalStage(species)} />
+                        </span>
+                        <span className="tree-card__name">{config.name}</span>
+                        <span className="tree-card__cost">{cost} min</span>
                       </button>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="tree-grid">
+                {SPECIES_ORDER.map((species) => {
+                  const config = speciesConfig(species)
+                  const count = queue.filter((item) => item === species).length
+                  const cost = config.minutes
+                  const blocked = totalCost + cost > budget || queue.length >= SESSION_MAX_TREES
+                  return (
+                    <div
+                      key={species}
+                      className={`tree-card${count > 0 ? ' tree-card--active' : ''}`}
+                    >
+                      <button
+                        type="button"
+                        className="tree-card__main"
+                        onClick={() => addSpecies(species)}
+                        disabled={blocked}
+                      >
+                        <span className="tree-card__tree">
+                          <TreePreview species={species} stage={finalStage(species)} />
+                        </span>
+                        <span className="tree-card__name">{config.name}</span>
+                        <span className="tree-card__cost">{cost} min</span>
+                      </button>
+                      <div className="tree-card__counter">
+                        <button
+                          type="button"
+                          className="stepper__btn"
+                          onClick={() => removeSpecies(species)}
+                          disabled={count === 0}
+                          aria-label={`Quitar ${config.name}`}
+                        >
+                          <MinusIcon />
+                        </button>
+                        <span className="tree-card__count">{count}</span>
+                        <button
+                          type="button"
+                          className="stepper__btn"
+                          onClick={() => addSpecies(species)}
+                          disabled={blocked}
+                          aria-label={`Agregar ${config.name}`}
+                        >
+                          <PlusIcon />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
 
-            <div className="alloc">
-              <div className="alloc__bar" aria-hidden="true">
-                <div
-                  className={`alloc__fill${falta > 0 ? ' alloc__fill--over' : ''}`}
-                  style={{ width: `${barPct * 100}%` }}
-                />
+            {!openEnded && (
+              <div className="alloc">
+                <div className="alloc__bar" aria-hidden="true">
+                  <div
+                    className={`alloc__fill${falta > 0 ? ' alloc__fill--over' : ''}`}
+                    style={{ width: `${barPct * 100}%` }}
+                  />
+                </div>
+                <div className="alloc__meta">
+                  <span>
+                    <strong>{totalCost}</strong> / {budget} min
+                  </span>
+                  <span className="alloc__state">
+                    {allocLabel}
+                    {sobra > 0 && !noTrees && (
+                      <InfoTip
+                        label="Más información sobre los minutos que sobran"
+                        text={`Quedan ${sobra} min de enfoque sin plantar. Podés empezar igual; si abandonás antes de tiempo, el último árbol se marchita.`}
+                      />
+                    )}
+                  </span>
+                </div>
               </div>
-              <div className="alloc__meta">
-                <span>
-                  <strong>{totalCost}</strong> / {budget} min
-                </span>
-                <span className="alloc__state">
-                  {allocLabel}
-                  {sobra > 0 && !noTrees && (
-                    <InfoTip
-                      label="Más información sobre los minutos que sobran"
-                      text={`Quedan ${sobra} min de enfoque sin plantar. Podés empezar igual; si abandonás antes de tiempo, el último árbol se marchita.`}
-                    />
-                  )}
-                </span>
-              </div>
-            </div>
+            )}
+
+            {openEnded && queue[0] && (
+              <p className="session-message">
+                {speciesConfig(queue[0]).minutes < focusMin
+                  ? `Sobran ${focusMin - speciesConfig(queue[0]).minutes} min en este ciclo: ${speciesConfig(queue[0]).name} completa antes de que termine el bloque.`
+                  : 'Elegí el siguiente árbol cuando quieras continuar.'}
+              </p>
+            )}
 
             <div className="session-messages">
-              {/* Sin árboles el aviso vive en el botón, no como error fijo. */}
               {!noTrees &&
                 validation.errors.map((error) => (
                   <p key={error} className="session-message session-message--error">
@@ -559,4 +640,4 @@ export function SessionCreateDialog({
       )}
     </div>
   )
-}
+})

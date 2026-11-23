@@ -27,8 +27,11 @@ import { defaultSessionName, nextTaskStatus } from '@/logic/session'
 import {
   projectPlanting,
   suggestPlanting,
+  validateOpenPlanting,
   validatePlanting,
+  type OpenPlantingValidation,
   type PlantingProjection,
+  projectOpenPlanting,
 } from '@/logic/planting'
 import {
   createBreakSession,
@@ -46,7 +49,7 @@ import type {
   Forest,
   NewForestInput,
   NewSessionInput,
-  PersistedV8,
+  PersistedV9,
   PlantingItem,
   PomodoroSettings,
   SessionPlan,
@@ -70,13 +73,15 @@ export interface Notice {
   text: string
 }
 
-interface StoreState extends PersistedV8 {
+interface StoreState extends PersistedV9 {
   pendingBreak: boolean
   notice: Notice | null
   /** Dev: tamaño del bosque en celdas por lado para el preview del panel. */
   devGardenSize: number
   /** Dev: corre la racha diaria N días para probar el cambio de día. */
   devDayOffset: number
+  /** Dev: sombras diagonales de prueba sobre el pasto. */
+  devTreeShadows: boolean
   createForest: (input: NewForestInput, now: number) => string | null
   selectForest: (id: string) => void
   updateForest: (id: string, input: NewForestInput) => void
@@ -92,6 +97,10 @@ interface StoreState extends PersistedV8 {
   renamePlanTitle: (planId: string, title: string) => void
   /** Continúa la sesión pendiente con el siguiente pomodoro. */
   continuePlan: (now: number) => void
+  /** Continúa un ciclo indefinido plantando y arrancando el siguiente bloque. */
+  continueOpenPlan: (species: TreeSpecies, now: number) => void
+  /** Termina una sesión indefinida en un límite de bloque, sin marchitar. */
+  endOpenPlan: (now: number) => void
   /** Cierra una sesión pendiente sin empezar otro pomodoro. */
   cancelPlan: (now: number) => void
   startFocus: (now: number) => void
@@ -263,11 +272,22 @@ export const useStore = create<StoreState>()(
           return false
         }
 
-        const projection = projectPlanting(plan, plan.focusElapsedMin)
+        const projection = plan.openEnded
+          ? projectOpenPlanting(plan, 0)
+          : projectPlanting(plan, plan.focusElapsedMin)
         // Con tiempo sobrante la cola ya está completa: el bloque corre sobre
         // el último árbol plantado, sin acreditar minutos nuevos.
         const current =
-          projection.current ?? [...projection.items].reverse().find((item) => item.treeId) ?? null
+          projection.current ??
+          (plan.openEnded
+            ? null
+            : ([...projection.items].reverse().find((item) => item.treeId) ?? null))
+        if (plan.openEnded && current?.treeId) {
+          set({
+            notice: { kind: 'info', text: 'Elegí el próximo árbol para continuar.' },
+          })
+          return false
+        }
         if (!current) {
           set({
             activePlanId: null,
@@ -308,7 +328,7 @@ export const useStore = create<StoreState>()(
           pauseToleranceMin: state.settings.pauseToleranceMin,
           planId: plan.id,
           pomoIndex: plan.completedPomodoros + 1,
-          pomoTotal: plan.targetPomodoros,
+          pomoTotal: plan.openEnded ? undefined : plan.targetPomodoros,
           mode: plan.mode,
           treeId,
           title: plan.title,
@@ -396,15 +416,18 @@ export const useStore = create<StoreState>()(
         }
 
         const focusMin = active.durationMin
-        const before = projectPlanting(plan, plan.focusElapsedMin)
+        const before = plan.openEnded
+          ? projectOpenPlanting(plan, 0)
+          : projectPlanting(plan, plan.focusElapsedMin)
         const focusElapsedMin = plan.focusElapsedMin + focusMin
-        const after = projectPlanting(plan, focusElapsedMin)
+        const after = plan.openEnded
+          ? projectOpenPlanting(plan, focusMin)
+          : projectPlanting(plan, focusElapsedMin)
         const { trees, planting } = applyProjection(state.trees, plan, after, endedAt, active.id)
-        const completedPomodoros = Math.min(plan.targetPomodoros, plan.completedPomodoros + 1)
-        // El plan corre hasta el último bloque aunque la cola ya esté completa
-        // (tiempo sobrante): así el usuario puede terminar el tiempo y, si se
-        // va antes, el último árbol plantado se marchita.
-        const planFinished = completedPomodoros >= plan.targetPomodoros
+        const completedPomodoros = plan.openEnded
+          ? plan.completedPomodoros + 1
+          : Math.min(plan.targetPomodoros, plan.completedPomodoros + 1)
+        const planFinished = !plan.openEnded && completedPomodoros >= plan.targetPomodoros
         const credits = after.items.flatMap((item, index) => {
           const previous = before.items[index]?.creditedMin ?? 0
           const minutes = item.creditedMin - previous
@@ -449,15 +472,20 @@ export const useStore = create<StoreState>()(
                 kind: 'success',
                 text: `Sesión completada: ${plan.title}.`,
               }
-            : after.currentIndex === null
+            : !plan.openEnded && after.currentIndex === null
               ? {
                   kind: 'success',
                   text: `Bloque ${completedPomodoros} de ${plan.targetPomodoros}. Los árboles ya están listos: queda terminar el tiempo.`,
                 }
-              : {
-                  kind: 'success',
-                  text: `Bloque ${completedPomodoros} de ${plan.targetPomodoros} completado. El árbol sigue creciendo.`,
-                },
+              : !plan.openEnded && after.currentIndex !== null
+                ? {
+                    kind: 'success',
+                    text: `Bloque ${completedPomodoros} de ${plan.targetPomodoros} completado. El árbol sigue creciendo.`,
+                  }
+                : {
+                    kind: 'success',
+                    text: `Bloque ${completedPomodoros} completado. Elegí el próximo árbol o terminá la sesión.`,
+                  },
         })
       }
 
@@ -479,6 +507,7 @@ export const useStore = create<StoreState>()(
         notice: null,
         devGardenSize: DEFAULT_GARDEN_SIZE,
         devDayOffset: 0,
+        devTreeShadows: true,
 
         createForest: (input, now) => {
           const name = input.name.trim().slice(0, FOREST_NAME_MAX_LENGTH)
@@ -688,7 +717,8 @@ export const useStore = create<StoreState>()(
             .filter((task) => task.length > 0)
             .slice(0, SESSION_MAX_TASKS)
             .map((text) => ({ id: makeId(), text, status: 'neutral' }))
-          const mode = input.mode === 'continuous' ? 'continuous' : 'breaks'
+          const openEnded = input.openEnded === true
+          const mode = openEnded ? 'breaks' : input.mode === 'continuous' ? 'continuous' : 'breaks'
           const focusMin = clamp(
             Number.isFinite(input.focusMin) ? input.focusMin : state.settings.focusMin,
             SESSION_MIN_FOCUS_MIN,
@@ -713,14 +743,21 @@ export const useStore = create<StoreState>()(
           // La pausa estricta nace de los ajustes salvo que la sesión la defina.
           const strictPause =
             typeof input.strictPause === 'boolean' ? input.strictPause : state.settings.strictPause
-          const targetPomodoros =
-            mode === 'continuous' ? 1 : clamp(input.targetPomodoros, 1, SESSION_MAX_POMODOROS)
-          const plantingSpecies = input.planting.slice(0, SESSION_MAX_TREES)
-          const validation = validatePlanting({
-            focusMin,
-            targetPomodoros,
-            planting: plantingSpecies,
-          })
+          const targetPomodoros = openEnded
+            ? 1
+            : mode === 'continuous'
+              ? 1
+              : clamp(input.targetPomodoros, 1, SESSION_MAX_POMODOROS)
+          const plantingSpecies = openEnded
+            ? input.planting.slice(0, 1)
+            : input.planting.slice(0, SESSION_MAX_TREES)
+          const validation: OpenPlantingValidation | ReturnType<typeof validatePlanting> = openEnded
+            ? validateOpenPlanting(focusMin, plantingSpecies)
+            : validatePlanting({
+                focusMin,
+                targetPomodoros,
+                planting: plantingSpecies,
+              })
 
           if (!validation.ok) {
             set({
@@ -773,6 +810,7 @@ export const useStore = create<StoreState>()(
             longBreakEvery,
             strictPause,
             targetPomodoros,
+            openEnded: openEnded || undefined,
             completedPomodoros: 0,
             mode,
             planting,
@@ -811,7 +849,99 @@ export const useStore = create<StoreState>()(
             return
           }
 
+          if (plan.openEnded) {
+            set({
+              notice: { kind: 'info', text: 'Elegí el próximo árbol para continuar.' },
+            })
+            return
+          }
+
           startPlanPomodoro(plan, now)
+        },
+
+        continueOpenPlan: (species, now) => {
+          if (get().active) {
+            return
+          }
+
+          const state = get()
+          const plan = state.plans.find(
+            (item) => item.id === state.activePlanId && item.finishedAt === null,
+          )
+          if (!plan || !plan.openEnded) {
+            return
+          }
+
+          const config = speciesConfig(species)
+          if (config.minutes > plan.focusMin) {
+            set({
+              notice: {
+                kind: 'warning',
+                text: `${config.name} no entra en un ciclo de ${plan.focusMin} min.`,
+              },
+            })
+            return
+          }
+
+          const reservation = reservePlantingCells(
+            plan.forestId,
+            state.forests.find((item) => item.id === plan.forestId)?.size ?? 8,
+            state.trees,
+            [species],
+            now,
+          )
+          if (!reservation) {
+            set({
+              notice: {
+                kind: 'warning',
+                text: 'La pradera está llena. No se puede plantar el siguiente árbol.',
+              },
+            })
+            return
+          }
+
+          const replaced = new Set(reservation.replacedTreeIds)
+          const trees = state.trees.filter((tree) => !replaced.has(tree.id))
+          const sessions = state.sessions.filter(
+            (session) =>
+              !replaced.has(session.treeId) &&
+              !(session.credits ?? []).some((credit) => replaced.has(credit.treeId)),
+          )
+          const planting = [...plan.planting, { species, cell: reservation.cells[0], treeId: null }]
+          const updatedPlan: SessionPlan = { ...plan, planting }
+
+          set({
+            trees,
+            sessions,
+            plans: state.plans.map((item) => (item.id === plan.id ? updatedPlan : item)),
+            activePlanId: plan.id,
+          })
+          startPlanPomodoro(updatedPlan, now)
+        },
+
+        endOpenPlan: (now) => {
+          const state = get()
+          const planId = state.activePlanId
+          if (!planId) {
+            return
+          }
+
+          const plan = state.plans.find((item) => item.id === planId && item.finishedAt === null)
+          if (!plan || !plan.openEnded) {
+            return
+          }
+
+          set({
+            plans: state.plans.map((item) =>
+              item.id === planId && item.finishedAt === null ? { ...item, finishedAt: now } : item,
+            ),
+            activePlanId: null,
+            pendingBreak: false,
+            notice: {
+              kind: 'info',
+              text: `Sesión indefinida terminada: ${plan.completedPomodoros} bloques completados.`,
+            },
+          })
         },
 
         cancelPlan: (now) => {
@@ -861,6 +991,13 @@ export const useStore = create<StoreState>()(
             (plan) => plan.id === state.activePlanId && plan.finishedAt === null,
           )
           if (openPlan) {
+            if (openPlan.openEnded) {
+              set({
+                notice: { kind: 'info', text: 'Elegí el próximo árbol para continuar.' },
+              })
+              return
+            }
+
             startPlanPomodoro(openPlan, now)
             return
           }
@@ -913,7 +1050,15 @@ export const useStore = create<StoreState>()(
               : settings.breakMin
           const session = createBreakSession(makeId(), now, breakMin)
 
-          set({ active: { ...session, longBreak: isLong }, pendingBreak: false, notice: null })
+          set({
+            active: {
+              ...session,
+              longBreak: isLong,
+              strictPause: plan?.strictPause ?? settings.strictPause,
+            },
+            pendingBreak: false,
+            notice: null,
+          })
         },
 
         pause: (now) => {
@@ -987,9 +1132,13 @@ export const useStore = create<StoreState>()(
           if (plan) {
             const focusMs = elapsedMs(active, now)
             const elapsedMin = Math.max(0, Math.round(focusMs / 60_000))
-            const before = projectPlanting(plan, plan.focusElapsedMin)
+            const before = plan.openEnded
+              ? projectOpenPlanting(plan, 0)
+              : projectPlanting(plan, plan.focusElapsedMin)
             const focusElapsedMin = plan.focusElapsedMin + elapsedMin
-            const after = projectPlanting(plan, focusElapsedMin)
+            const after = plan.openEnded
+              ? projectOpenPlanting(plan, elapsedMin)
+              : projectPlanting(plan, focusElapsedMin)
             const { trees, planting } = applyProjection(state.trees, plan, after, now, active.id)
 
             // El árbol que se está trabajando es el actual; si el bloque ya
@@ -1180,7 +1329,9 @@ export const useStore = create<StoreState>()(
         dismissBreak: () => set({ pendingBreak: false }),
         updateSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),
         markStreakIntroShown: (dayKey) =>
-          set((state) => (state.streakIntroShownOn === dayKey ? state : { streakIntroShownOn: dayKey })),
+          set((state) =>
+            state.streakIntroShownOn === dayKey ? state : { streakIntroShownOn: dayKey },
+          ),
       }
     },
     {

@@ -1,6 +1,6 @@
 # Ficha v0.1 — Focus Forest
 
-> **Nota histórica:** esta ficha describe la v0.1 original (25 minutos fijos, un árbol por sesión, `PersistedV4`). El modelo actual usa ritmo configurable, cola de árboles con costo fijo, árboles parciales `growing` y `PersistedV5`; la referencia vigente es `CONTEXTO.md` y `docs/PLAN.md`.
+> **Nota histórica:** esta ficha describe la v0.1 original (25 minutos fijos, un árbol por sesión, `PersistedV4`). El modelo actual usa ritmo configurable, cola de árboles con costo fijo, árboles parciales `growing` y `PersistedV5`; la referencia vigente es `context.md` y `plan.md`.
 
 Documento de alcance y aceptación de la primera versión. Si algo no está acá, no entra en la v0.1 sin hablarlo antes.
 
@@ -198,6 +198,6 @@ Los descansos no se guardan como historial: solo existe el descanso activo. Las 
 - Criterios de aceptación cumplidos.
 - Lógica pura cubierta por tests.
 - `lint`, `test` y `build` verdes.
-- README y `CONTEXTO.md` actualizados.
+- README y `context.md` actualizados.
 - Sin `console.log` de depuración.
 - Deploy de Vercel funcionando.

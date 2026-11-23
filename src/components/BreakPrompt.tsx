@@ -7,6 +7,7 @@ export function BreakPrompt() {
   const activePlanId = useStore((state) => state.activePlanId)
   const startBreak = useStore((state) => state.startBreak)
   const dismiss = useStore((state) => state.dismissBreak)
+  const endOpenPlan = useStore((state) => state.endOpenPlan)
   const openPlan = plans.find((plan) => plan.id === activePlanId && plan.finishedAt === null)
   const breakMin = openPlan?.breakMin ?? settings.breakMin ?? 5
 
@@ -30,6 +31,15 @@ export function BreakPrompt() {
           <button type="button" className="btn btn-secondary" onClick={dismiss}>
             Saltar
           </button>
+          {openPlan?.openEnded && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => endOpenPlan(Date.now())}
+            >
+              Terminar
+            </button>
+          )}
         </div>
       </div>
     </div>

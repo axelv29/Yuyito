@@ -13,4 +13,5 @@
 
 ## Código
 
-- El código se publica sin una licencia de uso explícita por ahora: todos los derechos reservados. Si se define una licencia, registrarla acá antes de distribuir el proyecto.
+- **Propietario.** Todos los derechos reservados; ver [`LICENSE`](./LICENSE). No se concede permiso de copia, modificación ni redistribución del código sin autorización escrita.
+- Las dependencias de terceros conservan sus licencias originales (MIT, Apache-2.0, ISC), disponibles en `node_modules` al instalar.

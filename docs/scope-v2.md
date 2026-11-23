@@ -130,7 +130,9 @@ interface PersistedV3 {
 - **Tiempo por árbol (decisión tomada, 2026-11-08):** duración → especie; las etapas de crecimiento son proporcionales a la duración de la sesión (p. ej. 0/20/60/100 %). La especie de la sesión completada termina en la etapa correspondiente de su tipo. Una sesión planta un árbol. Tiempos personalizados: la especie del bloque más cercano por debajo, o pino como base. La escalera duración → especie propuesta es una sugerencia, no definitiva: 15 min → Abedul, 25 min → Pino, 45 min → Abeto, 60 min → Roble, 90 min → Ceibo, 120 min → Cerezo (acento especial de la paleta, reservado a rarezas). Puede haber después varias especies con el mismo tiempo, u otros elementos (flores, cosméticos), sin tocar la lógica. Registro de especies en `config` (id, nombre, sprites, umbrales por especie opcionales, minutos del bloque). El ceibo ya tiene su atlas (vivo y marchito, 7 etapas) y ocupa el bloque de 90 min.
 - **Descanso largo:** tras N sesiones de pomodoro completadas (p. ej. 4), se ofrece o inicia un descanso largo con su alarma.
 - **Alarma:** 3 tonos predefinidos editables + notificación del navegador al sonar.
-- **Pausa estricta:** no se puede pausar; si se pausa, se trata como abandono. Con tolerancia activable, el árbol solo marchita pasado el tiempo de tolerancia; ese tiempo es el mismo para toda la sesión.
+- **Pausa estricta:** no se puede pausar; si se pausa, se trata como abandono. Con tolerancia activable, el árbol solo marchita pasado el tiempo de tolerancia; ese tiempo es el mismo para toda la sesión. En la implementación actual el botón de pausar/reanudar no se muestra durante el enfoque ni durante el descanso cuando la pausa estricta aplica.
+
+- **Ciclos indefinidos (implementados en esta tarea):** el usuario define un tiempo de enfoque por bloque y un switch dentro de los tiempos personalizados; al activarlo no hay objetivo fijo ni cantidad de bloques. Cada bloque planta un solo árbol que entra completo en ese tiempo (por ejemplo 50/10 admite pino o abedul, no ceibo). Al completar un bloque, la sesión queda abierta: el timer ofrece elegir el siguiente árbol o terminarla. Terminar cierra la sesión sin marchitar; abandonar a mitad de bloque sigue marchitando. La persistencia usa `PersistedV9` con `SessionPlan.openEnded`.
 - **Persistencia:** clave `focus-forest`, versión 3, migración preparada. Los datos viejos se adjuntan a un bosque “Mi bosque” de 8×8; sin datos viejos no se crea un bosque vacío. Datos corruptos: copia en `focus-forest.broken` y reinicio, con aviso. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
 - **Estadísticas:** solo enfoques completados. "Hoy" usa el día local. Los abandonos y los descansos no suman. Desde 2026-11-18 incluyen gráficos propios (mapa de calor, barras por período y anillos) y rachas, con alcance por bosque o global. La racha diaria es la excepción: cuenta días con al menos 25 min de enfoque real, incluidos los minutos de un árbol marchito.
 
@@ -150,7 +152,7 @@ interface PersistedV3 {
 
 - **Cierre de página con pausa activa y tolerancia no agotada:** no pasa nada; el árbol no marchita.
 - **Cierre de página con pausa activa y tolerancia agotada:** se trata como abandono, el árbol queda marchito y se muestra el mensaje.
-- **Pausa estricta:** no se puede pausar; pausar equivale a abandonar.
+- **Pausa estricta:** no se puede pausar; el botón de pausar/reanudar no se muestra durante el enfoque ni durante el descanso cuando la pausa estricta aplica; el abandonar/marchitado sigue disponible cuando corresponde.
 - **Descanso largo:** sin árbol, con su alarma y notificación.
 - **Alarma sin notificación del navegador concedida:** se usa el sonido; se informa al usuario.
 - **Bosque personalizado lleno:** regla de reemplazo de marchitos aplicada.
@@ -161,7 +163,7 @@ interface PersistedV3 {
 - Criterios de aceptación cumplidos.
 - Lógica pura cubierta por tests.
 - `lint`, `test` y `build` verdes.
-- README y `CONTEXTO.md` actualizados.
+- README y `context.md` actualizados.
 - Sin `console.log` de depuración.
 - Deploy de Vercel funcionando.
 

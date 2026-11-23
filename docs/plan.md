@@ -36,7 +36,7 @@ Plan acordado antes de escribir la lógica. Lo marcado como **✅ Cerrado** ya s
 - **Lo que hace el agente:** diseña, escribe y edita archivos, corre `lint`, pruebas y `build`, y explica cada cambio.
 - **Lo que hace la persona:** prueba en el navegador, cuida el arte y publica en Vercel/GitHub.
 - **Forma de trabajo:** una cosa por vez, probar antes de seguir, commits chicos y frecuentes. Antes de cada commit: `npm run lint`, `npm test` y `npm run build`.
-- **Documentos de referencia:** este plan, `FICHA_v0.1.md` (alcance y criterios de aceptación) y `CONTEXTO.md` (reglas para el agente). El plan vive en `docs/PLAN.md`; la ficha y el contexto, en la raíz del repositorio. El sistema visual está en `docs/THEMING.md`.
+- **Documentos de referencia:** este plan, `scope-v0.1.md` (alcance y criterios de aceptación) y `context.md` (reglas para el agente). Toda la documentación vive en `docs/`; el sistema visual está en `theming.md`.
 
 ## 3. ¿Por qué Vite y no Next.js?
 
@@ -110,9 +110,10 @@ Las opciones, comparadas:
 
 ### Sesiones e historial: implementado en esta etapa
 
-- **Sesión planificada (`SessionPlan`):** título, descripción, objetivos, ritmo (`focusMin`, `breakMin`, `mode`, `targetPomodoros`, y en modo con pausas `longBreakMin`/`longBreakEvery`) y cola de árboles (`planting`). Cada sesión lleva también su `strictPause` (si falta, se usan los ajustes). Cada bloque copia esos datos y guarda `planId`, `pomoIndex`, `pomoTotal` y `credits` en su `FocusRecord`; los árboles de la cola no se fuerzan adyacentes.
+- **Sesión planificada (`SessionPlan`):** título, descripción, objetivos, ritmo (`focusMin`, `breakMin`, `mode`, `targetPomodoros`, y en modo con pausas `longBreakMin`/`longBreakEvery`) y cola de árboles (`planting`). Lleva `openEnded` (true = ciclos indefinidos; `targetPomodoros` se ignora) y su `strictPause` (si falta, se usan los ajustes). Cada bloque copia esos datos y guarda `planId`, `pomoIndex`, `pomoTotal` y `credits` en su `FocusRecord`; los árboles de la cola no se fuerzan adyacentes.
 - **Iniciar:** abre un diálogo minimalista y angosto (30rem): nombre, descripción (alto fijo, sin tirador, con scrollbar mínima de los menús solo cuando el texto desborda) y objetivos sin textos auxiliares; apretar Enter mientras se escribe un objetivo agrega otro y lo enfoca en vez de empezar la sesión. En Tiempos van un control segmentado de ritmos (25/5, 50/10, 90/20 y **Otro**) que revela los campos de enfoque y descanso, una card de ajustes con **Repetir en ciclos** (y su stepper, visible solo con ciclos), **Pausas largas** y **Pausa estricta** (el detalle vive en Ajustes predeterminados), y un resumen con rueda SVG, leyenda de enfoque/descanso, total en formato «H h M min» y línea de tiempo proporcional. Debajo, cuadrícula de 4 especies con contador de cuántos sumás y barra de presupuesto. El tiempo sobrante no bloquea el inicio: se explica en un tooltip junto a la barra de presupuesto. Si no hay bosque, primero se crea uno. El nombre se completa solo con “Sesión N” y se edita desde la tarjeta de sesión.
 - **Serie pendiente:** tras completar un bloque intermedio, el timer ofrece continuar la serie o empezar otra; empezar otra cierra la anterior y, si la serie quedó a medias, pide confirmación avisando que la anterior queda sin terminar (no marchita un árbol) y el historial la lista como «Sin terminar». En modo con descansos se puede dejar la sesión durante una pausa y retomarla. Abandonar cierra la sesión y marchita el árbol actual.
+- **Ciclos indefinidos:** el switch vive dentro de los tiempos personalizados y, al activarse, oculta **Repetir en ciclos** y su stepper. La sesión usa un único árbol por bloque que entre en el tiempo de enfoque (`focusMin`): en 50/10 pueden plantar pino o abedul, nunca ceibo. Cada bloque completado mantiene la sesión abierta; el timer muestra el picker de árboles y las acciones **Continuar**/**Terminar**. Terminar cierra la sesión sin marchitar; abandonar a mitad de bloque sigue marchitando. La pausa estricta oculta el botón de pausar durante el enfoque y el descanso.
 - **Historial por bosque:** ventana flotante con filtros Todas, Hoy, Esta semana, Series y Marchitas; agrupa los bloques por sesión, muestra fecha, minutos, estado y árboles (incluidos los marchitos y los que quedaron en crecimiento). La card se corta antes del borde inferior de la pantalla y solo su lista scrollea, con una barra delicada visible al acercar el puntero al borde derecho; la columna no scrollea. La tarjeta de detalle replica la de la sesión activa y agrega fecha de fin, total de enfoque y estado. Con un pomodoro en curso también se puede elegir una sesión: el detalle se despliega debajo de la tarjeta del timer y el resto de los árboles se atenúa, incluido el que está creciendo. La sesión en curso se lista en el historial con estado "En curso".
 - **Selección en la pradera:** elegir una sesión (en el historial o con doble clic en un árbol/celda) muestra todos sus árboles a opacidad normal y atenúa el resto; la cámara se centra una vez en la selección. No modifica timer, árboles ni datos.
 
@@ -133,13 +134,15 @@ focus-forest/
   package.json
   vite.config.ts
   tsconfig.json
-  CONTEXTO.md              reglas del proyecto (para el agente)
-  FICHA_v0.1.md            alcance y criterios de aceptación
   LICENSES.md              licencias de fuentes y arte
-  README.md                cómo instalar y correr
+  README.md                presentación, instalación y comandos
   docs/
-    PLAN.md                este plan y guía de estilo
-    THEMING.md             sistema de tema visual
+    plan.md                este plan y guía de estilo
+    context.md             reglas del proyecto (para el agente)
+    scope-v0.1.md          alcance y criterios de aceptación
+    scope-v2.md            alcance de la segunda versión
+    theming.md             sistema de tema visual
+    recovery.md            recuperar un guardado dañado
   public/
     sprites/pino_atlas.png  4 frames vivos
     sprites/pino_atlas.json  frames vivos
@@ -304,7 +307,7 @@ Antes de darla por buena, se compara con la pradera de referencia y se comprueba
 
 | Fase | Entregable |
 | --- | --- |
-| 0. Documentos | plan actualizado, `FICHA_v0.1.md`, `CONTEXTO.md` |
+| 0. Documentos | plan actualizado, `plan.md`, `scope-v0.1.md`, `context.md` |
 | 1. Andamiaje | Vite, Tailwind, Vitest, oxlint/Prettier, CI |
 | 2. Dominio | tipos, configuración, timer, crecimiento, estadísticas, colocación y pruebas |
 | 3. Render | isometría, isla, atlas de sprites, `drawGarden` |

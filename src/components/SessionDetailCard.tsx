@@ -52,8 +52,9 @@ export function SessionDetailCard({
           : entry.status === 'unfinished'
             ? 'Sesión sin terminar'
             : 'Sesión con abandonos'
-  const detail =
-    entry.targetPomodoros > 1
+  const detail = entry.openEnded
+    ? `${entry.completedPomodoros} ${entry.completedPomodoros === 1 ? 'pomodoro' : 'pomodoros'} · ${entry.totalDurationMin} min`
+    : entry.targetPomodoros > 1
       ? `Pomodoro ${entry.completedPomodoros} de ${entry.targetPomodoros} · ${entry.totalDurationMin} min`
       : `${entry.totalDurationMin} min de enfoque`
 
@@ -168,6 +169,12 @@ export function SessionDetailCard({
           <dt className="session-data__label">Enfoque</dt>
           <dd className="session-data__value">{entry.totalDurationMin} min</dd>
         </div>
+        {entry.openEnded && (
+          <div className="session-data__row">
+            <dt className="session-data__label">Ciclos</dt>
+            <dd className="session-data__value">Indefinidos</dd>
+          </div>
+        )}
         {entry.targetPomodoros > 1 && (
           <div className="session-data__row">
             <dt className="session-data__label">Pomodoros</dt>

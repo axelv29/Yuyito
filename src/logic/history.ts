@@ -1,7 +1,7 @@
 import type { ActiveSession, FocusRecord, SessionPlan, SessionTask, Tree } from '@/state/types'
 import { speciesConfig, speciesForFocusMin } from '@/config/species'
 import { stageForElapsedMs } from '@/logic/growth'
-import { livePlanFocus, projectPlanting } from '@/logic/planting'
+import { livePlanFocus, projectOpenPlanting, projectPlanting } from '@/logic/planting'
 import { elapsedMs } from './timer'
 import { localDayKey } from './day'
 
@@ -26,6 +26,7 @@ export interface HistoryEntry {
   withered: boolean
   completedPomodoros: number
   targetPomodoros: number
+  openEnded: boolean
   isMulti: boolean
 }
 
@@ -50,6 +51,11 @@ function statusFor(records: readonly FocusRecord[], plan: SessionPlan | null): H
   const latest = records[records.length - 1]
 
   if (latest && latest.status === 'running') {
+    return 'running'
+  }
+
+  // Una sesión indefinida sigue abierta hasta que el usuario decide terminar.
+  if (plan?.openEnded && plan.finishedAt === null) {
     return 'running'
   }
 
@@ -88,6 +94,8 @@ function buildEntry(
     return tree ? [tree] : []
   })
   const completed = ordered.filter((record) => record.status === 'completed')
+  const openEnded = plan?.openEnded === true
+  const targetPomodoros = plan?.targetPomodoros ?? primaryRecord.pomoTotal ?? ordered.length
   const latestWithTitle = [...ordered]
     .reverse()
     .find((record) => (record.title ?? '').trim().length > 0)
@@ -110,11 +118,10 @@ function buildEntry(
     status: statusFor(ordered, plan),
     withered: trees.some((tree) => tree.state === 'withered'),
     completedPomodoros: completed.length,
-    targetPomodoros: plan?.targetPomodoros ?? primaryRecord.pomoTotal ?? ordered.length,
-    isMulti:
-      (plan?.targetPomodoros ?? primaryRecord.pomoTotal ?? ordered.length) > 1 ||
-      ordered.length > 1 ||
-      trees.length > 1,
+    targetPomodoros,
+    openEnded,
+    // Las sesiones indefinidas son series aunque hayan tenido un solo bloque.
+    isMulti: openEnded || targetPomodoros > 1 || ordered.length > 1 || trees.length > 1,
   }
 }
 
@@ -168,7 +175,9 @@ export function buildHistory(
   if (runningFocus) {
     const runningPlan = runningFocus.planId ? plansById.get(runningFocus.planId) : undefined
     const runningProjection = runningPlan
-      ? projectPlanting(runningPlan, livePlanFocus(runningPlan, elapsedMs(runningFocus, now)))
+      ? runningPlan.openEnded
+        ? projectOpenPlanting(runningPlan, elapsedMs(runningFocus, now) / 60_000)
+        : projectPlanting(runningPlan, livePlanFocus(runningPlan, elapsedMs(runningFocus, now)))
       : null
     const runningItem = runningProjection
       ? (runningProjection.current ?? runningProjection.items[runningProjection.items.length - 1])

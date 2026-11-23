@@ -117,6 +117,99 @@ export function projectPlanting(
   }
 }
 
+/**
+ * Proyección de una sesión indefinida: cada bloque pertenece a un solo árbol.
+ * Solo se acredita el árbol en curso; los minutos sobrantes de un bloque no
+ * pasan al siguiente árbol.
+ */
+export function projectOpenPlanting(
+  plan: Pick<SessionPlan, 'planting'>,
+  currentFocusMin = 0,
+): PlantingProjection {
+  const totalCost = totalPlantingCost(plan.planting)
+  const focusMin = Math.max(0, currentFocusMin)
+  const lastIndex = plan.planting.length - 1
+
+  const items: PlantingProjectionItem[] = plan.planting.map((item, index) => {
+    const requiredMin = speciesConfig(item.species).minutes
+    const isCurrent = index === lastIndex
+    const creditedMin = isCurrent ? Math.min(requiredMin, focusMin) : requiredMin
+    const complete = requiredMin > 0 && creditedMin >= requiredMin
+    const partial = creditedMin > 0 && !complete
+
+    return {
+      index,
+      species: item.species,
+      cell: item.cell,
+      treeId: item.treeId,
+      requiredMin,
+      creditedMin,
+      stage: stageForTreeProgress(item.species, creditedMin),
+      complete,
+      partial,
+      started: creditedMin > 0,
+    }
+  })
+
+  const currentIndex =
+    lastIndex >= 0 && items[lastIndex] && !items[lastIndex].complete ? lastIndex : null
+
+  return {
+    budget: totalCost,
+    totalCost,
+    focusMin,
+    items,
+    completedCount: items.filter((item) => item.complete).length,
+    currentIndex,
+    current: currentIndex === null ? null : items[currentIndex],
+    leftoverMin: 0,
+    shortfallMin: 0,
+    willPartial: false,
+    unstartedCount: items.filter((item) => !item.started).length,
+  }
+}
+
+export interface OpenPlantingValidation {
+  ok: boolean
+  errors: string[]
+  warnings: string[]
+  allowed: TreeSpecies[]
+}
+
+/** Valida el árbol elegido para un bloque de una sesión indefinida. */
+export function validateOpenPlanting(
+  focusMin: number,
+  planting: readonly TreeSpecies[],
+): OpenPlantingValidation {
+  const allowed = (['pino', 'abedul', 'roble', 'ceibo'] as const).filter(
+    (species) => speciesConfig(species).minutes <= focusMin,
+  )
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  if (planting.length !== 1) {
+    errors.push('Elegí un árbol para este ciclo.')
+  }
+
+  if (allowed.length === 0) {
+    errors.push(`Necesitás al menos ${speciesConfig('pino').minutes} min por ciclo.`)
+  }
+
+  const species = planting[0]
+  if (species) {
+    const config = speciesConfig(species)
+    if (config.minutes > focusMin) {
+      errors.push(`${config.name} necesita ${config.minutes} min y el ciclo dura ${focusMin}.`)
+    } else if (config.minutes < focusMin) {
+      warnings.push(
+        `Sobran ${focusMin - config.minutes} min en este ciclo: ${config.name} los completa antes.`,
+      )
+    }
+  }
+
+  return { ok: errors.length === 0, errors, warnings, allowed }
+}
+
 function fakePlanting(planting: readonly TreeSpecies[]): PlantingItem[] {
   return planting.map((species) => ({
     species,

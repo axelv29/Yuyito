@@ -34,16 +34,24 @@ export function TimerMiniButton({ now, onRestore }: TimerMiniButtonProps) {
   const ringVariant =
     !active || active.kind === 'focus' ? 'focus' : active.longBreak ? 'longBreak' : 'shortBreak'
   const ringClass =
-    ringVariant === 'longBreak' ? 'long-break' : ringVariant === 'shortBreak' ? 'short-break' : 'focus'
+    ringVariant === 'longBreak'
+      ? 'long-break'
+      : ringVariant === 'shortBreak'
+        ? 'short-break'
+        : 'focus'
   const pomoProgress =
-    active?.pomoIndex && active.pomoTotal ? { index: active.pomoIndex, total: active.pomoTotal } : null
+    active?.pomoIndex && active.pomoTotal
+      ? { index: active.pomoIndex, total: active.pomoTotal }
+      : null
 
   const tooltip = active
     ? pomoProgress && pomoProgress.total > 1
       ? `${formatClock(remaining)} · ${pomoProgress.index}/${pomoProgress.total}`
       : formatClock(remaining)
     : openPlan
-      ? `Sesión pendiente · ${openPlan.completedPomodoros}/${openPlan.targetPomodoros}`
+      ? openPlan.openEnded
+        ? `Sesión indefinida · ${openPlan.completedPomodoros} ${openPlan.completedPomodoros === 1 ? 'pomodoro' : 'pomodoros'}`
+        : `Sesión pendiente · ${openPlan.completedPomodoros}/${openPlan.targetPomodoros}`
       : `Listo · ${focusMin} min de enfoque`
 
   return (

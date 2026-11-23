@@ -998,6 +998,69 @@
     height: 0.8125rem;
   }
 
+  .open-ended {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .open-ended__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .open-ended__option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.35rem;
+    border: var(--border-hairline) solid var(--card-border-color);
+    border-radius: var(--radius-control);
+    background: var(--card-bg);
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+
+  .open-ended__option--active {
+    border-color: var(--palette-primary);
+  }
+
+  .open-ended__option:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .open-ended__tree {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .open-ended__name {
+    font-size: var(--type-micro-size);
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+
+  .open-ended__cost {
+    font-size: var(--type-caption-size);
+    color: var(--color-muted);
+  }
+
+  .open-ended__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .open-ended__actions .btn {
+    flex: 1;
+    gap: 0.35rem;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.78125rem;
+  }
+
   /* Tarjeta de sesión. */
   .session-icon {
     display: grid;
@@ -2573,6 +2636,23 @@
     background: var(--button-primary-bg-hover);
   }
 
+  .session-switch-control:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .session-switch-control:disabled:hover {
+    background: var(--session-switch-off);
+  }
+
+  .session-switch-control[aria-checked='true']:disabled {
+    background: var(--session-switch-on);
+  }
+
+  .session-switch-control[aria-checked='true']:disabled .session-switch-control__knob {
+    background: var(--session-switch-knob);
+  }
+
   :root.is-keyboard .session-switch-control:focus-visible {
     outline: var(--focus-ring-width) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
@@ -2723,6 +2803,15 @@
     gap: 0.5rem;
   }
 
+  .session-settings--inline {
+    margin-top: 0.5rem;
+  }
+
+  .session-setting__hint {
+    color: var(--color-muted);
+    font-size: var(--type-micro-size);
+  }
+
   .time-field {
     display: flex;
     align-items: center;
@@ -2778,6 +2867,11 @@
     border: var(--border-hairline) solid var(--card-border-color);
     border-radius: var(--session-times-radius);
     background: var(--card-bg);
+  }
+
+  .session-summary-card__note {
+    color: var(--color-muted);
+    font-size: var(--type-micro-size);
   }
 
   .session-summary-card__top {

@@ -11,7 +11,7 @@ import type {
   ActiveSession,
   FocusRecord,
   Forest,
-  PersistedV8,
+  PersistedV9,
   SessionPlan,
   Tree,
 } from '@/state/types'
@@ -74,6 +74,7 @@ const PLAN: SessionPlan = {
   focusMin: 25,
   breakMin: 5,
   targetPomodoros: 2,
+  openEnded: false,
   completedPomodoros: 1,
   mode: 'breaks',
   planting: [
@@ -85,8 +86,8 @@ const PLAN: SessionPlan = {
   finishedAt: null,
 }
 
-const STATE: PersistedV8 = {
-  version: 8,
+const STATE: PersistedV9 = {
+  version: 9,
   forests: [FOREST],
   activeForestId: FOREST.id,
   trees: [TREE],
@@ -227,7 +228,7 @@ describe('migrate', () => {
   })
 
   it('acepta un estado de la versión actual', () => {
-    expect(migrate(STATE, 8)).toEqual(STATE)
+    expect(migrate(STATE, 9)).toEqual(STATE)
   })
 
   it('un guardado v7 sin hideTimerCard migra y recibe false', () => {
@@ -238,7 +239,7 @@ describe('migrate', () => {
     }
     const result = migrate(v7, 7)
 
-    expect(result.version).toBe(8)
+    expect(result.version).toBe(9)
     expect(result.display).toEqual({
       showForestName: true,
       showCountdown: false,
@@ -256,7 +257,7 @@ describe('migrate', () => {
     }
     const result = migrate(v5, 5)
 
-    expect(result.version).toBe(8)
+    expect(result.version).toBe(9)
     expect(result.plans[0].tasks).toEqual([
       { id: 'task-1', text: 'Leer', status: 'neutral' },
       { id: 'task-2', text: 'Resumir', status: 'neutral' },
@@ -284,6 +285,20 @@ describe('migrate', () => {
     expect(result.trees[0].forestId).toBe(result.forests[0].id)
   })
 
+  it('migra planes v8 a ciclos indefinidos', () => {
+    const result = migrate(
+      {
+        ...STATE,
+        version: 8,
+        plans: [{ ...PLAN, openEnded: false }],
+      },
+      8,
+    )
+
+    expect(result.version).toBe(9)
+    expect(result.plans[0].openEnded).toBe(false)
+  })
+
   it('migra un guardado v3 a v7 sin sesiones planificadas', () => {
     const v3 = {
       version: 3,
@@ -297,7 +312,7 @@ describe('migrate', () => {
     }
     const result = migrate(v3, 3)
 
-    expect(result.version).toBe(8)
+    expect(result.version).toBe(9)
     expect(result.plans).toEqual([])
     expect(result.activePlanId).toBeNull()
     expect(result.sessions).toEqual([{ ...SESSION, forestId: DEFAULT_FOREST_ID }])
@@ -334,6 +349,22 @@ describe('isPersistedState', () => {
     expect(isPersistedState({ ...STATE, version: 4 })).toBe(false)
     expect(isPersistedState({ ...STATE, version: 2 })).toBe(false)
   })
+
+  it('acepta ciclos indefinidos con más pomodoros completados que un límite fijo', () => {
+    const openPlan: SessionPlan = {
+      ...PLAN,
+      openEnded: true,
+      targetPomodoros: 1,
+      completedPomodoros: 5,
+      planting: Array.from({ length: 9 }, (_, index) => ({
+        species: 'pino',
+        cell: { col: index % 8, row: Math.floor(index / 8) },
+        treeId: null,
+      })),
+    }
+
+    expect(isPersistedState({ ...STATE, plans: [openPlan] })).toBe(true)
+  })
 })
 
 describe('createSafeStorage', () => {
@@ -369,7 +400,7 @@ describe('createSafeStorage', () => {
 
   it('respalda y reinicia un estado con forma inválida', () => {
     const { storage } = makeStorage()
-    const raw = envelope({ ...STATE, trees: 'x' }, 8)
+    const raw = envelope({ ...STATE, trees: 'x' }, 9)
     storage.setItem('focus-forest', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
@@ -399,7 +430,7 @@ describe('createSafeStorage', () => {
 
   it('no toca una versión más nueva y bloquea las escrituras', () => {
     const { storage } = makeStorage()
-    const raw = envelope({ ...STATE, version: 9 }, 9)
+    const raw = envelope({ ...STATE, version: 10 }, 10)
     storage.setItem('focus-forest', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
@@ -409,7 +440,7 @@ describe('createSafeStorage', () => {
 
     expect(safe.getItem('focus-forest')).toBeNull()
     expect(storage.getItem('focus-forest')).toBe(raw)
-    expect(issues).toEqual([{ kind: 'future-version', version: 9 }])
+    expect(issues).toEqual([{ kind: 'future-version', version: 10 }])
 
     safe.setItem('focus-forest', 'nuevo')
     safe.removeItem('focus-forest')
@@ -455,7 +486,7 @@ describe('createSafeStorage', () => {
       ...PLAN,
       tasks: [{ id: 'task-1', text: 'Leer', status: 'done' }],
     }
-    const raw = envelope({ ...STATE, plans: [plan] }, 8)
+    const raw = envelope({ ...STATE, plans: [plan] }, 9)
     storage.setItem('focus-forest', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
@@ -471,7 +502,7 @@ describe('createSafeStorage', () => {
   it('rescata los datos válidos de un guardado con un elemento dañado', () => {
     const { storage } = makeStorage()
     const brokenTree = { ...TREE, id: 'tree-2', cell: { col: 99, row: 99 } }
-    const raw = envelope({ ...STATE, trees: [TREE, brokenTree] }, 8)
+    const raw = envelope({ ...STATE, trees: [TREE, brokenTree] }, 9)
     storage.setItem('focus-forest', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
@@ -482,8 +513,8 @@ describe('createSafeStorage', () => {
     const healed = safe.getItem('focus-forest')
 
     expect(healed).not.toBeNull()
-    const saved = JSON.parse(healed as string) as { state: PersistedV8; version: number }
-    expect(saved.version).toBe(8)
+    const saved = JSON.parse(healed as string) as { state: PersistedV9; version: number }
+    expect(saved.version).toBe(9)
     expect(saved.state.trees.map((tree) => tree.id)).toEqual([TREE.id])
     expect(saved.state.plans).toHaveLength(1)
     expect(saved.state.sessions).toHaveLength(1)
@@ -494,7 +525,7 @@ describe('createSafeStorage', () => {
 
   it('deja el guardado rescatado sano para la próxima lectura', () => {
     const { storage } = makeStorage()
-    const raw = envelope({ ...STATE, active: { kind: 'focus' } }, 8)
+    const raw = envelope({ ...STATE, active: { kind: 'focus' } }, 9)
     storage.setItem('focus-forest', raw)
     const first = createSafeStorage(
       () => storage,

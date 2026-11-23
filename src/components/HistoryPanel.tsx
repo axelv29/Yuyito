@@ -142,7 +142,9 @@ export function HistoryPanel({ now, selectedEntry, onSelectKey, onClose }: Histo
                   <span className="history-row__tags">
                     {entry.isMulti && (
                       <span className="forest-chip forest-chip--soft">
-                        {entry.completedPomodoros}/{entry.targetPomodoros} pomodoros
+                        {entry.openEnded
+                          ? `Indefinida · ${entry.completedPomodoros} ${entry.completedPomodoros === 1 ? 'pomodoro' : 'pomodoros'}`
+                          : `${entry.completedPomodoros}/${entry.targetPomodoros} pomodoros`}
                       </span>
                     )}
                     {entry.withered && <span className="forest-chip">Marchito</span>}

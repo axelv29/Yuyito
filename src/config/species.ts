@@ -105,6 +105,13 @@ export function speciesConfig(species: TreeSpecies): SpeciesConfig {
   return TREE_SPECIES[species]
 }
 
+/** Especies que caben completas dentro de un bloque de enfoque. */
+export function speciesFittingFocus(focusMin: number): TreeSpecies[] {
+  return SPECIES_BLOCKS.filter((species) => species.minutes <= focusMin).map(
+    (species) => species.id,
+  )
+}
+
 /**
  * Duración → especie. Usa el bloque más cercano por debajo; si no hay uno,
  * el pino queda como base.

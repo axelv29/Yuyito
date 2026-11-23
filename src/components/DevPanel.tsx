@@ -76,6 +76,7 @@ export function DevPanel({ now }: { now: number }) {
   const activeForestId = useStore((state) => state.activeForestId)
   const gardenSize = useStore((state) => state.devGardenSize)
   const devDayOffset = useStore((state) => state.devDayOffset)
+  const devTreeShadows = useStore((state) => state.devTreeShadows)
   const streakIntroShownOn = useStore((state) => state.streakIntroShownOn)
   const setState = useStore.setState
   const [open, setOpen] = useState(false)
@@ -384,6 +385,20 @@ export function DevPanel({ now }: { now: number }) {
                 ariaLabel="Tamaño del bosque en celdas por lado"
               />
             </div>
+          </div>
+
+          <div className="mt-4 border-t border-ink/10 pt-3">
+            <p className="eyebrow">Sombras</p>
+            <p className="type-caption type-muted mt-1">
+              Prueba: la silueta del árbol acostada en diagonal sobre el pasto.
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary btn--sm mt-1.5"
+              onClick={() => setState({ devTreeShadows: !devTreeShadows })}
+            >
+              Sombras: {devTreeShadows ? 'on' : 'off'}
+            </button>
           </div>
 
           <div className="mt-4 border-t border-ink/10 pt-3">
