@@ -39,7 +39,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)))
 }
 
-export const SessionCreateDialog = memo(function SessionCreateDialog({
+export function SessionCreateDialog({
   open,
   forestName,
   onClose,
@@ -640,4 +640,4 @@ export const SessionCreateDialog = memo(function SessionCreateDialog({
       )}
     </div>
   )
-})
+}
