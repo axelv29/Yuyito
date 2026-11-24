@@ -388,10 +388,19 @@ function App() {
     forestDialogOpen
   const autoHide = isMobile && anyFloatingMenuOpen && !timerPeek
   const timerCardHidden = display.hideTimerCard || autoHide
+  const showSessionCard = !timerCardHidden && active?.kind === 'focus'
+  // Al elegir la sesión que ya se ve en «Sesión en curso», no hace falta abrir
+  // otra card con los mismos datos: alcanza con resaltar sus árboles.
+  const activeFocusId = active?.kind === 'focus' ? active.id : null
+  const selectedEntryIsRunning =
+    activeFocusId !== null &&
+    (selectedEntry?.records.some((record) => record.id === activeFocusId) ?? false)
   // Con un pomodoro en curso, el detalle de una sesión pasada comparte la
   // columna derecha con el timer. Le cedemos todo el alto: el timer queda
-  // oculto (con su botón flotante) y vuelve solo al cerrar el detalle.
-  const detailTakesTimerRail = active !== null && selectedEntry !== null
+  // oculto (con su botón flotante en el lugar de siempre) y vuelve solo al
+  // cerrar el detalle.
+  const detailTakesTimerRail =
+    active !== null && selectedEntry !== null && !(showSessionCard && selectedEntryIsRunning)
   const showTimerPanel = !timerCardHidden && !detailTakesTimerRail
   const showRightRail = showTimerPanel || detailTakesTimerRail
   const showTimerMini = timerCardHidden || detailTakesTimerRail
@@ -478,7 +487,7 @@ function App() {
             </div>
 
             <div className="garden-left-rail z-10">
-              {!display.hideTimerCard && active?.kind === 'focus' && <SessionCard now={now} />}
+              {showSessionCard && <SessionCard now={now} />}
 
               {!active && selectedEntry && activeForest && (
                 <SessionDetailCard
@@ -499,7 +508,13 @@ function App() {
             </div>
 
             {showRightRail && (
-              <div className="garden-right-rail z-10">
+              <div
+                className={
+                  detailTakesTimerRail
+                    ? 'garden-right-rail garden-right-rail--below-timer-mini z-10'
+                    : 'garden-right-rail z-10'
+                }
+              >
                 {showTimerPanel && (
                   <TimerPanel
                     now={now}
@@ -518,7 +533,6 @@ function App() {
                   <SessionDetailCard
                     entry={selectedEntry}
                     forestName={activeForest.name}
-                    className="session-detail--with-timer-mini"
                     onClose={() => setSelectedKey(null)}
                   />
                 )}

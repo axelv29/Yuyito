@@ -3367,6 +3367,12 @@
       pointer-events: none;
     }
 
+    /* Cuando el detalle reemplaza al timer, el botón flotante se queda en su
+       lugar de siempre (arriba a la derecha) y la card arranca debajo. */
+    .garden-right-rail--below-timer-mini {
+      top: 6.25rem;
+    }
+
     .garden-left-rail > *,
     .garden-right-rail > * {
       flex: 0 0 auto;
@@ -3380,10 +3386,8 @@
       overflow: hidden;
     }
 
-    /* El detalle de una sesión pasada ocupa el alto completo de la columna;
-       si su contenido es muy largo, scrollea dentro de la card. El botón
-       flotante del timer se superpone a la esquina superior derecha, así que
-       el cierre se corre a la izquierda en ese caso. */
+    /* El detalle de una sesión pasada ocupa el alto disponible de la columna;
+       si su contenido es muy largo, scrollea dentro de la card. */
     .garden-right-rail > .session-detail {
       flex: 0 1 auto;
       min-height: 0;
@@ -3411,10 +3415,6 @@
     .garden-right-rail > .session-detail:hover::-webkit-scrollbar-thumb,
     .garden-right-rail > .session-detail:focus-within::-webkit-scrollbar-thumb {
       background-color: var(--scrollbar-thumb);
-    }
-
-    .session-detail--with-timer-mini .session-detail__head {
-      padding-right: 3.1rem;
     }
   }
 
