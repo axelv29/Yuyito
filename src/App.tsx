@@ -8,6 +8,7 @@ import { ForestCreateDialog } from '@/components/ForestCreateDialog'
 import { ForestSwitcher } from '@/components/ForestSwitcher'
 import { GardenCanvas } from '@/components/GardenCanvas'
 import { HistoryPanel } from '@/components/HistoryPanel'
+import { NotificationNotice } from '@/components/NotificationNotice'
 import { SessionCard } from '@/components/SessionCard'
 import { SessionCreateDialog } from '@/components/SessionCreateDialog'
 import { SessionDetailCard } from '@/components/SessionDetailCard'
@@ -22,9 +23,13 @@ import { useKeyboardFocus } from '@/hooks/useKeyboardFocus'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { stageForElapsedMs } from '@/logic/growth'
 import { livePlanFocus, projectOpenPlanting, projectPlanting } from '@/logic/planting'
-import { elapsedMs } from '@/logic/timer'
+import { elapsedMs, isExpired } from '@/logic/timer'
 import { playTone } from '@/logic/alarm'
-import { sendNotification } from '@/logic/notifications'
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendNotification,
+} from '@/logic/notifications'
 import { buildHistory } from '@/logic/history'
 import { useStore } from '@/state/store'
 import { speciesForFocusMin } from '@/config/species'
@@ -77,6 +82,7 @@ function App() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [timerPeek, setTimerPeek] = useState(false)
   const [streakMenuOpen, setStreakMenuOpen] = useState(false)
+  const [notificationHint, setNotificationHint] = useState<string | null>(null)
 
   const currentForestId = active?.kind === 'focus' ? active.forestId : activeForestId
   const activeForest = selectActiveForest(forests, currentForestId)
@@ -237,20 +243,44 @@ function App() {
 
   const closeSessionDialog = useCallback(() => setSessionDialogOpen(false), [])
 
+  // Iniciar una sesión es un gesto del usuario: aprovechamos para pedir el
+  // permiso si la opción está encendida y el navegador todavía no preguntó.
+  const requestNotificationIfNeeded = useCallback(() => {
+    const { notification } = useStore.getState().settings
+    if (!notification) {
+      return
+    }
+    const permission = getNotificationPermission()
+    if (permission === 'granted') {
+      // Si el usuario ya lo habilitó, el aviso viejo dejó de tener sentido.
+      setNotificationHint(null)
+      return
+    }
+    if (permission === 'default') {
+      void requestNotificationPermission().then((result) => {
+        if (result === 'granted') {
+          setNotificationHint(null)
+        }
+      })
+    }
+  }, [])
+
   const handleStartSession = useCallback(
     (input: NewSessionInput) => {
+      requestNotificationIfNeeded()
       startSession(input, Date.now())
       setSelectedKey(null)
       setView('garden')
     },
-    [startSession],
+    [requestNotificationIfNeeded, startSession],
   )
 
   const handleContinueSession = useCallback(() => {
+    requestNotificationIfNeeded()
     continuePlan(Date.now())
     setSelectedKey(null)
     setView('garden')
-  }, [continuePlan])
+  }, [continuePlan, requestNotificationIfNeeded])
 
   const confirmNewSession = useCallback(() => {
     setConfirmRequest(null)
@@ -276,9 +306,23 @@ function App() {
   const prevActiveRef = useRef(active)
   const withered = forestTrees.filter((tree) => tree.state === 'withered').length
 
-  // Alarma al completar un enfoque (aparece el aviso de descanso).
+  // Alarma al completar un enfoque o un descanso. Si el navegador no puede
+  // mostrar la notificación, la app avisa que falta el permiso.
   useEffect(() => {
     const prev = prevActiveRef.current
+    const notify = (body: string) => {
+      if (sendNotification('Yuyito', body)) {
+        setNotificationHint(null)
+        return
+      }
+      const permission = getNotificationPermission()
+      setNotificationHint(
+        permission === 'denied' || permission === 'unsupported'
+          ? 'La alarma sonó, pero el navegador tiene bloqueadas las notificaciones de Yuyito. Podés habilitarlas desde el candado de la barra de direcciones.'
+          : 'La alarma sonó, pero falta el permiso de notificaciones. Activalo en Ajustes para que el navegador también avise.',
+      )
+    }
+
     if (active === null && prev?.kind === 'focus') {
       playTone(settings.alarmTone, settings.alarmVolume)
       if (settings.notification) {
@@ -287,12 +331,9 @@ function App() {
           ? plans.find((item) => item.id === prev.planId)
           : undefined
         if (record?.status === 'abandoned') {
-          sendNotification('Yuyito', 'El árbol se marchitó. Podés empezar otro cuando quieras.')
+          notify('El árbol se marchitó. Podés empezar otro cuando quieras.')
         } else if (completedPlan?.openEnded) {
-          sendNotification(
-            'Yuyito',
-            `Bloque ${prev.pomoIndex ?? 1} completado. Podés continuar o terminar la sesión.`,
-          )
+          notify(`Bloque ${prev.pomoIndex ?? 1} completado. Podés continuar o terminar la sesión.`)
         } else {
           const index = prev.pomoIndex ?? 1
           const total = prev.pomoTotal ?? 1
@@ -310,18 +351,25 @@ function App() {
           } else {
             body = '¡Pomodoro completado! El árbol quedó en la pradera.'
           }
-          sendNotification('Yuyito', body)
+          notify(body)
         }
       }
     }
-    if (active === null && prev?.kind === 'break') {
+    // En una sesión indefinida el descanso encadena el bloque siguiente en el
+    // mismo tick, así que `active` no llega a pasar por null: miramos si el
+    // descanso anterior venció en lugar de esperar esa transición.
+    if (
+      prev?.kind === 'break' &&
+      isExpired(prev, now) &&
+      (active === null || active.kind === 'focus')
+    ) {
       playTone(settings.alarmTone, settings.alarmVolume)
       if (settings.notification) {
-        sendNotification('Yuyito', 'Descanso terminado.')
+        notify('Descanso terminado.')
       }
     }
     prevActiveRef.current = active
-  }, [active, plans, settings.alarmTone, settings.alarmVolume, settings.notification])
+  }, [active, plans, now, settings.alarmTone, settings.alarmVolume, settings.notification])
 
   // Cierre de página con sesión activa ≈ abandono.
   useEffect(() => {
@@ -452,6 +500,12 @@ function App() {
       </header>
 
       <StorageNotice />
+      {notificationHint && (
+        <NotificationNotice
+          message={notificationHint}
+          onDismiss={() => setNotificationHint(null)}
+        />
+      )}
 
       <main
         className={

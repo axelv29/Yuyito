@@ -61,6 +61,16 @@ export function SettingsPanel({ settings, onChange, onBack }: SettingsPanelProps
     setPermission(result)
   }
 
+  // Activar el switch es un gesto del usuario: es el mejor momento para
+  // pedir el permiso, en vez de dejarlo para una sesión que ya terminó.
+  const handleNotificationChange = async (enabled: boolean) => {
+    onChange({ notification: enabled })
+    if (enabled && permission === 'default') {
+      const result = await requestNotificationPermission()
+      setPermission(result)
+    }
+  }
+
   const handleReset = () => {
     onChange({
       focusMin: 25,
@@ -247,7 +257,7 @@ export function SettingsPanel({ settings, onChange, onBack }: SettingsPanelProps
             className="settings-check"
             aria-label="Notificación del navegador"
             checked={settings.notification}
-            onChange={(e) => onChange({ notification: e.target.checked })}
+            onChange={(e) => void handleNotificationChange(e.target.checked)}
           />
         </label>
         {settings.notification && permission !== 'granted' && (
