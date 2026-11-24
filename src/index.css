@@ -1300,6 +1300,10 @@
     background-color: var(--toast-warning-bg);
   }
 
+  .toast--danger {
+    background-color: var(--toast-danger-bg);
+  }
+
   .toast--info {
     background-color: var(--toast-info-bg);
   }

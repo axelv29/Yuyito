@@ -209,6 +209,7 @@
   /* Avisos. */
   --toast-success-bg: color-mix(in srgb, var(--palette-accent) 22%, var(--palette-card));
   --toast-warning-bg: color-mix(in srgb, var(--palette-blossom) 22%, var(--palette-card));
+  --toast-danger-bg: color-mix(in srgb, var(--palette-danger) 14%, var(--palette-card));
   --toast-info-bg: color-mix(in srgb, var(--palette-surface) 35%, var(--palette-card));
 
   /* Estadísticas: mapa de calor, barras, anillos y ranking. */

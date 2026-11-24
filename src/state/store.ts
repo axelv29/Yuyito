@@ -66,7 +66,7 @@ import {
   STORAGE_KEY,
 } from './persist'
 
-export type NoticeKind = 'info' | 'success' | 'warning'
+export type NoticeKind = 'info' | 'success' | 'warning' | 'danger'
 
 export interface Notice {
   kind: NoticeKind
@@ -75,6 +75,8 @@ export interface Notice {
 
 interface StoreState extends PersistedV9 {
   pendingBreak: boolean
+  /** El usuario decidió continuar un ciclo indefinido; falta el descanso antes del siguiente bloque. */
+  pendingOpenContinue: boolean
   notice: Notice | null
   /** Dev: tamaño del bosque en celdas por lado para el preview del panel. */
   devGardenSize: number
@@ -97,8 +99,8 @@ interface StoreState extends PersistedV9 {
   renamePlanTitle: (planId: string, title: string) => void
   /** Continúa la sesión pendiente con el siguiente pomodoro. */
   continuePlan: (now: number) => void
-  /** Continúa un ciclo indefinido plantando y arrancando el siguiente bloque. */
-  continueOpenPlan: (species: TreeSpecies, now: number) => void
+  /** Continúa un ciclo indefinido con el mismo árbol del plan. */
+  continueOpenPlan: (now: number) => void
   /** Termina una sesión indefinida en un límite de bloque, sin marchitar. */
   endOpenPlan: (now: number) => void
   /** Cierra una sesión pendiente sin empezar otro pomodoro. */
@@ -284,7 +286,7 @@ export const useStore = create<StoreState>()(
             : ([...projection.items].reverse().find((item) => item.treeId) ?? null))
         if (plan.openEnded && current?.treeId) {
           set({
-            notice: { kind: 'info', text: 'Elegí el próximo árbol para continuar.' },
+            notice: { kind: 'info', text: 'Continuá la sesión para plantar el siguiente bloque.' },
           })
           return false
         }
@@ -343,6 +345,7 @@ export const useStore = create<StoreState>()(
           activeForestId: forest.id,
           activePlanId: plan.id,
           pendingBreak: false,
+          pendingOpenContinue: false,
           notice: null,
         })
         return true
@@ -353,6 +356,7 @@ export const useStore = create<StoreState>()(
           set({
             active: null,
             pendingBreak: false,
+            pendingOpenContinue: false,
             notice: {
               kind: 'warning',
               text: 'La sesión no tenía una celda o un bosque. Se cerró sin plantar.',
@@ -466,7 +470,8 @@ export const useStore = create<StoreState>()(
           plans: state.plans.map((item) => (item.id === plan.id ? updatedPlan : item)),
           activePlanId: planFinished ? null : plan.id,
           active: null,
-          pendingBreak: plan.mode === 'breaks' && !planFinished,
+          pendingBreak: plan.openEnded ? false : plan.mode === 'breaks' && !planFinished,
+          pendingOpenContinue: false,
           notice: planFinished
             ? {
                 kind: 'success',
@@ -484,7 +489,7 @@ export const useStore = create<StoreState>()(
                   }
                 : {
                     kind: 'success',
-                    text: `Bloque ${completedPomodoros} completado. Elegí el próximo árbol o terminá la sesión.`,
+                    text: `Bloque ${completedPomodoros} completado. Podés continuar con otro bloque o terminar la sesión.`,
                   },
         })
       }
@@ -504,6 +509,7 @@ export const useStore = create<StoreState>()(
         display: { ...DEFAULT_DISPLAY_SETTINGS },
         streakIntroShownOn: null,
         pendingBreak: false,
+        pendingOpenContinue: false,
         notice: null,
         devGardenSize: DEFAULT_GARDEN_SIZE,
         devDayOffset: 0,
@@ -850,16 +856,14 @@ export const useStore = create<StoreState>()(
           }
 
           if (plan.openEnded) {
-            set({
-              notice: { kind: 'info', text: 'Elegí el próximo árbol para continuar.' },
-            })
+            get().continueOpenPlan(now)
             return
           }
 
           startPlanPomodoro(plan, now)
         },
 
-        continueOpenPlan: (species, now) => {
+        continueOpenPlan: (now) => {
           if (get().active) {
             return
           }
@@ -869,6 +873,22 @@ export const useStore = create<StoreState>()(
             (item) => item.id === state.activePlanId && item.finishedAt === null,
           )
           if (!plan || !plan.openEnded) {
+            return
+          }
+
+          // La decisión de continuar ocurre antes del descanso: primero se pide el
+          // descanso y, cuando termina, se arranca el siguiente bloque.
+          if (!state.pendingOpenContinue) {
+            if (plan.mode === 'breaks') {
+              set({ pendingBreak: true, pendingOpenContinue: true, notice: null })
+              return
+            }
+          } else if (state.pendingBreak) {
+            return
+          }
+
+          const species = plan.planting[0]?.species
+          if (!species) {
             return
           }
 
@@ -892,6 +912,7 @@ export const useStore = create<StoreState>()(
           )
           if (!reservation) {
             set({
+              pendingOpenContinue: false,
               notice: {
                 kind: 'warning',
                 text: 'La pradera está llena. No se puede plantar el siguiente árbol.',
@@ -915,6 +936,8 @@ export const useStore = create<StoreState>()(
             sessions,
             plans: state.plans.map((item) => (item.id === plan.id ? updatedPlan : item)),
             activePlanId: plan.id,
+            pendingBreak: false,
+            pendingOpenContinue: false,
           })
           startPlanPomodoro(updatedPlan, now)
         },
@@ -937,6 +960,7 @@ export const useStore = create<StoreState>()(
             ),
             activePlanId: null,
             pendingBreak: false,
+            pendingOpenContinue: false,
             notice: {
               kind: 'info',
               text: `Sesión indefinida terminada: ${plan.completedPomodoros} bloques completados.`,
@@ -960,6 +984,8 @@ export const useStore = create<StoreState>()(
               plan.id === planId && plan.finishedAt === null ? { ...plan, finishedAt: now } : plan,
             ),
             activePlanId: null,
+            pendingBreak: false,
+            pendingOpenContinue: false,
             notice: { kind: 'info', text: 'La sesión pendiente se cerró.' },
           })
         },
@@ -992,9 +1018,7 @@ export const useStore = create<StoreState>()(
           )
           if (openPlan) {
             if (openPlan.openEnded) {
-              set({
-                notice: { kind: 'info', text: 'Elegí el próximo árbol para continuar.' },
-              })
+              get().continueOpenPlan(now)
               return
             }
 
@@ -1109,6 +1133,7 @@ export const useStore = create<StoreState>()(
             set({
               active: null,
               pendingBreak: false,
+              pendingOpenContinue: false,
               notice: { kind: 'info', text: 'Descanso saltado.' },
             })
             return
@@ -1216,8 +1241,9 @@ export const useStore = create<StoreState>()(
               activePlanId: null,
               active: null,
               pendingBreak: false,
+              pendingOpenContinue: false,
               notice: {
-                kind: 'info',
+                kind: 'danger',
                 text:
                   plan.mode === 'continuous'
                     ? 'La sesión continua se cerró y el último árbol quedó marchito.'
@@ -1268,8 +1294,9 @@ export const useStore = create<StoreState>()(
             sessions: [...currentState.sessions, record],
             active: null,
             pendingBreak: false,
+            pendingOpenContinue: false,
             notice: {
-              kind: 'info',
+              kind: 'danger',
               text: 'El árbol quedó marchito. La sesión se cerró; podés empezar otra cuando quieras.',
             },
           }))
@@ -1277,15 +1304,23 @@ export const useStore = create<StoreState>()(
 
         skipBreak: () => {
           if (get().active?.kind === 'break') {
+            const shouldContinue = get().pendingOpenContinue
             set({
               active: null,
               pendingBreak: false,
-              notice: { kind: 'info', text: 'Descanso saltado.' },
+              notice: shouldContinue ? null : { kind: 'info', text: 'Descanso saltado.' },
             })
+            if (shouldContinue) {
+              get().continueOpenPlan(Date.now())
+            }
             return
           }
 
+          const shouldContinue = get().pendingOpenContinue
           set({ pendingBreak: false })
+          if (shouldContinue) {
+            get().continueOpenPlan(Date.now())
+          }
         },
 
         reconcile: (now) => {
@@ -1311,14 +1346,20 @@ export const useStore = create<StoreState>()(
           }
 
           if (active.kind === 'break') {
+            const shouldContinue = get().pendingOpenContinue
             set({
               active: null,
               pendingBreak: false,
-              notice: {
-                kind: 'info',
-                text: 'Descanso terminado. Cuando quieras, otro pomodoro.',
-              },
+              notice: shouldContinue
+                ? null
+                : {
+                    kind: 'info',
+                    text: 'Descanso terminado. Cuando quieras, otro pomodoro.',
+                  },
             })
+            if (shouldContinue) {
+              get().continueOpenPlan(now)
+            }
             return
           }
 
@@ -1326,7 +1367,13 @@ export const useStore = create<StoreState>()(
         },
 
         dismissNotice: () => set({ notice: null }),
-        dismissBreak: () => set({ pendingBreak: false }),
+        dismissBreak: () => {
+          const shouldContinue = get().pendingOpenContinue
+          set({ pendingBreak: false })
+          if (shouldContinue) {
+            get().continueOpenPlan(Date.now())
+          }
+        },
         updateSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),
         markStreakIntroShown: (dayKey) =>
           set((state) =>

@@ -6,7 +6,7 @@ import { elapsedMs, remainingMs } from '@/logic/timer'
 import { selectActiveForest, selectStats } from '@/state/selectors'
 import { useStore } from '@/state/store'
 import { CloseIcon, EyeOffIcon, GearIcon, PauseIcon, PlayIcon } from './icons'
-import { OpenEndedContinue } from './OpenEndedContinue'
+/* open-ended continua con el mismo árbol: sin selector */
 import { SettingsPanel } from './SettingsPanel'
 import { TimerRing } from './TimerRing'
 import { ViewSwitch } from './ViewSwitch'
@@ -42,6 +42,7 @@ export function TimerPanel({
   const activePlanId = useStore((state) => state.activePlanId)
   const plans = useStore((state) => state.plans)
   const settings = useStore((state) => state.settings)
+  const pendingOpenContinue = useStore((state) => state.pendingOpenContinue)
   const pause = useStore((state) => state.pause)
   const resume = useStore((state) => state.resume)
   const skipBreak = useStore((state) => state.skipBreak)
@@ -57,8 +58,8 @@ export function TimerPanel({
 
   const isPaused = active?.pausedAt !== null && active?.pausedAt !== undefined
   const focusMin = openPlan?.focusMin ?? settings.focusMin ?? FOCUS_MINUTES
-  const remaining = active ? remainingMs(active, now) : focusMin * 60_000
   const duration = active ? active.durationMin * 60_000 : focusMin * 60_000
+  const remaining = active ? Math.min(remainingMs(active, now), duration) : duration
   const progress = active ? Math.min(1, elapsedMs(active, now) / duration) : 0
   const phase = active ? (active.kind === 'focus' ? 'Enfoque' : 'Descanso') : 'Listo'
   const ringVariant =
@@ -153,7 +154,7 @@ export function TimerPanel({
               <p className="type-title session-resume__title">{openPlan.title}</p>
               <p className="type-micro type-muted">
                 {openPlan.openEnded
-                  ? `${openPlan.completedPomodoros} ${openPlan.completedPomodoros === 1 ? 'pomodoro' : 'pomodoros'} · ${openPlan.planting.length} ${openPlan.planting.length === 1 ? 'árbol' : 'árboles'} en la cosecha`
+                  ? `${openPlan.completedPomodoros} ${openPlan.completedPomodoros === 1 ? 'bloque' : 'bloques'} completados`
                   : `${openPlan.completedPomodoros} de ${openPlan.targetPomodoros} pomodoros`}
                 {planForest ? ` · ${planForest.name}` : ''}
               </p>
@@ -162,20 +163,11 @@ export function TimerPanel({
                 {openPlan.planting.length} {openPlan.planting.length === 1 ? 'árbol' : 'árboles'} en
                 la cosecha
               </p>
-
-              {openPlan.openEnded && (
-                <OpenEndedContinue
-                  key={`${openPlan.id}-${openPlan.completedPomodoros}`}
-                  plan={openPlan}
-                  onContinue={(species) => continueOpenPlan(species, now)}
-                  onEnd={() => endOpenPlan(now)}
-                />
-              )}
             </div>
           )}
 
           <div className="timer-actions">
-            {!active && (
+            {!active && !openPlan?.openEnded && (
               <button
                 type="button"
                 className={openPlan ? 'btn btn-secondary' : 'btn btn-primary'}
@@ -191,6 +183,26 @@ export function TimerPanel({
                 <PlayIcon />
                 Continuar
               </button>
+            )}
+
+            {!active && openPlan?.openEnded && !pendingOpenContinue && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => continueOpenPlan(now)}
+                >
+                  <PlayIcon />
+                  Continuar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => endOpenPlan(now)}
+                >
+                  Terminar
+                </button>
+              </>
             )}
 
             {active && !strictPause && (

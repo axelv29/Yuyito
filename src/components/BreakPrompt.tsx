@@ -2,6 +2,7 @@ import { useStore } from '@/state/store'
 
 export function BreakPrompt() {
   const pending = useStore((state) => state.pendingBreak)
+  const pendingOpenContinue = useStore((state) => state.pendingOpenContinue)
   const settings = useStore((state) => state.settings)
   const plans = useStore((state) => state.plans)
   const activePlanId = useStore((state) => state.activePlanId)
@@ -31,7 +32,7 @@ export function BreakPrompt() {
           <button type="button" className="btn btn-secondary" onClick={dismiss}>
             Saltar
           </button>
-          {openPlan?.openEnded && (
+          {openPlan?.openEnded && !pendingOpenContinue && (
             <button
               type="button"
               className="btn btn-secondary"

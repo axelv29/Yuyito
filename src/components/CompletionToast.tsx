@@ -4,6 +4,7 @@ import { useStore, type NoticeKind } from '@/state/store'
 const TONE: Record<NoticeKind, string> = {
   success: 'toast--success',
   warning: 'toast--warning',
+  danger: 'toast--danger',
   info: 'toast--info',
 }
 

@@ -58,6 +58,7 @@ function App() {
   const notice = useStore((state) => state.notice)
   const storageIssue = useStorageStatus((state) => state.issue)
   const pendingBreak = useStore((state) => state.pendingBreak)
+  const pendingOpenContinue = useStore((state) => state.pendingOpenContinue)
   const startBreak = useStore((state) => state.startBreak)
   const startFocus = useStore((state) => state.startFocus)
   const startSession = useStore((state) => state.startSession)
@@ -293,7 +294,7 @@ function App() {
         } else if (completedPlan?.openEnded) {
           sendNotification(
             'Focus Forest',
-            `Bloque ${prev.pomoIndex ?? 1} completado. Elegí el próximo árbol o terminá la sesión.`,
+            `Bloque ${prev.pomoIndex ?? 1} completado. Podés continuar o terminar la sesión.`,
           )
         } else {
           const index = prev.pomoIndex ?? 1
@@ -352,11 +353,19 @@ function App() {
       activeForest !== null &&
       settings.autoStartFocus &&
       prevActiveRef.current?.kind === 'break' &&
-      !pendingPlan?.openEnded
+      (!pendingPlan?.openEnded || pendingOpenContinue)
     ) {
       startFocus(Date.now())
     }
-  }, [active, activeForest, pendingBreak, pendingPlan, settings.autoStartFocus, startFocus])
+  }, [
+    active,
+    activeForest,
+    pendingBreak,
+    pendingOpenContinue,
+    pendingPlan,
+    settings.autoStartFocus,
+    startFocus,
+  ])
   const label = activeForest
     ? `Bosque ${activeForest.name}: ${forestTrees.length} árboles y ${withered} marchitos.`
     : 'Pradera de bienvenida con 8 por 8 celdas.'

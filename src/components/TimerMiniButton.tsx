@@ -30,7 +30,7 @@ export function TimerMiniButton({ now, onRestore }: TimerMiniButtonProps) {
   const focusMin = openPlan?.focusMin ?? settings.focusMin ?? FOCUS_MINUTES
   const duration = active ? active.durationMin * 60_000 : focusMin * 60_000
   const progress = active ? Math.min(1, elapsedMs(active, now) / duration) : 0
-  const remaining = active ? remainingMs(active, now) : 0
+  const remaining = active ? Math.min(remainingMs(active, now), duration) : 0
   const ringVariant =
     !active || active.kind === 'focus' ? 'focus' : active.longBreak ? 'longBreak' : 'shortBreak'
   const ringClass =

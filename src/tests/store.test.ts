@@ -31,6 +31,7 @@ beforeEach(() => {
   useStore.setState({
     ...emptyState(),
     pendingBreak: false,
+    pendingOpenContinue: false,
     notice: null,
   })
 })
@@ -230,7 +231,7 @@ describe('store: ciclos indefinidos', () => {
     expect(state.active?.pomoTotal).toBeUndefined()
   })
 
-  it('mantiene el plan abierto tras completar y permite terminar sin marchitar', () => {
+  it('al completar espera la decisión antes del descanso y permite terminar sin marchitar', () => {
     useStore
       .getState()
       .startSession(
@@ -241,7 +242,8 @@ describe('store: ciclos indefinidos', () => {
 
     const completed = useStore.getState()
     expect(completed.active).toBeNull()
-    expect(completed.pendingBreak).toBe(true)
+    expect(completed.pendingBreak).toBe(false)
+    expect(completed.pendingOpenContinue).toBe(false)
     expect(completed.plans[0].completedPomodoros).toBe(1)
     expect(completed.plans[0].finishedAt).toBeNull()
     expect(completed.trees[0].state).toBe('mature')
@@ -254,7 +256,7 @@ describe('store: ciclos indefinidos', () => {
     expect(ended.trees[0].state).toBe('mature')
   })
 
-  it('continúa con el siguiente árbol cuando el plan está abierto', () => {
+  it('continúa con el mismo árbol después del descanso', () => {
     useStore
       .getState()
       .startSession(
@@ -262,12 +264,24 @@ describe('store: ciclos indefinidos', () => {
         START,
       )
     finishCurrentBlock()
-    useStore.getState().continueOpenPlan('abedul', START + 26 * 60_000)
+
+    useStore.getState().continueOpenPlan(START + 26 * 60_000)
+    expect(useStore.getState().pendingBreak).toBe(true)
+    expect(useStore.getState().pendingOpenContinue).toBe(true)
+    expect(useStore.getState().active).toBeNull()
+
+    useStore.getState().startBreak(START + 26 * 60_000)
+    const breakActive = useStore.getState().active
+    expect(breakActive?.kind).toBe('break')
+    useStore.getState().reconcile(breakActive!.endsAt)
 
     const state = useStore.getState()
+    expect(state.active?.kind).toBe('focus')
     expect(state.active?.pomoIndex).toBe(2)
     expect(state.active?.pomoTotal).toBeUndefined()
+    expect(state.pendingOpenContinue).toBe(false)
     expect(state.plans[0].planting).toHaveLength(2)
+    expect(state.plans[0].planting[1].species).toBe('pino')
     expect(state.trees[0].state).toBe('mature')
   })
 })
