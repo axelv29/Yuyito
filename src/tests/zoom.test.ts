@@ -3,6 +3,7 @@ import { MAX_ZOOM, MIN_ZOOM } from '@/config/zoom'
 import {
   clampZoom,
   fitPixelScale,
+  maxPixelPerfectZoom,
   minPixelPerfectZoom,
   normalizeWheelDelta,
   pixelPerfectZoom,
@@ -26,6 +27,16 @@ describe('clampZoom', () => {
   })
 })
 
+describe('maxPixelPerfectZoom', () => {
+  it('extiende el rango solo cuando la base es 1×', () => {
+    expect(maxPixelPerfectZoom(0.5)).toBe(2)
+    expect(maxPixelPerfectZoom(1)).toBe(4)
+    expect(maxPixelPerfectZoom(2)).toBe(2)
+    expect(maxPixelPerfectZoom(3)).toBe(2)
+    expect(maxPixelPerfectZoom(5)).toBe(2)
+  })
+})
+
 describe('rueda de zoom', () => {
   it('normaliza los deltas por píxel, línea y página', () => {
     expect(normalizeWheelDelta(-1)).toBe(-1)
@@ -39,6 +50,13 @@ describe('rueda de zoom', () => {
     expect(wheelZoomStep(1, 2, 0, -100)).toEqual({ zoom: 1.5, accumulator: 0 })
     expect(wheelZoomStep(1.5, 2, 0, -100)).toEqual({ zoom: 2, accumulator: 0 })
     expect(wheelZoomStep(1, 2, 0, 100)).toEqual({ zoom: 0.5, accumulator: 0 })
+  })
+
+  it('con base 1× ofrece cuatro niveles en vez de dos', () => {
+    expect(wheelZoomStep(1, 1, 0, -100)).toEqual({ zoom: 2, accumulator: 0 })
+    expect(wheelZoomStep(2, 1, 0, -100)).toEqual({ zoom: 3, accumulator: 0 })
+    expect(wheelZoomStep(3, 1, 0, -100)).toEqual({ zoom: 4, accumulator: 0 })
+    expect(wheelZoomStep(4, 1, 0, -100)).toEqual({ zoom: 4, accumulator: 0 })
   })
 
   it('acumula deltas chicos hasta alcanzar el umbral', () => {
@@ -82,6 +100,9 @@ describe('escalado del pixel art', () => {
     expect(pixelPerfectZoom(1.25, 2)).toBe(1.5)
     expect(pixelPerfectZoom(1.5, 2)).toBe(1.5)
     expect(pixelPerfectZoom(2, 2)).toBe(2)
+    expect(pixelPerfectZoom(2.5, 1)).toBe(3)
+    expect(pixelPerfectZoom(3.5, 1)).toBe(4)
+    expect(pixelPerfectZoom(4.5, 1)).toBe(4)
   })
 
   it('avanza al siguiente nivel pixel-perfect', () => {
@@ -95,6 +116,10 @@ describe('escalado del pixel art', () => {
     expect(stepPixelPerfectZoom(1.25, 2, 1)).toBe(2)
     expect(stepPixelPerfectZoom(0.5, 1, -1)).toBe(0.5)
     expect(stepPixelPerfectZoom(2, 2, 1)).toBe(2)
+    expect(stepPixelPerfectZoom(2, 1, 1)).toBe(3)
+    expect(stepPixelPerfectZoom(3, 1, 1)).toBe(4)
+    expect(stepPixelPerfectZoom(4, 1, 1)).toBe(4)
+    expect(stepPixelPerfectZoom(4, 1, -1)).toBe(3)
   })
 
   it('no baja de 1:1 cuando la base ya entra', () => {

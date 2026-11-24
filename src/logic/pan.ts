@@ -1,18 +1,18 @@
 /**
  * Límites del arrastre global de la pradera.
  *
- * Se miden simétricamente desde el centro del mapa. El recorrido base crece
- * con el zoom y además se suma la parte del canvas que desborda el contenedor,
- * con un margen fijo. Así el 200 % tiene mucha más movilidad que el 50 %.
- * El recorrido vertical se acota si se pasa la mitad del alto de la isla,
- * para que nunca quede entera fuera de la pantalla.
+ * El recorrido se mide simétricamente desde el centro de la isla. En lugar de
+ * usar píxeles fijos, se toma una fracción del trayecto máximo: el que haría
+ * falta para que la isla salga por completo de la pantalla (media pantalla más
+ * media isla ya escalada). Así la misma posición relativa se siente igual en
+ * cualquier tamaño de ventana y de zoom; en una pantalla chica se recorren
+ * menos píxeles. Nunca queda menos de MIN_ISLAND_VISIBLE de la isla asomando.
  */
-import { SCENE_HEIGHT, SCENE_WIDTH } from '@/config/grid'
 
-const PAN_X = 150
-const PAN_Y = 170
-const EDGE_MARGIN = 80
-/** Mínimo de isla que debe seguir asomando por la pantalla, en px. */
+/** Fracción del trayecto máximo que se puede recorrer desde el centro. */
+export const PAN_TRAVEL_RATIO = 0.8
+
+/** Mínimo de isla que debe seguir asomando por la pantalla, en px CSS. */
 const MIN_ISLAND_VISIBLE = 48
 
 export interface PanOffset {
@@ -29,36 +29,31 @@ function safeSize(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0
 }
 
+/** Recorrido de un eje: 80 % del trayecto máximo, con la isla a la vista. */
+function axisLimit(containerSize: number, islandHalf: number): number {
+  const maxTravel = safeSize(containerSize) / 2 + safeSize(islandHalf)
+  if (maxTravel <= 0) {
+    return 0
+  }
+
+  const limit = Math.min(maxTravel * PAN_TRAVEL_RATIO, maxTravel - MIN_ISLAND_VISIBLE)
+  return Math.max(0, Math.round(limit))
+}
+
 /**
- * `islandHalfHeight` es la mitad del alto de la isla en px de escena
- * (antes de escalar). Con él, el recorrido vertical se acota para que la
- * isla nunca quede por completo fuera de la pantalla. `islandHalfWidth` hace
- * lo mismo en horizontal. Sin esos datos, el comportamiento es el de siempre.
+ * Límite simétrico del arrastre. El contenedor y las mitades de la isla se
+ * pasan en px CSS, ya con el zoom aplicado, para que las cuentas sean
+ * proporcionales al área visible y a la isla escalada.
  */
 export function panLimit(
-  zoom: number,
-  canvasWidth: number,
-  canvasHeight: number,
   containerWidth: number,
   containerHeight: number,
-  islandHalfHeight: number = Number.POSITIVE_INFINITY,
-  islandHalfWidth: number = Number.POSITIVE_INFINITY,
+  islandHalfWidth: number,
+  islandHalfHeight: number,
 ): PanLimit {
-  const safeZoom = Number.isFinite(zoom) ? Math.min(2, Math.max(0.5, zoom)) : 1
-  const overflowX = Math.max(0, (safeSize(canvasWidth) - safeSize(containerWidth)) / 2)
-  const overflowY = Math.max(0, (safeSize(canvasHeight) - safeSize(containerHeight)) / 2)
-  const sceneScaleY = safeSize(canvasHeight) / SCENE_HEIGHT
-  const sceneScaleX = safeSize(canvasWidth) / SCENE_WIDTH
-  const yBound = Number.isFinite(islandHalfHeight)
-    ? Math.max(0, safeSize(containerHeight) / 2 + safeSize(islandHalfHeight) * sceneScaleY - MIN_ISLAND_VISIBLE)
-    : Number.POSITIVE_INFINITY
-  const xBound = Number.isFinite(islandHalfWidth)
-    ? Math.max(0, safeSize(containerWidth) / 2 + safeSize(islandHalfWidth) * sceneScaleX - MIN_ISLAND_VISIBLE)
-    : Number.POSITIVE_INFINITY
-
   return {
-    x: Math.round(Math.min(Math.max(PAN_X * safeZoom, overflowX + EDGE_MARGIN), xBound)),
-    y: Math.round(Math.min(Math.max(PAN_Y * safeZoom, overflowY + EDGE_MARGIN), yBound)),
+    x: axisLimit(containerWidth, islandHalfWidth),
+    y: axisLimit(containerHeight, islandHalfHeight),
   }
 }
 

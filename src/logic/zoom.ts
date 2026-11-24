@@ -1,11 +1,21 @@
-import { DEFAULT_ZOOM, MAX_ZOOM, MIN_ZOOM, WHEEL_STEP_DELTA } from '@/config/zoom'
+import {
+  DEFAULT_ZOOM,
+  MAX_ZOOM,
+  MAX_ZOOM_EXTENDED,
+  MIN_ZOOM,
+  WHEEL_STEP_DELTA,
+} from '@/config/zoom'
 
-function clampValue(value: number): number {
+function clampValue(value: number, max: number): number {
   if (!Number.isFinite(value)) {
     return DEFAULT_ZOOM
   }
 
-  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
+  return Math.min(max, Math.max(MIN_ZOOM, value))
+}
+
+function clampZoomTo(value: number, max: number): number {
+  return Math.round(clampValue(value, max) * 100) / 100
 }
 
 /**
@@ -13,7 +23,7 @@ function clampValue(value: number): number {
  * para que el slider y los botones no acumulen errores de punto flotante.
  */
 export function clampZoom(value: number): number {
-  return Math.round(clampValue(value) * 100) / 100
+  return clampZoomTo(value, MAX_ZOOM)
 }
 
 /** Lleva un delta de rueda (píxeles, líneas o páginas) a una unidad común. */
@@ -90,11 +100,21 @@ export function snapPixelScale(ideal: number): number {
   return Math.max(1, Math.round(ideal))
 }
 
+/**
+ * Nivel máximo de zoom. Con una base de 2× o más se mantiene el 2× de
+ * siempre; en pantallas con base 1× se extiende a 4× para que haya cuatro
+ * niveles enteros (100, 200, 300 y 400 %) y no solo dos.
+ */
+export function maxPixelPerfectZoom(basePixelScale: number): number {
+  return Math.max(0.5, basePixelScale) === 1 ? MAX_ZOOM_EXTENDED : MAX_ZOOM
+}
+
 /** Convierte un zoom continuo al nivel pixel-perfect más cercano. */
 export function pixelPerfectZoom(value: number, basePixelScale: number): number {
   const base = Math.max(0.5, basePixelScale)
-  const snapped = snapPixelScale(base * clampValue(value))
-  return clampZoom(snapped / base)
+  const max = maxPixelPerfectZoom(base)
+  const snapped = snapPixelScale(base * clampValue(value, max))
+  return clampZoomTo(snapped / base, max)
 }
 
 /**
@@ -117,8 +137,9 @@ export function stepPixelPerfectZoom(
   direction: 1 | -1,
 ): number {
   const base = Math.max(0.5, basePixelScale)
-  const current = snapPixelScale(base * clampValue(value))
+  const max = maxPixelPerfectZoom(base)
+  const current = snapPixelScale(base * clampValue(value, max))
   const next = direction > 0 ? (current < 1 ? 1 : current + 1) : current <= 1 ? 0.5 : current - 1
 
-  return clampZoom(next / base)
+  return clampZoomTo(next / base, max)
 }

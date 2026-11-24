@@ -471,8 +471,8 @@ function App() {
             onEditForest={openEditForest}
           />
         ) : view === 'garden' || inSession ? (
-          <div className="flex min-h-full w-full flex-col">
-            <div className="relative mx-auto aspect-[6/5] w-full max-w-[1024px] shrink-0">
+          <div className="flex min-h-full w-full flex-col md:h-full">
+            <div className="relative mx-auto aspect-[6/5] w-full max-w-[1024px] shrink-0 md:aspect-auto md:h-full">
               <GardenCanvas
                 trees={forestTrees}
                 active={activePreview}

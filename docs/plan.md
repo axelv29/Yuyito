@@ -76,7 +76,7 @@ Las opciones, comparadas:
 - **Un solo canvas y redibujo bajo demanda:** se vuelve a dibujar cuando cambia una etapa o se planta un árbol, no 60 veces por segundo. El crecimiento va por umbrales de minutos, así que no necesita animación continua.
 - **Atlas de sprites:** los assets viven en `public/sprites/`: cada estado usa su propio atlas de pino y sus frames recortados. Se cargan una sola vez; si falta uno, se usan placeholders dibujados por código.
 - **Etapas con el mismo anclaje:** las 4 versiones vivas y sus 4 versiones marchitas se dibujan a tamaño nativo desde sus frames recortados y se anclan en la base del tronco. La sombra pixelada va incluida en cada frame y puede sobresalir por debajo del ancla. Los atlas miden `122×92`.
-- **Lienzo pixel-perfect:** la escena lógica mide 480×400: 240 de grilla, 128 de margen superior para que el árbol de la fila de atrás no se corte y 32 de tierra visible. La escala base se elige entera (1×, 2×, 3×…; 0.5× solo si el contenedor es más chico que la escena) y se muestra a tamaño físico. El zoom se limita a múltiplos enteros de la escala de origen (0.5× solo como ajuste mínimo): no hay medios pasos ni niveles intermedios, así que no se mezclan píxeles de 1/2 px. El zoom-out nunca baja de 1:1 si la escala base ya entra.
+- **Lienzo pixel-perfect:** la escena lógica mide 480×400: 240 de grilla, 128 de margen superior para que el árbol de la fila de atrás no se corte y 32 de tierra visible. La escala base se elige entera (1×, 2×, 3×…; 0.5× solo si el contenedor es más chico que la escena) y se muestra a tamaño físico. El zoom se limita a múltiplos enteros de la escala de origen (0.5× solo como ajuste mínimo): no hay medios pasos ni niveles intermedios, así que no se mezclan píxeles de 1/2 px. El zoom-out nunca baja de 1:1 si la escala base ya entra; el máximo es 2× y se extiende a 4× cuando la base es 1× para conservar cuatro niveles.
 - **Imágenes optimizadas:** PNG comprimidos y solo los sprites que se usan.
 - **Dos fuentes como máximo,** servidas localmente, con alternativa del sistema mientras cargan.
 - **Carga a demanda:** los gráficos de Estadísticas son SVG y CSS propios, sin librería; Supabase, si alguna vez entra, se carga cuando se usa (v0.3).
@@ -95,9 +95,9 @@ Las opciones, comparadas:
 - **Guardado:** local en el navegador, con versión de esquema V5 y migración preparada.
 - **Sesiones e historial:** una sesión combina ritmo y cola de árboles, con hasta 8 bloques y 8 árboles. El historial del bosque agrupa los bloques de cada sesión, incluye árboles en crecimiento y marchitos, y filtra por hoy, semana, series y marchitas.
 - **Interfaz:** vistas Bosque, Estadísticas y Bosques, con el selector dentro de la tarjeta del timer. El historial es una ventana flotante que se abre desde un botón discreto del timer y se apila bajo la tarjeta de sesión. La tarjeta de sesión queda visible durante el enfoque (también en pausa) y se oculta en descanso. El selector se deshabilita mientras hay una sesión activa; timer, pausa y abandonar siguen a mano. Iniciar abre el diálogo de sesión; la pradera permite seleccionar una sesión con doble clic para resaltar sus árboles.
-- **Zoom de la pradera:** control de vista de 0.5× a 2×, centrado y sin persistencia, con tres botones flotantes (acercar, alejar, restablecer) y rueda del mouse. No hay slider ni porcentaje visible. En desktop los niveles posibles son 50, 100, 150 y 200 %: todos son pixel-perfect estrictos porque usan escalas enteras de origen. No hay intermedios fraccionarios. La rueda avanza un nivel entero por giro (50→100→150→200) y acumula los deltas chicos de un trackpad. Si la escala base ya entra a 1:1, el mínimo es 1× para no perder píxeles; en pantallas muy chicas la escala base puede ser 0.5×. No cambia el timer, los árboles ni las estadísticas.
+- **Zoom de la pradera:** control de vista centrado y sin persistencia, con tres botones flotantes (acercar, alejar, restablecer) y rueda del mouse. No hay slider ni porcentaje visible. Todos los niveles son pixel-perfect estrictos porque usan escalas enteras de origen; no hay intermedios fraccionarios. Con una escala base de 2× o más el rango es 0.5×–2× y los niveles son 50, 100, 150 y 200 %. En pantallas con base 1× (por ejemplo, 1366×768) el rango se extiende hasta 4× para ofrecer cuatro niveles: 100, 200, 300 y 400 %. La rueda avanza un nivel entero por giro y acumula los deltas chicos de un trackpad. Si la escala base ya entra a 1:1, el mínimo es 1× para no perder píxeles; en pantallas muy chicas la escala base puede ser 0.5×. No cambia el timer, los árboles ni las estadísticas.
 
-- **Arrastre de la pradera:** con un clic izquierdo normal se puede mover el mapa desde cualquier zona libre de la página, sin cambiar el cursor. El diorama se centra verticalmente y los límites se miden simétricamente desde ese centro. El recorrido base escala con el zoom y suma el desborde del canvas más 80 px de margen: en desktop, unos 80 px a los lados al 50 %, 150 px al 100 %, 289 px al 150 % y 529 px al 200 % (vertical: 85, 170, 255 y 454 px). La posición se guarda como fracción del límite para conservarse proporcional al zoomear. El botón de retícula restablece el zoom y recentra. El arrastre no modifica el timer, los árboles ni el store.
+- **Arrastre de la pradera:** con un clic izquierdo normal se puede mover el mapa desde cualquier zona libre de la página, sin cambiar el cursor. En desktop el área de arrastre ocupa el alto visible de `main` y el ancho se limita a 1024 px; el diorama queda centrado en esa área. El límite es simétrico desde el centro de la isla y proporcional al trayecto máximo —media pantalla más media isla escalada—: `PAN_TRAVEL_RATIO` = 0.8, con al menos 48 px de isla visible. Así una pantalla chica recorre menos píxeles que una grande con la misma sensación, y el zoom agranda el recorrido junto con la isla. La posición se guarda como fracción del límite para conservarse proporcional al redimensionar o zoomear. El botón de retícula restablece el zoom y recentra. El arrastre no modifica el timer, los árboles ni el store.
 
 ### Bosques: implementado en esta etapa
 
@@ -159,7 +159,7 @@ focus-forest/
       timer.ts             25 y 5 minutos
       growth.ts            umbrales 0/5/15/25
       session.ts           límites de sesión (título, objetivos, pomodoros)
-      zoom.ts              0.5×–2×, escalas enteras y formato
+      zoom.ts              escalas enteras, rango según base y formato
     state/
       types.ts             forma de los datos
       store.ts             estado de la app
@@ -172,7 +172,7 @@ focus-forest/
       history.ts           agrupación y filtros del historial
       placement.ts         siguiente celda libre aleatoria, sin espaciamiento
       day.ts               día local
-      zoom.ts              límites, escala base entera, niveles enteros y formato
+      zoom.ts              límites, escala base entera, rango según base y formato
     render/
       iso.ts               de celda a pantalla, orden de dibujo y celda por punto
       sprites.ts           carga de los atlas y dibujo/medición de frames

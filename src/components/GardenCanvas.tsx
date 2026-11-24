@@ -16,11 +16,12 @@ import {
   TILE_WIDTH,
   TOP_PADDING,
 } from '@/config/grid'
-import { DEFAULT_ZOOM, MAX_ZOOM } from '@/config/zoom'
+import { DEFAULT_ZOOM } from '@/config/zoom'
 import { cellFromScenePoint, sortByDepth } from '@/render/iso'
 import { clampPan, panLimit, type PanOffset } from '@/logic/pan'
 import {
   fitPixelScale,
+  maxPixelPerfectZoom,
   minPixelPerfectZoom,
   pixelPerfectZoom,
   snapPixelScale,
@@ -123,6 +124,7 @@ export function GardenCanvas({
   // No bajamos de 1:1 salvo que el propio contenedor sea más chico que la
   // escena. Así el zoom-out nunca pierde píxeles por muestreo.
   const minZoom = minPixelPerfectZoom(basePixelScale)
+  const maxZoom = maxPixelPerfectZoom(basePixelScale)
   const pixelScale = snapPixelScale(basePixelScale * zoom)
   // Aire lateral del canvas: las copas anchas (ceibo adulto) sobresalen de la
   // punta del rombo y se cortaban contra el borde. El ancho suma ese aire y
@@ -135,21 +137,19 @@ export function GardenCanvas({
   // quedan anclados abajo en la escena y necesitan más desplazamiento.
   const islandCenterY = meadowTop + (gardenSize * TILE_HEIGHT + ISLAND_DEPTH) / 2
   const mapCenterOffsetY = ((islandCenterY - SCENE_HEIGHT / 2) * pixelScale) / dpr
-  // La isla nunca debe quedar por completo fuera de la pantalla: el medio alto
-  // y el medio ancho de la isla (en px de escena) acotan cuánto se puede arrastrar.
-  const islandHalfHeight = (gardenSize * TILE_HEIGHT + ISLAND_DEPTH) / 2
-  const islandHalfWidth = (gardenSize * TILE_WIDTH) / 2
-  // El límite crece con el zoom y con el desborde real del canvas. Guardamos la
-  // posición como fracción del límite para que al cambiar de zoom se mantenga
-  // proporcional y no salte al volver a acercar.
+  // El arrastre se limita como fracción de la pantalla más la isla ya escalada:
+  // el mismo porcentaje se siente igual en cualquier ventana y en cualquier
+  // zoom, pero en una pantalla chica se recorren menos píxeles. Guardamos la
+  // posición como fracción del límite para que al cambiar de zoom o de tamaño
+  // se mantenga proporcional y no salte.
+  const cssPerScene = pixelScale / dpr
+  const islandHalfWidthCss = ((gardenSize * TILE_WIDTH) / 2) * cssPerScene
+  const islandHalfHeightCss = ((gardenSize * TILE_HEIGHT + ISLAND_DEPTH) / 2) * cssPerScene
   const panLimits = panLimit(
-    zoom,
-    canvasCssWidth,
-    canvasCssHeight,
     gardenBox.width,
     gardenBox.height,
-    islandHalfHeight,
-    islandHalfWidth,
+    islandHalfWidthCss,
+    islandHalfHeightCss,
   )
   const pan = useMemo(
     () => ({
@@ -187,7 +187,6 @@ export function GardenCanvas({
 
     centeredSelectionRef.current = selectionKey
     const base = treeBasePoint(selectionFocus, gardenSize)
-    const cssPerScene = pixelScale / dpr
     const target = clampPan(
       {
         x: canvasCssWidth / 2 - base.x * cssPerScene,
@@ -207,6 +206,7 @@ export function GardenCanvas({
     gardenSize,
     pixelScale,
     dpr,
+    cssPerScene,
     canvasCssWidth,
     canvasCssHeight,
     mapCenterOffsetY,
@@ -605,7 +605,7 @@ export function GardenCanvas({
           type="button"
           className="zoom-button"
           aria-label="Acercar la pradera"
-          disabled={zoom >= MAX_ZOOM}
+          disabled={zoom >= maxZoom}
           onClick={() => adjustZoom(1)}
         >
           <PlusIcon />
