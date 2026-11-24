@@ -371,81 +371,81 @@ describe('createSafeStorage', () => {
   it('lee un guardado válido sin avisos', () => {
     const { storage } = makeStorage()
     const raw = envelope(STATE, 5)
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
       () => storage,
       (issue) => issues.push(issue),
     )
 
-    expect(safe.getItem('focus-forest')).toBe(raw)
+    expect(safe.getItem('yuyito')).toBe(raw)
     expect(issues).toEqual([])
   })
 
   it('respalda y reinicia un JSON inválido', () => {
     const { storage } = makeStorage()
     const raw = '{"state":'
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
       () => storage,
       (issue) => issues.push(issue),
     )
 
-    expect(safe.getItem('focus-forest')).toBeNull()
-    expect(storage.getItem('focus-forest')).toBeNull()
-    expect(storage.getItem('focus-forest.broken')).toBe(raw)
+    expect(safe.getItem('yuyito')).toBeNull()
+    expect(storage.getItem('yuyito')).toBeNull()
+    expect(storage.getItem('yuyito.broken')).toBe(raw)
     expect(issues).toEqual([{ kind: 'corrupt' }])
   })
 
   it('respalda y reinicia un estado con forma inválida', () => {
     const { storage } = makeStorage()
     const raw = envelope({ ...STATE, trees: 'x' }, 9)
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
       () => storage,
       (issue) => issues.push(issue),
     )
 
-    expect(safe.getItem('focus-forest')).toBeNull()
-    expect(storage.getItem('focus-forest.broken')).toBe(raw)
+    expect(safe.getItem('yuyito')).toBeNull()
+    expect(storage.getItem('yuyito.broken')).toBe(raw)
     expect(issues).toEqual([{ kind: 'corrupt' }])
   })
 
   it('respalda un guardado sin versión reconocible', () => {
     const { storage } = makeStorage()
     const raw = envelope(STATE, 'uno')
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
       () => storage,
       (issue) => issues.push(issue),
     )
 
-    expect(safe.getItem('focus-forest')).toBeNull()
-    expect(storage.getItem('focus-forest.broken')).toBe(raw)
+    expect(safe.getItem('yuyito')).toBeNull()
+    expect(storage.getItem('yuyito.broken')).toBe(raw)
     expect(issues).toEqual([{ kind: 'corrupt' }])
   })
 
   it('no toca una versión más nueva y bloquea las escrituras', () => {
     const { storage } = makeStorage()
     const raw = envelope({ ...STATE, version: 10 }, 10)
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
       () => storage,
       (issue) => issues.push(issue),
     )
 
-    expect(safe.getItem('focus-forest')).toBeNull()
-    expect(storage.getItem('focus-forest')).toBe(raw)
+    expect(safe.getItem('yuyito')).toBeNull()
+    expect(storage.getItem('yuyito')).toBe(raw)
     expect(issues).toEqual([{ kind: 'future-version', version: 10 }])
 
-    safe.setItem('focus-forest', 'nuevo')
-    safe.removeItem('focus-forest')
+    safe.setItem('yuyito', 'nuevo')
+    safe.removeItem('yuyito')
 
-    expect(storage.getItem('focus-forest')).toBe(raw)
+    expect(storage.getItem('yuyito')).toBe(raw)
   })
 
   it('avisa si el almacenamiento está bloqueado', () => {
@@ -457,9 +457,9 @@ describe('createSafeStorage', () => {
       (issue) => issues.push(issue),
     )
 
-    expect(safe.getItem('focus-forest')).toBeNull()
+    expect(safe.getItem('yuyito')).toBeNull()
     expect(issues).toEqual([{ kind: 'unavailable' }])
-    expect(() => safe.setItem('focus-forest', 'x')).not.toThrow()
+    expect(() => safe.setItem('yuyito', 'x')).not.toThrow()
   })
 
   it('avisa si no puede escribir', () => {
@@ -476,7 +476,7 @@ describe('createSafeStorage', () => {
       (issue) => issues.push(issue),
     )
 
-    expect(() => safe.setItem('focus-forest', 'x')).not.toThrow()
+    expect(() => safe.setItem('yuyito', 'x')).not.toThrow()
     expect(issues).toEqual([{ kind: 'unavailable' }])
   })
 
@@ -487,30 +487,30 @@ describe('createSafeStorage', () => {
       tasks: [{ id: 'task-1', text: 'Leer', status: 'done' }],
     }
     const raw = envelope({ ...STATE, plans: [plan] }, 9)
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
       () => storage,
       (issue) => issues.push(issue),
     )
 
-    expect(safe.getItem('focus-forest')).toBe(raw)
+    expect(safe.getItem('yuyito')).toBe(raw)
     expect(issues).toEqual([])
-    expect(storage.getItem('focus-forest.broken')).toBeNull()
+    expect(storage.getItem('yuyito.broken')).toBeNull()
   })
 
   it('rescata los datos válidos de un guardado con un elemento dañado', () => {
     const { storage } = makeStorage()
     const brokenTree = { ...TREE, id: 'tree-2', cell: { col: 99, row: 99 } }
     const raw = envelope({ ...STATE, trees: [TREE, brokenTree] }, 9)
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const issues: StorageIssue[] = []
     const safe = createSafeStorage(
       () => storage,
       (issue) => issues.push(issue),
     )
 
-    const healed = safe.getItem('focus-forest')
+    const healed = safe.getItem('yuyito')
 
     expect(healed).not.toBeNull()
     const saved = JSON.parse(healed as string) as { state: PersistedV9; version: number }
@@ -519,20 +519,20 @@ describe('createSafeStorage', () => {
     expect(saved.state.plans).toHaveLength(1)
     expect(saved.state.sessions).toHaveLength(1)
 
-    expect(storage.getItem('focus-forest.broken')).toBe(raw)
+    expect(storage.getItem('yuyito.broken')).toBe(raw)
     expect(issues).toEqual([{ kind: 'recovered' }])
   })
 
   it('deja el guardado rescatado sano para la próxima lectura', () => {
     const { storage } = makeStorage()
     const raw = envelope({ ...STATE, active: { kind: 'focus' } }, 9)
-    storage.setItem('focus-forest', raw)
+    storage.setItem('yuyito', raw)
     const first = createSafeStorage(
       () => storage,
       () => undefined,
     )
 
-    const healed = first.getItem('focus-forest')
+    const healed = first.getItem('yuyito')
     expect(healed).not.toBeNull()
 
     const issues: StorageIssue[] = []
@@ -541,8 +541,8 @@ describe('createSafeStorage', () => {
       (issue) => issues.push(issue),
     )
 
-    expect(second.getItem('focus-forest')).toBe(storage.getItem('focus-forest'))
+    expect(second.getItem('yuyito')).toBe(storage.getItem('yuyito'))
     expect(issues).toEqual([])
-    expect(storage.getItem('focus-forest.broken')).toBe(raw)
+    expect(storage.getItem('yuyito.broken')).toBe(raw)
   })
 })

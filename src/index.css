@@ -3314,22 +3314,63 @@
     margin-top: 0.7rem;
   }
 
-  /* Historial flotante: la card se corta antes del borde inferior de la
-     pantalla y solo su lista scrollea. */
-  .garden-left-rail {
+  /* Columnas flotantes del jardín. En mobile van en el flujo, debajo del
+     canvas; en desktop se anclan al área visible (main ya no crece con el
+     canvas), así el historial y el detalle de una sesión nunca se cortan
+     contra el borde inferior de la pantalla. */
+  .garden-left-rail,
+  .garden-right-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
     min-width: 0;
+    padding-inline: 1rem;
+  }
+
+  .garden-left-rail {
+    max-width: 24rem;
+    margin-inline: auto;
+    margin-top: auto;
+  }
+
+  .garden-right-rail {
+    max-width: 28rem;
+    margin-inline: auto;
+    margin-top: 1rem;
   }
 
   @media (min-width: 768px) {
     .garden-left-rail {
+      position: absolute;
       top: 1rem;
       bottom: 1rem;
+      left: 1rem;
+      width: clamp(250px, 24vw, 340px);
+      max-width: none;
       height: auto;
+      margin: 0;
+      padding-inline: 0;
       pointer-events: none;
     }
 
-    .garden-left-rail > * {
+    .garden-right-rail {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      bottom: 1rem;
+      width: clamp(350px, 20vw, 420px);
+      max-width: none;
+      height: auto;
+      margin: 0;
+      padding-inline: 0;
+      pointer-events: none;
+    }
+
+    .garden-left-rail > *,
+    .garden-right-rail > * {
       flex: 0 0 auto;
+      min-width: 0;
       pointer-events: auto;
     }
 
@@ -3337,6 +3378,43 @@
       flex: 0 1 auto;
       min-height: 0;
       overflow: hidden;
+    }
+
+    /* El detalle de una sesión pasada ocupa el alto completo de la columna;
+       si su contenido es muy largo, scrollea dentro de la card. El botón
+       flotante del timer se superpone a la esquina superior derecha, así que
+       el cierre se corre a la izquierda en ese caso. */
+    .garden-right-rail > .session-detail {
+      flex: 0 1 auto;
+      min-height: 0;
+      max-height: 100%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    .garden-right-rail > .session-detail:hover,
+    .garden-right-rail > .session-detail:focus-within {
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+
+    .garden-right-rail > .session-detail::-webkit-scrollbar {
+      width: var(--scrollbar-size);
+    }
+
+    .garden-right-rail > .session-detail::-webkit-scrollbar-thumb {
+      border-radius: var(--radius-pill);
+      background-color: transparent;
+    }
+
+    .garden-right-rail > .session-detail:hover::-webkit-scrollbar-thumb,
+    .garden-right-rail > .session-detail:focus-within::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-thumb);
+    }
+
+    .session-detail--with-timer-mini .session-detail__head {
+      padding-right: 3.1rem;
     }
   }
 
@@ -3496,14 +3574,16 @@
   }
 
   .history-row__title {
+    display: -webkit-box;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     color: var(--color-ink);
     font-family: var(--theme-font-button);
     font-size: 0.78rem;
     font-weight: 700;
     line-height: 1.2;
+    overflow-wrap: anywhere;
   }
 
   .history-row__duration {

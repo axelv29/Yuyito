@@ -1,15 +1,15 @@
-# Focus Forest: plan de desarrollo y guía de estilo
+# Yuyito: plan de desarrollo y guía de estilo
 
 Plan acordado antes de escribir la lógica. Lo marcado como **✅ Cerrado** ya se decidió; lo marcado como **⏳ Abierto** se resuelve antes de publicar. El nombre original del borrador era "Pomodoro Garden".
 
 ## 1. Resumen y decisiones cerradas
 
-- **Producto:** Focus Forest, una app web de enfoque con pomodoro y descanso configurables. Cada sesión combina un ritmo con una cola ordenada de árboles de costo fijo en una pradera isométrica.
+- **Producto:** Yuyito, una app web de enfoque con pomodoro y descanso configurables. Cada sesión combina un ritmo con una cola ordenada de árboles de costo fijo en una pradera isométrica.
 - **Stack ✅:** Vite + React + TypeScript + Tailwind CSS v4, dibujo con Canvas 2D, Zustand para el estado y Vitest para la lógica. Publicación en Vercel. Next.js se descarta (ver sección 3).
 - **Alcance de la v0.1 ✅:** enfoque y pausa configurables, cola de árboles con presupuesto, 4 especies con etapas, pradera de 8×8, estadísticas de hoy y totales, guardado local y contador de pomodoros sin meta.
 - **Tamaño de celda ✅:** 60×30 px, con árbol adulto de 44 ancho × 89 alto (atlas de 122×92 con frames recortados). Se descartan las celdas de 78×51 de las hojas de referencia.
 - **Arte ✅:** propio o encargado. Una sola especie (pino) con 4 etapas vivas y 4 versiones marchitas; los assets están en `public/sprites/`.
-- **Nombre ✅:** Focus Forest. Revisar antes de publicar por la proximidad con la app Forest.
+- **Nombre ✅:** Yuyito. Reemplaza a «Focus Forest», que era demasiado genérico y quedaba cerca de la app Forest.
 - **Plataforma ✅:** navegador de escritorio primero. Mobile queda para una versión posterior.
 
 ### Registro de decisiones
@@ -297,7 +297,7 @@ Antes de darla por buena, se compara con la pradera de referencia y se comprueba
 
 ## 10. Riesgos y temas abiertos
 
-- **Nombre:** "Focus Forest" se parece a la app Forest. Para publicar o monetizar conviene un nombre más distintivo. No bloquea el desarrollo.
+- **Nombre ✅:** «Focus Forest» se parecía a la app Forest. Resuelto con «Yuyito», más local y distintivo.
 - **Arte:** los assets actuales son los sprites de `public/sprites/`; si se usa un arte final, debe ser propio o encargado, con licencia clara; registrar todo en `LICENSES.md`.
 - **Mobile:** el layout completo queda para después. Cuando se encare, decidir entre escala 1× o una vista recortada.
 - **Grilla llena:** con 64 árboles adultos no entra una sesión nueva. Los marchitos se reemplazan por el más viejo; si solo hay adultos, se muestra un aviso. Las parcelas nuevas llegan en la v0.2.

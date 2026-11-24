@@ -26,7 +26,7 @@ import type {
 } from './types'
 import { DEFAULT_DISPLAY_SETTINGS, DEFAULT_POMODORO_SETTINGS } from './types'
 
-export const STORAGE_KEY = 'focus-forest'
+export const STORAGE_KEY = 'yuyito'
 export const PERSIST_VERSION = 9
 
 export const DEFAULT_FOREST_ID = 'forest-default'
@@ -912,7 +912,7 @@ function recoverState(state: unknown): PersistedV9 | null {
 /**
  * Envuelve localStorage con cuatro protecciones:
  * - datos dañados de la versión actual: rescata lo que valida y copia el
- *   original en `focus-forest.broken`; si no se rescata nada, reinicia;
+ *   original en `yuyito.broken`; si no se rescata nada, reinicia;
  * - versión más nueva: aviso y escrituras bloqueadas, sin tocar el original;
  * - almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
  */

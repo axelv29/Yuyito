@@ -6,10 +6,10 @@ de localStorage y arranca de cero. La copia sigue ahí.
 
 | Clave | Qué contiene |
 | --- | --- |
-| `focus-forest` | El guardado en uso. |
-| `focus-forest.broken` | La primera copia del guardado dañado. |
-| `focus-forest.broken.<timestamp>` | Copias de incidentes posteriores. |
-| `focus-forest.antes-de-recuperar.<timestamp>` | Lo que había antes de restaurar una copia. |
+| `yuyito` | El guardado en uso. |
+| `yuyito.broken` | La primera copia del guardado dañado. |
+| `yuyito.broken.<timestamp>` | Copias de incidentes posteriores. |
+| `yuyito.antes-de-recuperar.<timestamp>` | Lo que había antes de restaurar una copia. |
 
 Código: `src/state/persist.ts` → `copyToBackup()`, `recoverState()` y
 `createSafeStorage()`.
@@ -38,18 +38,18 @@ progreso: se descarta solo el plan inválido y se conserva el resto.
 
 ```js
 (() => {
-  const raw = localStorage.getItem('focus-forest.broken')
-  if (!raw) return console.error('No hay focus-forest.broken en este origen.')
-  const current = localStorage.getItem('focus-forest')
+  const raw = localStorage.getItem('yuyito.broken')
+  if (!raw) return console.error('No hay yuyito.broken en este origen.')
+  const current = localStorage.getItem('yuyito')
   if (current) {
-    localStorage.setItem(`focus-forest.antes-de-recuperar.${Date.now()}`, current)
+    localStorage.setItem(`yuyito.antes-de-recuperar.${Date.now()}`, current)
   }
-  localStorage.setItem('focus-forest', raw)
+  localStorage.setItem('yuyito', raw)
   console.log('Restaurado. Recargá la página.')
 })()
 ```
 
-3. Recargá. El guardado actual queda en `focus-forest.antes-de-recuperar.<ts>`
+3. Recargá. El guardado actual queda en `yuyito.antes-de-recuperar.<ts>`
    por si hace falta volver atrás.
 
 ## Exportar todo
@@ -60,11 +60,11 @@ Si hace falta revisar el contenido fuera del navegador:
 (() => {
   const out = {}
   for (const k of Object.keys(localStorage)) {
-    if (k.startsWith('focus-forest')) out[k] = localStorage.getItem(k)
+    if (k.startsWith('yuyito')) out[k] = localStorage.getItem(k)
   }
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out)], { type: 'application/json' }))
-  a.download = 'focus-forest-respaldo.json'
+  a.download = 'yuyito-respaldo.json'
   a.click()
 })()
 ```
@@ -75,7 +75,7 @@ Si hace falta revisar el contenido fuera del navegador:
    `getItem()` comprueba que tenga la forma general (`forests`, `trees`,
    `sessions`, `plans` como arrays), corre `migrate()` —que ya descarta elemento
    por elemento— y, si el resultado valida, lo devuelve y lo reescribe ya sano.
-   El original queda copiado en `focus-forest.broken` y se avisa con “recuperamos
+   El original queda copiado en `yuyito.broken` y se avisa con “recuperamos
    todo lo que se pudo”. Solo si no se rescata nada se reinicia.
 2. **Validador al día.** Un dato nuevo en el guardado necesita su validador, su
    versión y un caso en `src/tests/persist.test.ts` con el dato **presente**

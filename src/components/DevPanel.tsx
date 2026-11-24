@@ -572,7 +572,7 @@ export function DevPanel({ now }: { now: number }) {
               <button
                 type="button"
                 className="btn btn-secondary btn--sm"
-                onClick={() => sendNotification('Focus Forest', 'Notificación de prueba.')}
+                onClick={() => sendNotification('Yuyito', 'Notificación de prueba.')}
               >
                 Enviar prueba
               </button>

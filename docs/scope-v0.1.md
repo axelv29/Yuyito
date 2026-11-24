@@ -1,4 +1,4 @@
-# Ficha v0.1 — Focus Forest
+# Ficha v0.1 — Yuyito
 
 > **Nota histórica:** esta ficha describe la v0.1 original (25 minutos fijos, un árbol por sesión, `PersistedV4`). El modelo actual usa ritmo configurable, cola de árboles con costo fijo, árboles parciales `growing` y `PersistedV5`; la referencia vigente es `context.md` y `plan.md`.
 
@@ -142,7 +142,7 @@ Los descansos no se guardan como historial: solo existe el descanso activo. Las 
 - **Día local:** "hoy" se calcula con los getters locales de `Date`, nunca con `toISOString()`.
 - **Etapas:** `0 → 1`, `5 → 2`, `15 → 3`, `25 → 4`. Una sesión de enfoque completada siempre termina en etapa 4.
 - **Colocación:** aleatoria entre celdas libres, sin espaciamiento mínimo: la grilla admite hasta 64 árboles. Los marchitos ocupan celda. Si no quedan celdas libres, se reemplaza el marchito más viejo; si solo hay adultos, se bloquea el inicio con un aviso.
-- **Persistencia:** clave `focus-forest`, versión 4, migración preparada. V3→V4 agrega `plans: []` y `activePlanId: null`; las sesiones viejas quedan como pomodoros sueltos. Datos corruptos: copia en `focus-forest.broken` y reinicio. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
+- **Persistencia:** clave `yuyito`, versión 4, migración preparada. V3→V4 agrega `plans: []` y `activePlanId: null`; las sesiones viejas quedan como pomodoros sueltos. Datos corruptos: copia en `yuyito.broken` y reinicio. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
 - **Series:** una serie se agrupa por `planId` y no exige adyacencia. Cada pomodoro completado suma uno a `completedPomodoros`; al llegar a `targetPomodoros` o al abandonar, la serie se cierra. Empezar una sesión nueva cierra la pendiente anterior y, si quedó a medias, pide confirmación: la anterior queda sin terminar, sin árbol marchito, y el historial la muestra como «Sin terminar».
 - **Historial:** se deriva por bosque; agrupa por `planId ?? id` y no mezcla bosques. "Hoy" usa `endedAt` en día local y la semana empieza el lunes local.
 - **Selección:** elegir una sesión resalta todos sus árboles y atenúa el resto (opacidad 0.32), sin marcas en la grilla; no modifica el store, el timer ni la persistencia. El doble clic usa el frame del atlas y, si no acierta, la celda isométrica.
@@ -187,7 +187,7 @@ Los descansos no se guardan como historial: solo existe el descanso activo. Las 
 - **Grilla llena con marchitos:** el nuevo árbol reemplaza al marchito más viejo.
 - **Serie con la pradera llena:** se cierra la serie y se avisa; no se pierde el historial anterior.
 - **Doble clic sobre árboles superpuestos:** se elige el árbol más adelante; si hace falta, el historial sigue siendo la vía directa.
-- **Datos corruptos:** copia de respaldo en `focus-forest.broken` y reinicio, con aviso.
+- **Datos corruptos:** copia de respaldo en `yuyito.broken` y reinicio, con aviso.
 - **Versión más nueva:** aviso y escrituras bloqueadas, sin borrar el guardado.
 - **localStorage bloqueado:** estado en memoria y aviso; la app sigue usable.
 - **Atlas no disponible:** se dibuja un placeholder sin errores de consola, sin pantalla en blanco. El atlas actual está en `public/sprites/`.

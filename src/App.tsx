@@ -287,13 +287,10 @@ function App() {
           ? plans.find((item) => item.id === prev.planId)
           : undefined
         if (record?.status === 'abandoned') {
-          sendNotification(
-            'Focus Forest',
-            'El árbol se marchitó. Podés empezar otro cuando quieras.',
-          )
+          sendNotification('Yuyito', 'El árbol se marchitó. Podés empezar otro cuando quieras.')
         } else if (completedPlan?.openEnded) {
           sendNotification(
-            'Focus Forest',
+            'Yuyito',
             `Bloque ${prev.pomoIndex ?? 1} completado. Podés continuar o terminar la sesión.`,
           )
         } else {
@@ -313,14 +310,14 @@ function App() {
           } else {
             body = '¡Pomodoro completado! El árbol quedó en la pradera.'
           }
-          sendNotification('Focus Forest', body)
+          sendNotification('Yuyito', body)
         }
       }
     }
     if (active === null && prev?.kind === 'break') {
       playTone(settings.alarmTone, settings.alarmVolume)
       if (settings.notification) {
-        sendNotification('Focus Forest', 'Descanso terminado.')
+        sendNotification('Yuyito', 'Descanso terminado.')
       }
     }
     prevActiveRef.current = active
@@ -391,6 +388,13 @@ function App() {
     forestDialogOpen
   const autoHide = isMobile && anyFloatingMenuOpen && !timerPeek
   const timerCardHidden = display.hideTimerCard || autoHide
+  // Con un pomodoro en curso, el detalle de una sesión pasada comparte la
+  // columna derecha con el timer. Le cedemos todo el alto: el timer queda
+  // oculto (con su botón flotante) y vuelve solo al cerrar el detalle.
+  const detailTakesTimerRail = active !== null && selectedEntry !== null
+  const showTimerPanel = !timerCardHidden && !detailTakesTimerRail
+  const showRightRail = showTimerPanel || detailTakesTimerRail
+  const showTimerMini = timerCardHidden || detailTakesTimerRail
 
   // Ajuste en render (patrón oficial de React): al cerrarse el último menú, soltamos el "peek".
   const [wasMenuOpen, setWasMenuOpen] = useState(anyFloatingMenuOpen)
@@ -403,6 +407,9 @@ function App() {
 
   const hideTimer = useCallback(() => updateDisplay({ hideTimerCard: true }), [updateDisplay])
   const restoreTimer = useCallback(() => {
+    // Si el detalle de una sesión pasada ocupa la columna, mostrar el timer
+    // implica cerrarlo: los dos no caben juntos.
+    setSelectedKey(null)
     updateDisplay({ hideTimerCard: false })
     // El "peek" solo aplica con un menú abierto: sin menú, autoHide ya es falso.
     // Fijarlo fuera de un menú lo dejaba pegado para siempre.
@@ -421,7 +428,7 @@ function App() {
     >
       <header className="relative z-30 flex w-full shrink-0 items-center gap-3 px-4 py-3">
         <div className="brand">
-          <h1 className="app-title">Focus Forest</h1>
+          <h1 className="app-title">Yuyito</h1>
         </div>
         {activeForest && (display.showForestName || (display.showCountdown && countdown)) && (
           <div className="forest-header">
@@ -441,7 +448,7 @@ function App() {
         className={
           scrollableView
             ? 'pb-12'
-            : 'min-h-0 flex-1 max-[767px]:overflow-y-auto max-[767px]:overflow-x-hidden min-[768px]:overflow-visible'
+            : 'min-h-0 flex-1 max-[767px]:overflow-y-auto max-[767px]:overflow-x-hidden min-[768px]:relative min-[768px]:overflow-hidden'
         }
       >
         {view === 'forests' ? (
@@ -455,7 +462,7 @@ function App() {
             onEditForest={openEditForest}
           />
         ) : view === 'garden' || inSession ? (
-          <div className="relative flex min-h-full w-full flex-col">
+          <div className="flex min-h-full w-full flex-col">
             <div className="relative mx-auto aspect-[6/5] w-full max-w-[1024px] shrink-0">
               <GardenCanvas
                 trees={forestTrees}
@@ -470,7 +477,7 @@ function App() {
               />
             </div>
 
-            <div className="garden-left-rail relative z-10 mx-auto mt-auto flex w-full max-w-sm flex-col gap-3 px-4 min-[768px]:absolute min-[768px]:left-4 min-[768px]:top-4 min-[768px]:mt-0 min-[768px]:w-[clamp(200px,16vw,300px)] min-[768px]:px-0">
+            <div className="garden-left-rail z-10">
               {!display.hideTimerCard && active?.kind === 'focus' && <SessionCard now={now} />}
 
               {!active && selectedEntry && activeForest && (
@@ -491,30 +498,33 @@ function App() {
               )}
             </div>
 
-            {!timerCardHidden && (
-              <div className="relative z-10 mx-auto mt-4 flex w-full max-w-md flex-col gap-3 px-4 min-[768px]:absolute min-[768px]:right-4 min-[768px]:top-4 min-[768px]:mt-0 min-[768px]:w-[clamp(350px,20vw,420px)] min-[768px]:px-0">
-                <TimerPanel
-                  now={now}
-                  view={view}
-                  onChangeView={setView}
-                  onAbandonRequest={requestAbandon}
-                  onStartSession={openSessionDialog}
-                  onContinueSession={handleContinueSession}
-                  historyOpen={historyOpen}
-                  onToggleHistory={() => setHistoryOpen((open) => !open)}
-                  onHide={hideTimer}
-                />
+            {showRightRail && (
+              <div className="garden-right-rail z-10">
+                {showTimerPanel && (
+                  <TimerPanel
+                    now={now}
+                    view={view}
+                    onChangeView={setView}
+                    onAbandonRequest={requestAbandon}
+                    onStartSession={openSessionDialog}
+                    onContinueSession={handleContinueSession}
+                    historyOpen={historyOpen}
+                    onToggleHistory={() => setHistoryOpen((open) => !open)}
+                    onHide={hideTimer}
+                  />
+                )}
 
-                {active && selectedEntry && activeForest && (
+                {detailTakesTimerRail && activeForest && (
                   <SessionDetailCard
                     entry={selectedEntry}
                     forestName={activeForest.name}
+                    className="session-detail--with-timer-mini"
                     onClose={() => setSelectedKey(null)}
                   />
                 )}
               </div>
             )}
-            {timerCardHidden && <TimerMiniButton now={now} onRestore={restoreTimer} />}
+            {showTimerMini && <TimerMiniButton now={now} onRestore={restoreTimer} />}
           </div>
         ) : (
           <StatsPanel now={now} view={view} onChangeView={setView} />

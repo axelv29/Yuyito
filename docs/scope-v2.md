@@ -1,4 +1,4 @@
-# Ficha v2 — Focus Forest
+# Ficha v2 — Yuyito
 
 Documento de alcance y aceptación de la segunda versión. Si algo no está acá, no entra en la v2 sin hablarlo antes.
 
@@ -133,7 +133,7 @@ interface PersistedV3 {
 - **Pausa estricta:** no se puede pausar; si se pausa, se trata como abandono. Con tolerancia activable, el árbol solo marchita pasado el tiempo de tolerancia; ese tiempo es el mismo para toda la sesión. En la implementación actual el botón de pausar/reanudar no se muestra durante el enfoque ni durante el descanso cuando la pausa estricta aplica.
 
 - **Ciclos indefinidos (implementados en esta tarea):** el usuario define un tiempo de enfoque por bloque y un switch dentro de los tiempos personalizados; al activarlo no hay objetivo fijo ni cantidad de bloques. Cada bloque planta un solo árbol que entra completo en ese tiempo (por ejemplo 50/10 admite pino o abedul, no ceibo). Al completar un bloque, la sesión queda abierta: el timer ofrece elegir el siguiente árbol o terminarla. Terminar cierra la sesión sin marchitar; abandonar a mitad de bloque sigue marchitando. La persistencia usa `PersistedV9` con `SessionPlan.openEnded`.
-- **Persistencia:** clave `focus-forest`, versión 3, migración preparada. Los datos viejos se adjuntan a un bosque “Mi bosque” de 8×8; sin datos viejos no se crea un bosque vacío. Datos corruptos: copia en `focus-forest.broken` y reinicio, con aviso. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
+- **Persistencia:** clave `yuyito`, versión 3, migración preparada. Los datos viejos se adjuntan a un bosque “Mi bosque” de 8×8; sin datos viejos no se crea un bosque vacío. Datos corruptos: copia en `yuyito.broken` y reinicio, con aviso. Versión más nueva: aviso y escrituras bloqueadas, sin borrar ni modificar el guardado. Almacenamiento bloqueado o lleno: aviso y estado solo en memoria.
 - **Estadísticas:** solo enfoques completados. "Hoy" usa el día local. Los abandonos y los descansos no suman. Desde 2026-11-18 incluyen gráficos propios (mapa de calor, barras por período y anillos) y rachas, con alcance por bosque o global. La racha diaria es la excepción: cuenta días con al menos 25 min de enfoque real, incluidos los minutos de un árbol marchito.
 
 ## 6. Criterios de aceptación

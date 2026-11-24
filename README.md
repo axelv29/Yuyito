@@ -1,4 +1,4 @@
-# 🌱 Focus Forest
+# 🌱 Yuyito
 
 **Un pomodoro que planta árboles.**
 
@@ -11,7 +11,7 @@ Cada bloque de enfoque se convierte en un árbol: nace cuando empezás, crece mi
 
 ## Qué es
 
-Focus Forest es una app de enfoque con pomodoro y descansos configurables. En lugar de mostrar solo un cronómetro, te deja ver el resultado de tu trabajo: una pradera isométrica que se llena de árboles a medida que completás tus sesiones.
+Yuyito es una app de enfoque con pomodoro y descansos configurables. En lugar de mostrar solo un cronómetro, te deja ver el resultado de tu trabajo: una pradera isométrica que se llena de árboles a medida que completás tus sesiones.
 
 Cada **bosque** representa un objetivo: una materia, un semestre, un examen. Adentro hay árboles de cuatro especies, y cada una cuesta una cantidad fija de minutos de enfoque:
 
