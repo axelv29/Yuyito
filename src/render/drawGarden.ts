@@ -14,7 +14,7 @@ import type { Cell, Tree, TreeSpecies, TreeStage, TreeState } from '@/state/type
 import { cellToScreen, sortByDepth } from './iso'
 import { treeFlipped } from './orientation'
 import { drawAtlasFrame, sheetScale, treeFrameName, type Atlas } from './sprites'
-import { drawTreeShadow, TREE_SHADOWS_ENABLED } from './shadows'
+import { drawTreeShadow, SHADOW_OPACITY, TREE_SHADOWS_ENABLED } from './shadows'
 import { sunlightRange, treeTint, type SunlightRange } from './sunlight'
 
 export interface ActiveTreePreview {
@@ -78,6 +78,32 @@ const STAGE_SCALE: Record<TreeStage, number> = {
  */
 const GROUND_SHEET_TOP_X = 243.5
 const GROUND_SHEET_TOP_Y = 5
+
+type ShadowLayer = OffscreenCanvas | HTMLCanvasElement
+let shadowLayerA: ShadowLayer | null | undefined
+let shadowLayerB: ShadowLayer | null | undefined
+
+function createShadowLayer(): ShadowLayer | null {
+  if (typeof OffscreenCanvas !== 'undefined') {
+    return new OffscreenCanvas(SCENE_CANVAS_WIDTH, SCENE_HEIGHT)
+  }
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas')
+    canvas.width = SCENE_CANVAS_WIDTH
+    canvas.height = SCENE_HEIGHT
+    return canvas
+  }
+  return null
+}
+
+function getShadowLayer(which: 'a' | 'b'): ShadowLayer | null {
+  const current = which === 'a' ? shadowLayerA : shadowLayerB
+  if (current !== undefined) return current
+  const created = createShadowLayer()
+  if (which === 'a') shadowLayerA = created
+  else shadowLayerB = created
+  return created
+}
 
 export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOptions): void {
   const size = Math.min(GRID_COLS, Math.max(1, Math.round(options.gardenSize ?? GRID_COLS)))
@@ -170,26 +196,123 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
 
   // Las sombras de suelo van antes que los árboles: el pasto las recibe y
   // cualquier árbol parado encima las tapa, así ningún árbol queda oscurecido
-  // por la sombra de un vecino.
+  // por la sombra de un vecino. Se dibujan en un buffer opaco y se componen una
+  // sola vez para que la intersección de dos sombras no se oscurezca.
   if (shadows && options.atlas) {
-    for (let index = 0; index < ordered.length; index += 1) {
-      const tree = ordered[index]
-      const placement = placements[index]
-      ctx.save()
-      if (hasSelection && !tree.selected) {
-        ctx.globalAlpha = 0.32
+    const layerA = getShadowLayer('a')
+    const lctxA = layerA?.getContext('2d') as
+      | CanvasRenderingContext2D
+      | OffscreenCanvasRenderingContext2D
+      | null
+    if (layerA && lctxA) {
+      const paintGroup = (
+        lctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+        layer: ShadowLayer,
+        filter: (t: DrawableTree) => boolean,
+      ) => {
+        lctx.setTransform(1, 0, 0, 1, 0, 0)
+        lctx.globalCompositeOperation = 'source-over'
+        lctx.globalAlpha = 1
+        lctx.clearRect(0, 0, layer.width, layer.height)
+        let any = false
+        for (let i = 0; i < ordered.length; i++) {
+          if (!filter(ordered[i])) continue
+          const p = placements[i]
+          if (
+            drawTreeShadow(
+              lctx,
+              options.atlas!,
+              p.frameName,
+              p.x,
+              p.baseY,
+              p.frameScale,
+              ordered[i].flipped,
+              { meadowTop, size },
+              1,
+            )
+          ) {
+            any = true
+          }
+        }
+        return any
       }
-      drawTreeShadow(
-        ctx,
-        options.atlas,
-        placement.frameName,
-        placement.x,
-        placement.baseY,
-        placement.frameScale,
-        tree.flipped,
-        { meadowTop, size },
-      )
-      ctx.restore()
+
+      if (hasSelection) {
+        const layerB = getShadowLayer('b')
+        const lctxB = layerB?.getContext('2d') as
+          | CanvasRenderingContext2D
+          | OffscreenCanvasRenderingContext2D
+          | null
+        if (layerB && lctxB) {
+          const hasDimmed = paintGroup(lctxB, layerB, (t) => !t.selected)
+          const hasSelected = paintGroup(lctxA, layerA, (t) => t.selected)
+          if (hasDimmed && hasSelected) {
+            // Donde hay sombra seleccionada, se quita la atenuada para que no se
+            // oscurezca el solapamiento entre grupos.
+            lctxB.globalCompositeOperation = 'destination-out'
+            lctxB.globalAlpha = 1
+            lctxB.setTransform(1, 0, 0, 1, 0, 0)
+            lctxB.drawImage(layerA as CanvasImageSource, 0, 0)
+            lctxB.globalCompositeOperation = 'source-over'
+          }
+          if (hasDimmed) {
+            ctx.save()
+            ctx.globalAlpha *= SHADOW_OPACITY * 0.32
+            ctx.drawImage(layerB as CanvasImageSource, 0, 0)
+            ctx.restore()
+          }
+          if (hasSelected) {
+            ctx.save()
+            ctx.globalAlpha *= SHADOW_OPACITY
+            ctx.drawImage(layerA as CanvasImageSource, 0, 0)
+            ctx.restore()
+          }
+        } else {
+          for (let index = 0; index < ordered.length; index += 1) {
+            const tree = ordered[index]
+            const placement = placements[index]
+            ctx.save()
+            if (!tree.selected) ctx.globalAlpha = 0.32
+            drawTreeShadow(
+              ctx,
+              options.atlas,
+              placement.frameName,
+              placement.x,
+              placement.baseY,
+              placement.frameScale,
+              tree.flipped,
+              { meadowTop, size },
+            )
+            ctx.restore()
+          }
+        }
+      } else {
+        const any = paintGroup(lctxA, layerA, () => true)
+        if (any) {
+          ctx.save()
+          ctx.globalAlpha *= SHADOW_OPACITY
+          ctx.drawImage(layerA as CanvasImageSource, 0, 0)
+          ctx.restore()
+        }
+      }
+    } else {
+      for (let index = 0; index < ordered.length; index += 1) {
+        const tree = ordered[index]
+        const placement = placements[index]
+        ctx.save()
+        if (hasSelection && !tree.selected) ctx.globalAlpha = 0.32
+        drawTreeShadow(
+          ctx,
+          options.atlas,
+          placement.frameName,
+          placement.x,
+          placement.baseY,
+          placement.frameScale,
+          tree.flipped,
+          { meadowTop, size },
+        )
+        ctx.restore()
+      }
     }
   }
 

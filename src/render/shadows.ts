@@ -180,8 +180,10 @@ function silhouetteFor(atlas: Atlas, frame: AtlasFrame): BlurredSilhouette | nul
   return blurred
 }
 
+type Any2DContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+
 /** Recorta el dibujo al rombo de pasto del bosque activo. */
-function clipMeadow(context: CanvasRenderingContext2D, clip: ShadowClip): void {
+function clipMeadow(context: Any2DContext, clip: ShadowClip): void {
   const halfWidth = (clip.size * TILE_WIDTH) / 2
   const halfHeight = (clip.size * TILE_HEIGHT) / 2
 
@@ -199,7 +201,7 @@ function clipMeadow(context: CanvasRenderingContext2D, clip: ShadowClip): void {
  * reglas que `drawAtlasFrame`, para que la sombra acompañe exactamente al árbol.
  */
 export function drawTreeShadow(
-  context: CanvasRenderingContext2D,
+  context: Any2DContext,
   atlas: Atlas,
   name: string,
   baseX: number,
@@ -207,6 +209,7 @@ export function drawTreeShadow(
   scale = 1,
   flipX = false,
   clip: ShadowClip | null = null,
+  opacity = SHADOW_OPACITY,
 ): boolean {
   if (!TREE_SHADOWS_ENABLED) {
     return false
@@ -240,7 +243,7 @@ export function drawTreeShadow(
     context.scale(-1, 1)
   }
   // Multiplica el alfa actual para respetar el atenuado de la selección.
-  context.globalAlpha *= SHADOW_OPACITY
+  context.globalAlpha *= opacity
   context.imageSmoothingEnabled = false
   context.drawImage(
     silhouette.canvas as CanvasImageSource,
