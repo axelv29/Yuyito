@@ -41,22 +41,23 @@ export function sendNotification(title: string, body: string): boolean {
     return false
   }
   try {
+    // Sin `tag`: Windows trata una notificación que reemplaza a otra con el
+    // mismo tag como una actualización. La deja en el centro de notificaciones
+    // pero no muestra el banner. Cada aviso se crea nuevo y se cierran los
+    // anteriores para no acumular toasts viejos.
     const notification = new Notification(title, {
       body,
       icon: '/favicon.png',
-      // Un solo aviso por vez: el siguiente reemplaza al anterior en vez de
-      // acumular toasts viejos en el centro de notificaciones.
-      tag: 'yuyito-timer',
     })
-    openNotifications.add(notification)
-    // Las notificaciones con el mismo tag se reemplazan solas, pero algunos
-    // navegadores no avisan el cierre: se retienen solo las últimas.
-    if (openNotifications.size > 8) {
-      const oldest = openNotifications.values().next().value
-      if (oldest) {
-        openNotifications.delete(oldest)
+    for (const previous of openNotifications) {
+      try {
+        previous.close()
+      } catch {
+        // El navegador pudo haberla cerrado antes.
       }
     }
+    openNotifications.clear()
+    openNotifications.add(notification)
     const forget = () => openNotifications.delete(notification)
     notification.onclose = forget
     notification.onerror = forget

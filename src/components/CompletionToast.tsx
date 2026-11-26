@@ -17,8 +17,31 @@ export function CompletionToast() {
       return
     }
 
-    const timeout = window.setTimeout(dismiss, 4500)
-    return () => window.clearTimeout(timeout)
+    let timeout: number | undefined
+    const start = () => {
+      timeout = window.setTimeout(dismiss, 4500)
+    }
+
+    // Con la pestaña en segundo plano el aviso se descartaría sin que nadie lo
+    // vea. Se espera a que vuelva a estar visible para empezar a contarlo.
+    if (document.visibilityState === 'visible') {
+      start()
+      return () => window.clearTimeout(timeout)
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') {
+        return
+      }
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      start()
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.clearTimeout(timeout)
+    }
   }, [notice, dismiss])
 
   if (!notice) {
