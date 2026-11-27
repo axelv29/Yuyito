@@ -236,6 +236,142 @@
   --chart-series-5: #b48a74;
   --chart-series-6: #8fa7b0;
 
+  /* Tooltips oscuros. */
+  --tooltip-bg: var(--palette-ink);
+  --tooltip-fg: var(--palette-card);
+
   /* Fondo del diálogo de confirmación. */
   --dialog-backdrop: color-mix(in srgb, var(--palette-ink) 32%, transparent);
+}
+
+[data-theme='night'] {
+  --palette-ink: #e8edf3;
+  --palette-primary: #7ab0ff;
+  --palette-cta: #5a9cf5;
+  --palette-cta-hover: #74acff;
+  --palette-active: #6aabff;
+  --palette-accent: #7ec4ff;
+  --palette-muted: #95a6b8;
+  --palette-surface: #2a3642;
+  --palette-background: #141c24;
+  --palette-wood: #a8876f;
+  --palette-bark: #c4a58d;
+  --palette-blossom: #f0a0c0;
+  --palette-cream: #1a2430;
+  --palette-danger: #ff7b6b;
+  --palette-danger-hover: #ff9285;
+  --palette-card: #1d2833;
+  --palette-card-green: #1a2b30;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 14px 30px -18px rgba(0, 0, 0, 0.55);
+  --shadow-float: 0 2px 6px rgba(0, 0, 0, 0.28), 0 14px 28px -16px rgba(0, 0, 0, 0.5);
+  --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  --card-bg: var(--palette-card);
+  --card-bg-session: var(--palette-card-green);
+  --card-fg: var(--palette-ink);
+  --card-border-color: rgba(255, 255, 255, 0.08);
+  --card-shadow: var(--shadow-card);
+
+  --button-border-color: rgba(255, 255, 255, 0.12);
+  --button-shadow: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --button-primary-bg: var(--palette-cta);
+  --button-primary-bg-hover: var(--palette-cta-hover);
+  --button-primary-fg: #0f1820;
+  --button-secondary-bg: rgba(255, 255, 255, 0.04);
+  --button-secondary-bg-hover: rgba(255, 255, 255, 0.08);
+  --button-secondary-fg: var(--palette-ink);
+  --button-ghost-fg: var(--palette-muted);
+  --button-danger-fg: #ff8a7a;
+  --button-danger-border: rgba(255, 123, 107, 0.35);
+  --button-danger-bg-hover: rgba(255, 123, 107, 0.12);
+  --button-danger-solid-bg: #d95a4a;
+  --button-danger-solid-hover: #e46b5b;
+
+  --switch-bg: rgba(255, 255, 255, 0.06);
+  --switch-active-bg: #263545;
+  --switch-active-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+
+  --control-bg: #22303d;
+  --control-bg-hover: rgba(255, 255, 255, 0.08);
+  --control-border-color: rgba(255, 255, 255, 0.1);
+  --control-fg: var(--palette-ink);
+  --control-chevron: var(--palette-muted);
+
+  --check-bg: #22303d;
+  --check-border-color: rgba(255, 255, 255, 0.22);
+  --check-checked-bg: var(--palette-cta);
+  --check-checked-mark: #0f1820;
+
+  --task-neutral-fg: var(--palette-ink);
+  --task-neutral-icon: var(--palette-muted);
+  --task-done-fg: #7dd3a7;
+  --task-missed-fg: #ff8a7a;
+
+  --range-track: rgba(255, 255, 255, 0.14);
+  --range-fill: var(--palette-cta);
+  --range-thumb: #e8edf3;
+  --range-thumb-border: var(--palette-cta);
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.34);
+
+  --ring-track: rgba(255, 255, 255, 0.1);
+  --ring-from: #4cc9ff;
+  --ring-to: #2d7ff9;
+  --ring-short-from: #ff998f;
+  --ring-short-to: #ff5c5c;
+  --ring-long-from: #d59cff;
+  --ring-long-to: #8b5cf6;
+  --ring-tip-bg: #22303d;
+  --ring-tip-stroke: var(--ring-to);
+
+  --session-times-radius: var(--radius-card);
+  --session-segment-bg: rgba(122, 176, 255, 0.1);
+  --session-segment-fg: var(--palette-primary);
+  --session-segment-selected-bg: var(--palette-cta);
+  --session-segment-selected-fg: #0f1820;
+  --session-switch-off: rgba(255, 255, 255, 0.16);
+  --session-switch-off-hover: rgba(255, 255, 255, 0.22);
+  --session-switch-on: var(--palette-cta);
+  --session-switch-knob: #e8edf3;
+  --session-stepper-bg: rgba(122, 176, 255, 0.1);
+  --session-focus-bar: #62a8ff;
+  --session-focus-bar-fg: #0f1820;
+  --session-break-bar: #ff7a70;
+  --session-break-bar-fg: #1a1010;
+  --session-long-break-bar: #a78bfa;
+  --session-long-break-bar-fg: #140f22;
+  --session-wheel-track: var(--ring-track);
+
+  --zoom-bg: rgba(29, 40, 51, 0.94);
+  --zoom-border-color: rgba(255, 255, 255, 0.08);
+  --zoom-shadow: var(--shadow-float);
+
+  --toast-success-bg: color-mix(in srgb, #34d399 18%, var(--palette-card));
+  --toast-warning-bg: color-mix(in srgb, #f59e0b 18%, var(--palette-card));
+  --toast-danger-bg: color-mix(in srgb, #ff6b6b 16%, var(--palette-card));
+  --toast-info-bg: color-mix(in srgb, #60a5fa 16%, var(--palette-card));
+
+  --chart-heat-empty: rgba(255, 255, 255, 0.06);
+  --chart-heat-1: #1e4d6e;
+  --chart-heat-2: #2b6f9a;
+  --chart-heat-3: #4a9fd4;
+  --chart-heat-4: #7cc8ff;
+  --chart-bar: #5a9cf5;
+  --chart-bar-today: #8cc5ff;
+  --chart-bar-track: rgba(255, 255, 255, 0.08);
+  --chart-grid-line: rgba(255, 255, 255, 0.08);
+  --chart-tip-bg: #243342;
+  --chart-series-1: #5a9cf5;
+  --chart-series-2: #7dd3a7;
+  --chart-series-3: #f6c56b;
+  --chart-series-4: #ff8a7a;
+  --chart-series-5: #b69cff;
+  --chart-series-6: #7fd4e4;
+
+  --tooltip-bg: #344a60;
+  --tooltip-fg: #e8edf3;
+
+  --dialog-backdrop: rgba(5, 10, 16, 0.58);
 }

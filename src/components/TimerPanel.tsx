@@ -42,11 +42,13 @@ export function TimerPanel({
   const activePlanId = useStore((state) => state.activePlanId)
   const plans = useStore((state) => state.plans)
   const settings = useStore((state) => state.settings)
+  const display = useStore((state) => state.display)
   const pendingOpenContinue = useStore((state) => state.pendingOpenContinue)
   const pause = useStore((state) => state.pause)
   const resume = useStore((state) => state.resume)
   const skipBreak = useStore((state) => state.skipBreak)
   const updateSettings = useStore((state) => state.updateSettings)
+  const updateDisplay = useStore((state) => state.updateDisplay)
   const continueOpenPlan = useStore((state) => state.continueOpenPlan)
   const endOpenPlan = useStore((state) => state.endOpenPlan)
   const forestId = active?.kind === 'focus' ? active.forestId : activeForestId
@@ -95,7 +97,9 @@ export function TimerPanel({
       {showSettings ? (
         <SettingsPanel
           settings={settings}
+          display={display}
           onChange={updateSettings}
+          onChangeDisplay={updateDisplay}
           onBack={() => setShowSettings(false)}
         />
       ) : (

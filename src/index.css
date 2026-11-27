@@ -258,7 +258,7 @@
   .btn-danger {
     border-color: transparent;
     background-color: var(--button-danger-solid-bg);
-    color: var(--palette-card);
+    color: #fff5f3;
     box-shadow: var(--shadow-button);
   }
 
@@ -293,7 +293,7 @@
   }
 
   .icon-button:active {
-    background-color: rgba(32, 63, 59, 0.1);
+    background-color: color-mix(in srgb, var(--color-ink) 10%, transparent);
   }
 
   /* Fila de la fase: el texto queda centrado y la tuerca flota a la derecha. */
@@ -507,10 +507,9 @@
     width: 0.62rem;
     height: 0.62rem;
     flex: 0 0 auto;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233a684f' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
+    background-color: var(--palette-primary);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E") center / contain no-repeat;
   }
 
   /* Ayuda contextual: ícono de info y popover con el lenguaje del menú. */
@@ -599,6 +598,10 @@
     background-repeat: no-repeat;
     background-position: center;
     background-size: 0.72rem;
+  }
+
+  [data-theme='night'] .settings-check:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f1820' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E");
   }
 
   .settings-check:hover {
@@ -873,7 +876,7 @@
   }
 
   .timer-mini__button:hover {
-    background-color: rgba(32, 63, 59, 0.07);
+    background-color: color-mix(in srgb, var(--color-ink) 7%, transparent);
   }
 
   .timer-mini__svg {
@@ -973,7 +976,7 @@
   }
 
   .session-mini__button:hover {
-    background-color: rgba(32, 63, 59, 0.07);
+    background-color: color-mix(in srgb, var(--color-ink) 7%, transparent);
   }
 
   .session-mini__icon {
@@ -1177,7 +1180,7 @@
     top: 4px;
     height: 2px;
     border-radius: 2px;
-    background-color: rgba(32, 63, 59, 0.12);
+    background-color: color-mix(in srgb, var(--color-ink) 12%, transparent);
   }
 
   .stage-track__item {
@@ -1193,7 +1196,7 @@
     width: 0.625rem;
     height: 0.625rem;
     border-radius: 50%;
-    border: 2px solid rgba(32, 63, 59, 0.18);
+    border: 2px solid color-mix(in srgb, var(--color-ink) 18%, transparent);
     background-color: var(--card-bg-session);
   }
 
@@ -1230,7 +1233,7 @@
     width: 100%;
     padding: 0.3rem 0 0.1rem;
     border: 0;
-    border-top: 1px solid rgba(32, 63, 59, 0.09);
+    border-top: 1px solid color-mix(in srgb, var(--color-ink) 9%, transparent);
     background: none;
     color: var(--color-muted);
     font-size: 0.625rem;
@@ -1548,7 +1551,7 @@
   }
 
   .zoom-button:hover {
-    background-color: rgba(32, 63, 59, 0.07);
+    background-color: color-mix(in srgb, var(--color-ink) 7%, transparent);
   }
 
   .zoom-button:disabled,
@@ -1804,7 +1807,7 @@
     font-family: var(--theme-font-sans);
     font-size: 0.8125rem;
     font-weight: 600;
-    box-shadow: 0 1px 1px rgba(32, 63, 59, 0.03);
+    box-shadow: 0 1px 1px color-mix(in srgb, var(--color-ink) 3%, transparent);
     transition:
       border-color var(--motion-fast) ease,
       box-shadow var(--motion-fast) ease;
@@ -2139,7 +2142,7 @@
   .date-day--selected,
   .date-day--selected:hover {
     background-color: var(--palette-cta);
-    color: var(--palette-card);
+    color: var(--button-primary-fg);
     box-shadow: none;
   }
 

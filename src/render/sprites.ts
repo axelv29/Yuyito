@@ -321,8 +321,8 @@ function getTintScratch(width: number, height: number): OffscreenCanvas | HTMLCa
  * Dibuja un frame anclado abajo al centro. `scale` adapta el arte de cada
  * especie al tamaño de la pradera. `baseX` y `baseY` son el punto de apoyo
  * del árbol en la escena. Con `flipX` el frame se espeja horizontalmente
- * sobre la base del tronco. Con `tint` se aplica una capa uniforme solo al
- * sprite, sin afectar el pasto.
+ * sobre la base del tronco. Con `tint` y `extraTint` se aplican capas
+ * uniformes solo al sprite, sin afectar el pasto.
  */
 export function drawAtlasFrame(
   ctx: CanvasRenderingContext2D,
@@ -333,6 +333,7 @@ export function drawAtlasFrame(
   scale = 1,
   flipX = false,
   tint?: SpriteTint | null,
+  extraTint?: SpriteTint | null,
 ): boolean {
   const frame = atlas.frames[name]
   if (!frame) {
@@ -368,7 +369,11 @@ export function drawAtlasFrame(
     ctx.restore()
   }
 
-  if (tint && tint.alpha > 0) {
+  const tints = [tint, extraTint].filter(
+    (value): value is SpriteTint => value != null && value.alpha > 0,
+  )
+
+  if (tints.length > 0) {
     const sw = Math.max(1, Math.ceil(dw))
     const sh = Math.max(1, Math.ceil(dh))
     const scratch = getTintScratch(sw, sh)
@@ -380,9 +385,11 @@ export function drawAtlasFrame(
       scratchCtx.imageSmoothingEnabled = false
       draw(scratchCtx, 0, 0, sw, sh)
       scratchCtx.globalCompositeOperation = 'source-atop'
-      const [r, g, b] = tint.color
-      scratchCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${tint.alpha})`
-      scratchCtx.fillRect(0, 0, sw, sh)
+      for (const layer of tints) {
+        const [r, g, b] = layer.color
+        scratchCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${layer.alpha})`
+        scratchCtx.fillRect(0, 0, sw, sh)
+      }
       scratchCtx.globalCompositeOperation = 'source-over'
       blit(scratch as unknown as CanvasImageSource, sw, sh)
       return true

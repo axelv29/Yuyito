@@ -10,6 +10,22 @@
       content="Yuyito: un pomodoro de 25 minutos que hace crecer un bosque."
     />
     <title>Yuyito</title>
+    <script>
+      ;(() => {
+        try {
+          const raw = localStorage.getItem('yuyito')
+          const parsed = raw ? JSON.parse(raw) : null
+          const mode = parsed?.state?.display?.themeMode
+          const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          const theme = mode === 'night' || (mode === 'system' && systemDark) ? 'night' : 'day'
+          document.documentElement.dataset.theme = theme
+          const meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.setAttribute('content', theme === 'night' ? '#141c24' : '#edede9')
+        } catch {
+          document.documentElement.dataset.theme = 'day'
+        }
+      })()
+    </script>
     <link rel="preload" as="image" href="/sprites/tileset8x8.png?v=4" />
     <link rel="preload" as="image" href="/sprites/pino_atlas.png" />
     <link rel="preload" as="image" href="/sprites/pino_muerto_atlas.png" />

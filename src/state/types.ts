@@ -208,11 +208,14 @@ export const DEFAULT_POMODORO_SETTINGS: PomodoroSettings = {
   autoStartFocus: false,
 }
 
+export type ThemeMode = 'day' | 'night' | 'system'
+
 export interface DisplaySettings {
   showForestName: boolean
   showCountdown: boolean
   hideTimerCard: boolean
   hideSessionCard: boolean
+  themeMode: ThemeMode
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -220,6 +223,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showCountdown: true,
   hideTimerCard: false,
   hideSessionCard: false,
+  themeMode: 'system',
 }
 
 /** Forma de un árbol antes de la v5 (sin progreso acumulado). */

@@ -13,7 +13,13 @@ import { speciesConfig, speciesFromKind } from '@/config/species'
 import type { Cell, Tree, TreeSpecies, TreeStage, TreeState } from '@/state/types'
 import { cellToScreen, sortByDepth } from './iso'
 import { treeFlipped } from './orientation'
-import { drawAtlasFrame, sheetScale, treeFrameName, type Atlas } from './sprites'
+import {
+  drawAtlasFrame,
+  sheetScale,
+  treeFrameName,
+  type Atlas,
+  type SpriteTint,
+} from './sprites'
 import { drawTreeShadow, SHADOW_OPACITY, TREE_SHADOWS_ENABLED } from './shadows'
 import { sunlightRange, treeTint, type SunlightRange } from './sunlight'
 
@@ -38,6 +44,8 @@ export interface DrawGardenOptions {
   selectedSessionIds?: ReadonlySet<string> | null
   /** Sombras diagonales de prueba; por defecto las del módulo `shadows`. */
   treeShadows?: boolean
+  /** Aplica un tinte nocturno a la escena y a los sprites. */
+  night?: boolean
 }
 
 interface DrawableTree {
@@ -78,6 +86,9 @@ const STAGE_SCALE: Record<TreeStage, number> = {
  */
 const GROUND_SHEET_TOP_X = 243.5
 const GROUND_SHEET_TOP_Y = 5
+
+const NIGHT_SPRITE_TINT: SpriteTint = { color: [18, 30, 58], alpha: 0.28 }
+const NIGHT_GROUND_TINT = 'rgba(16, 28, 52, 0.34)'
 
 type ShadowLayer = OffscreenCanvas | HTMLCanvasElement
 let shadowLayerA: ShadowLayer | null | undefined
@@ -134,6 +145,14 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
   ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY)
   ctx.imageSmoothingEnabled = false
   ctx.imageSmoothingQuality = 'high'
+
+  if (options.night) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-atop'
+    ctx.fillStyle = NIGHT_GROUND_TINT
+    ctx.fillRect(-64, -64, SCENE_CANVAS_WIDTH + 128, SCENE_HEIGHT + 128)
+    ctx.restore()
+  }
 
   const meadowShift = meadowTop - TOP_PADDING
   const selected = options.selectedSessionIds ?? null
@@ -321,7 +340,7 @@ export function drawGarden(ctx: CanvasRenderingContext2D, options: DrawGardenOpt
     if (dimmed) {
       ctx.globalAlpha = 0.32
     }
-    drawTree(ctx, tree, options.atlas ?? null, placements[index], range)
+    drawTree(ctx, tree, options.atlas ?? null, placements[index], range, options.night === true)
     ctx.restore()
   }
 
@@ -474,12 +493,17 @@ function drawTree(
   atlas: Atlas | null,
   placement: TreePlacement,
   range: SunlightRange,
+  night: boolean,
 ): void {
   const { x, baseY, groundY, frameName, frameScale } = placement
   const tint = treeTint(baseY, range)
+  const nightTint = night ? NIGHT_SPRITE_TINT : null
 
   // Los atlas incluyen la sombra pixelada, vivos y marchitos.
-  if (atlas && drawAtlasFrame(ctx, atlas, frameName, x, baseY, frameScale, tree.flipped, tint)) {
+  if (
+    atlas &&
+    drawAtlasFrame(ctx, atlas, frameName, x, baseY, frameScale, tree.flipped, tint, nightTint)
+  ) {
     return
   }
 

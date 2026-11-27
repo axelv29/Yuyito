@@ -487,7 +487,11 @@ function isDisplaySettings(value: unknown): value is DisplaySettings {
     typeof value.showForestName === 'boolean' &&
     typeof value.showCountdown === 'boolean' &&
     (value.hideTimerCard === undefined || typeof value.hideTimerCard === 'boolean') &&
-    (value.hideSessionCard === undefined || typeof value.hideSessionCard === 'boolean')
+    (value.hideSessionCard === undefined || typeof value.hideSessionCard === 'boolean') &&
+    (value.themeMode === undefined ||
+      value.themeMode === 'day' ||
+      value.themeMode === 'night' ||
+      value.themeMode === 'system')
   )
 }
 
@@ -530,6 +534,10 @@ export function isPersistedState(value: unknown): value is PersistedV9 {
     (value.activePlanId === null || typeof value.activePlanId === 'string') &&
     isPomodoroSettings(value.settings) &&
     isDisplaySettings(value.display) &&
+    isRecord(value.display) &&
+    (value.display.themeMode === 'day' ||
+      value.display.themeMode === 'night' ||
+      value.display.themeMode === 'system') &&
     (value.streakIntroShownOn === null || isDateKey(value.streakIntroShownOn))
   )
 }

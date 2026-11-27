@@ -22,6 +22,7 @@ import type { View } from '@/config/views'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useKeyboardFocus } from '@/hooks/useKeyboardFocus'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useThemeMode } from '@/hooks/useThemeMode'
 import { stageForElapsedMs } from '@/logic/growth'
 import { livePlanFocus, projectOpenPlanting, projectPlanting } from '@/logic/planting'
 import { elapsedMs, isExpired } from '@/logic/timer'
@@ -61,6 +62,7 @@ function App() {
   const activeForestId = useStore((state) => state.activeForestId)
   const display = useStore((state) => state.display)
   const updateDisplay = useStore((state) => state.updateDisplay)
+  const resolvedTheme = useThemeMode(display.themeMode)
   const notice = useStore((state) => state.notice)
   const storageIssue = useStorageStatus((state) => state.issue)
   const pendingBreak = useStore((state) => state.pendingBreak)
@@ -538,6 +540,7 @@ function App() {
             onHistoryForest={handleOpenHistory}
             onCreateForest={openForestDialog}
             onEditForest={openEditForest}
+            night={resolvedTheme === 'night'}
           />
         ) : view === 'garden' || inSession ? (
           <div className="flex min-h-full w-full flex-col md:h-full">
@@ -549,6 +552,7 @@ function App() {
                 gardenSize={activeForest?.size ?? devGardenSize}
                 hasForest={activeForest !== null}
                 treeShadows={devTreeShadows}
+                night={resolvedTheme === 'night'}
                 selectedSessionIds={selectedIds}
                 selectionKey={active ? null : selectedKey}
                 onSelectTree={handleSelectTree}
@@ -639,6 +643,7 @@ function App() {
         onClose={closeForestDialog}
         onCreate={handleCreateForest}
         forest={editingForest}
+        night={resolvedTheme === 'night'}
       />
       {sessionDialogOpen && (
         <SessionCreateDialog

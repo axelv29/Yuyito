@@ -12,6 +12,7 @@ interface ForestPreviewCanvasProps {
   trees?: readonly Tree[]
   /** Fuerza el layout de ejemplo aunque se pasen árboles (útil para el diálogo de creación). */
   example?: boolean
+  night?: boolean
   className?: string
 }
 
@@ -101,6 +102,7 @@ export function ForestPreviewCanvas({
   size,
   trees,
   example = false,
+  night = false,
   className,
 }: ForestPreviewCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -146,6 +148,7 @@ export function ForestPreviewCanvas({
         atlas: atlas ?? undefined,
         groundTile: groundTile ?? undefined,
         gardenSize: size,
+        night,
       })
 
       context.imageSmoothingEnabled = false
@@ -166,7 +169,7 @@ export function ForestPreviewCanvas({
     return () => {
       cancelledRef.current = true
     }
-  }, [size, displayTrees, frame])
+  }, [size, displayTrees, frame, night])
 
   return (
     <canvas

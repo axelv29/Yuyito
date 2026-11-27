@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { playTone } from '@/logic/alarm'
 import { getNotificationPermission, requestNotificationPermission } from '@/logic/notifications'
 import { useEdgeScrollbar } from '@/hooks/useEdgeScrollbar'
-import type { AlarmTone, PomodoroSettings } from '@/state/types'
+import type { AlarmTone, DisplaySettings, PomodoroSettings, ThemeMode } from '@/state/types'
 import { BackIcon, VolumeIcon } from './icons'
 import { Select } from './Select'
 
 interface SettingsPanelProps {
   settings: PomodoroSettings
+  display: DisplaySettings
   onChange: (patch: Partial<PomodoroSettings>) => void
+  onChangeDisplay: (patch: Partial<DisplaySettings>) => void
   onBack: () => void
 }
 
@@ -23,8 +25,20 @@ const TONE_OPTIONS = (Object.keys(TONE_LABELS) as AlarmTone[]).map((tone) => ({
   label: TONE_LABELS[tone],
 }))
 
+const THEME_OPTIONS: Array<{ value: ThemeMode; label: string }> = [
+  { value: 'day', label: 'Día' },
+  { value: 'night', label: 'Noche' },
+  { value: 'system', label: 'Seguir el sistema' },
+]
+
 /** Cuando el mouse entra en la zona del borde, el scrollbar se hace visible. */
-export function SettingsPanel({ settings, onChange, onBack }: SettingsPanelProps) {
+export function SettingsPanel({
+  settings,
+  display,
+  onChange,
+  onChangeDisplay,
+  onBack,
+}: SettingsPanelProps) {
   const [permission, setPermission] = useState(getNotificationPermission())
   const scrollbar = useEdgeScrollbar<HTMLDivElement>()
 
@@ -125,6 +139,19 @@ export function SettingsPanel({ settings, onChange, onBack }: SettingsPanelProps
         {permission === 'denied' && (
           <p className="type-body type-muted">Notificaciones bloqueadas en el navegador.</p>
         )}
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <p className="eyebrow">Apariencia</p>
+        <div className="flex items-center justify-between gap-3">
+          <span className="type-body">Tema</span>
+          <Select
+            value={display.themeMode}
+            options={THEME_OPTIONS}
+            onChange={(value) => onChangeDisplay({ themeMode: value as ThemeMode })}
+            ariaLabel="Tema de la interfaz"
+          />
+        </div>
       </section>
 
       <section className="flex flex-col gap-2">

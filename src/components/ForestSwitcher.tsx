@@ -19,6 +19,7 @@ interface ForestSwitcherProps {
   onHistoryForest: (id: string) => void
   onCreateForest: () => void
   onEditForest: (forest: Forest) => void
+  night?: boolean
 }
 
 interface ForestCardProps {
@@ -26,6 +27,7 @@ interface ForestCardProps {
   now: number
   isActive: boolean
   isArchived: boolean
+  night: boolean
   onSelect: (id: string) => void
   onHistory: (id: string) => void
   onEdit: (forest: Forest) => void
@@ -38,6 +40,7 @@ function ForestCard({
   now,
   isActive,
   isArchived,
+  night,
   onSelect,
   onHistory,
   onEdit,
@@ -60,7 +63,7 @@ function ForestCard({
         aria-current={isActive ? 'true' : undefined}
       >
         <div className="forest-card__preview">
-          <ForestPreviewCanvas size={forest.size} trees={forestTrees} />
+          <ForestPreviewCanvas size={forest.size} trees={forestTrees} night={night} />
         </div>
 
         <div className="forest-card__body">
@@ -136,6 +139,7 @@ export function ForestSwitcher({
   onHistoryForest,
   onCreateForest,
   onEditForest,
+  night = false,
 }: ForestSwitcherProps) {
   const forests = useStore((state) => state.forests)
   const activeForestId = useStore((state) => state.activeForestId)
@@ -214,6 +218,7 @@ export function ForestSwitcher({
                     now={now}
                     isActive={forest.id === activeForestId}
                     isArchived={false}
+                    night={night}
                     onSelect={onSelect}
                     onHistory={onHistoryForest}
                     onEdit={onEditForest}
@@ -242,6 +247,7 @@ export function ForestSwitcher({
                     now={now}
                     isActive={forest.id === activeForestId}
                     isArchived
+                    night={night}
                     onSelect={onSelect}
                     onHistory={onHistoryForest}
                     onEdit={onEditForest}

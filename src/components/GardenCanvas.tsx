@@ -62,6 +62,8 @@ interface GardenCanvasProps {
   selectionKey?: string | null
   /** Sombras diagonales de prueba sobre el pasto. */
   treeShadows?: boolean
+  /** Modo noche: tinte oscuro/azulado sobre los sprites. */
+  night?: boolean
   onSelectTree?: (tree: Tree | null) => void
 }
 
@@ -92,6 +94,7 @@ export function GardenCanvas({
   selectedSessionIds = null,
   selectionKey = null,
   treeShadows = true,
+  night = false,
   onSelectTree,
 }: GardenCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -305,6 +308,7 @@ export function GardenCanvas({
       gardenSize,
       selectedSessionIds,
       treeShadows,
+      night,
     })
   }, [
     trees,
@@ -317,6 +321,7 @@ export function GardenCanvas({
     gardenSize,
     selectedSessionIds,
     treeShadows,
+    night,
   ])
 
   useEffect(() => {

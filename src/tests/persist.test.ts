@@ -245,6 +245,7 @@ describe('migrate', () => {
       showCountdown: false,
       hideTimerCard: false,
       hideSessionCard: false,
+      themeMode: 'system',
     })
   })
 

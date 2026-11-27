@@ -20,6 +20,7 @@ interface ForestCreateDialogProps {
   onCreate: (input: NewForestInput, forestId?: string) => string | null
   /** Cuando está presente, el diálogo edita ese bosque en vez de crear uno. */
   forest?: Forest | null
+  night?: boolean
 }
 
 const SIZE_OPTIONS = FOREST_SIZES.map((size) => ({
@@ -27,7 +28,7 @@ const SIZE_OPTIONS = FOREST_SIZES.map((size) => ({
   label: `${size}×${size}`,
 }))
 
-export const ForestCreateDialog = memo(function ForestCreateDialog({ open, onClose, onCreate, forest }: ForestCreateDialogProps) {
+export const ForestCreateDialog = memo(function ForestCreateDialog({ open, onClose, onCreate, forest, night = false }: ForestCreateDialogProps) {
   const nameRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -324,6 +325,7 @@ export const ForestCreateDialog = memo(function ForestCreateDialog({ open, onClo
                 size={size}
                 trees={forestTrees ?? undefined}
                 example={!isEditing}
+                night={night}
               />
             </div>
             <div className="forest-preview__body">
