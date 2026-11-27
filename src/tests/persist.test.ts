@@ -231,7 +231,7 @@ describe('migrate', () => {
     expect(migrate(STATE, 9)).toEqual(STATE)
   })
 
-  it('un guardado v7 sin hideTimerCard migra y recibe false', () => {
+  it('un guardado v7 sin flags de cards ocultas migra y recibe false', () => {
     const v7 = {
       ...STATE,
       version: 7,
@@ -244,6 +244,7 @@ describe('migrate', () => {
       showForestName: true,
       showCountdown: false,
       hideTimerCard: false,
+      hideSessionCard: false,
     })
   })
 

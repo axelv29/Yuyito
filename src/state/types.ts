@@ -88,6 +88,8 @@ export interface SessionPlan {
   longBreakEvery?: number
   /** Pausa estricta de esta sesión; si falta, se usan los ajustes. */
   strictPause?: boolean
+  /** Minutos que se puede pausar con pausa estricta. `0` = pausar abandona. */
+  pauseToleranceMin?: number
   /** Cantidad de bloques de enfoque (1–8). En ciclos indefinidos se ignora. */
   targetPomodoros: number
   /** true = ciclos indefinidos; no hay objetivo y el usuario decide cuándo terminar. */
@@ -115,6 +117,8 @@ export interface NewSessionInput {
   longBreakEvery?: number
   /** Pausa estricta; si falta, se usan los ajustes. */
   strictPause?: boolean
+  /** Minutos de tolerancia de pausa; `0` = pausar abandona. */
+  pauseToleranceMin?: number
   targetPomodoros: number
   mode: SessionMode
   planting: TreeSpecies[]
@@ -208,12 +212,14 @@ export interface DisplaySettings {
   showForestName: boolean
   showCountdown: boolean
   hideTimerCard: boolean
+  hideSessionCard: boolean
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showForestName: true,
   showCountdown: true,
   hideTimerCard: false,
+  hideSessionCard: false,
 }
 
 /** Forma de un árbol antes de la v5 (sin progreso acumulado). */

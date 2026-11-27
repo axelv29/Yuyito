@@ -117,7 +117,12 @@ export interface SessionTimelineSegment {
  */
 export function sessionTimeline(rhythm: SessionRhythm): SessionTimelineSegment[] {
   return sessionSegments(rhythm).map((segment) => ({
-    tipo: segment.kind === 'focus' ? 'enfoque' : segment.kind === 'longBreak' ? 'descansoLargo' : 'descanso',
+    tipo:
+      segment.kind === 'focus'
+        ? 'enfoque'
+        : segment.kind === 'longBreak'
+          ? 'descansoLargo'
+          : 'descanso',
     minutos: segment.minutes,
   }))
 }
@@ -149,6 +154,7 @@ export interface NewSessionDefaults {
   longBreakEvery: number
   longBreakMin: number
   strictPause: boolean
+  pauseToleranceMin: number
 }
 
 /**
@@ -177,6 +183,7 @@ export function newSessionDefaults(
       longBreakEvery: settings.longBreakEvery,
       longBreakMin: settings.longBreakMin,
       strictPause: settings.strictPause,
+      pauseToleranceMin: 0,
     }
   }
 
@@ -192,5 +199,6 @@ export function newSessionDefaults(
     longBreakEvery: longBreakEvery > 0 ? longBreakEvery : settings.longBreakEvery,
     longBreakMin: longBreakMin > 0 ? longBreakMin : settings.longBreakMin,
     strictPause: last.strictPause ?? settings.strictPause,
+    pauseToleranceMin: last.pauseToleranceMin ?? 0,
   }
 }

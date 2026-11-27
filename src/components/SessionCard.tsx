@@ -5,12 +5,18 @@ import { formatSessionStart, sessionName } from '@/logic/session'
 import { elapsedMs } from '@/logic/timer'
 import { selectActiveForest, selectStats } from '@/state/selectors'
 import { useStore } from '@/state/store'
+import { CollapseInIcon } from './icons'
 import { SessionDetails } from './SessionDetails'
 import { SessionTaskList } from './SessionTaskList'
 import { SessionTitle } from './SessionTitle'
 import { TreePreview } from './TreePreview'
 
-export function SessionCard({ now }: { now: number }) {
+interface SessionCardProps {
+  now: number
+  onHide: () => void
+}
+
+export function SessionCard({ now, onHide }: SessionCardProps) {
   const active = useStore((state) => state.active)
   const sessions = useStore((state) => state.sessions)
   const trees = useStore((state) => state.trees)
@@ -58,7 +64,16 @@ export function SessionCard({ now }: { now: number }) {
     : `${config.name} · ${stageLabel(species, stage)}`
 
   return (
-    <section className="card card--session w-full" aria-label="Sesión actual">
+    <section className="card card--session relative w-full" aria-label="Sesión actual">
+      <button
+        type="button"
+        className="icon-button session-hide-button"
+        onClick={onHide}
+        aria-label="Minimizar sesión actual"
+        title="Minimizar sesión actual"
+      >
+        <CollapseInIcon />
+      </button>
       <p className="eyebrow">Sesión en curso</p>
 
       <h2 className="type-title mt-1.5">

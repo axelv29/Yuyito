@@ -212,6 +212,30 @@ describe('store: pausa estricta por sesión', () => {
     expect(useStore.getState().active?.strictPause).toBe(false)
     expect(useStore.getState().plans[0].strictPause).toBe(false)
   })
+
+  it('con tolerancia permite pausar y abandona al agotarla', () => {
+    useStore
+      .getState()
+      .startSession({ ...session(['pino']), strictPause: true, pauseToleranceMin: 5 }, START)
+
+    expect(useStore.getState().active?.pauseToleranceMin).toBe(5)
+
+    const pauseAt = START + 5 * 60_000
+    useStore.getState().pause(pauseAt)
+    expect(useStore.getState().active?.pausedAt).toBe(pauseAt)
+
+    useStore.getState().reconcile(pauseAt + 5 * 60_000 + 1)
+
+    const state = useStore.getState()
+    expect(state.active).toBeNull()
+    expect(state.trees[0].state).toBe('withered')
+  })
+
+  it('ignora la tolerancia cuando la pausa no es estricta', () => {
+    useStore.getState().startSession({ ...session(['pino']), pauseToleranceMin: 5 }, START)
+
+    expect(useStore.getState().active?.pauseToleranceMin).toBe(0)
+  })
 })
 
 describe('store: ciclos indefinidos', () => {

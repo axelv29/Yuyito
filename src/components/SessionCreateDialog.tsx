@@ -6,12 +6,14 @@ import {
   SESSION_MAX_BREAK_MIN,
   SESSION_MAX_FOCUS_MIN,
   SESSION_MAX_LONG_BREAK_MIN,
+  SESSION_MAX_PAUSE_TOLERANCE_MIN,
   SESSION_MAX_POMODOROS,
   SESSION_MAX_TASKS,
   SESSION_MAX_TREES,
   SESSION_MIN_BREAK_MIN,
   SESSION_MIN_FOCUS_MIN,
   SESSION_MIN_LONG_BREAK_MIN,
+  SESSION_MIN_PAUSE_TOLERANCE_MIN,
   SESSION_TASK_MAX_LENGTH,
   SESSION_TITLE_MAX_LENGTH,
 } from '@/config/session'
@@ -70,6 +72,13 @@ export function SessionCreateDialog({
   )
   const [longBreaks, setLongBreaks] = useState(defaults.longBreaks)
   const [strictPause, setStrictPause] = useState(defaults.strictPause)
+  const [pauseToleranceMin, setPauseToleranceMin] = useState(() =>
+    clamp(
+      defaults.pauseToleranceMin,
+      SESSION_MIN_PAUSE_TOLERANCE_MIN,
+      SESSION_MAX_PAUSE_TOLERANCE_MIN,
+    ),
+  )
   const [longBreakEvery, setLongBreakEvery] = useState(() =>
     clamp(defaults.longBreakEvery, 1, SESSION_MAX_POMODOROS),
   )
@@ -267,6 +276,7 @@ export function SessionCreateDialog({
       longBreakMin,
       longBreakEvery: mode === 'breaks' && longBreaks ? longBreakEvery : 0,
       strictPause,
+      pauseToleranceMin,
       targetPomodoros,
       mode,
       planting: openEnded ? (queue.length > 0 ? [queue[0]] : []) : queue,
@@ -451,6 +461,7 @@ export function SessionCreateDialog({
             longBreakEvery={longBreakEvery}
             longBreakMin={longBreakMin}
             strictPause={strictPause}
+            pauseToleranceMin={pauseToleranceMin}
             openEnded={openEnded}
             onOpenEndedChange={handleOpenEndedChange}
             onPreset={handlePreset}
@@ -462,6 +473,7 @@ export function SessionCreateDialog({
             onLongBreakEveryChange={setLongBreakEvery}
             onLongBreakMinChange={setLongBreakMin}
             onStrictPauseToggle={setStrictPause}
+            onPauseToleranceChange={setPauseToleranceMin}
           />
 
           <section ref={treesRef} className="session-section" aria-label="Árboles">

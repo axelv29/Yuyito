@@ -403,7 +403,7 @@ export function GardenCanvas({
    * rombo: así también se puede elegir un árbol por su parcela.
    */
   const pickTreeAt = (clientX: number, clientY: number) => {
-    if (!onSelectTree || active || !hasForest) {
+    if (!onSelectTree || !hasForest) {
       return
     }
 
@@ -422,13 +422,32 @@ export function GardenCanvas({
       (clientY - rect.top) / rect.height,
     )
     const ordered = sortByDepth(
-      trees.filter(
-        (tree) =>
-          tree.cell.col >= 0 &&
-          tree.cell.col < gardenSize &&
-          tree.cell.row >= 0 &&
-          tree.cell.row < gardenSize,
-      ),
+      trees
+        .filter(
+          (tree) =>
+            tree.cell.col >= 0 &&
+            tree.cell.col < gardenSize &&
+            tree.cell.row >= 0 &&
+            tree.cell.row < gardenSize,
+        )
+        .map((tree) => {
+          if (!active) {
+            return tree
+          }
+
+          // El árbol que crece se dibuja con la etapa viva de la proyección;
+          // para elegirlo hay que usar esos mismos bounds, no los del store.
+          const isActiveTree =
+            (active.treeId != null && tree.id === active.treeId) ||
+            (active.treeId == null &&
+              tree.sessionId === active.sessionId &&
+              tree.cell.col === active.cell.col &&
+              tree.cell.row === active.cell.row)
+
+          return isActiveTree
+            ? { ...tree, cell: active.cell, stage: active.stage, state: 'growing' as const }
+            : tree
+        }),
     ).reverse()
 
     for (const tree of ordered) {

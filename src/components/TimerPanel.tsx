@@ -76,6 +76,10 @@ export function TimerPanel({
         ? { index: openPlan.completedPomodoros + 1, total: openPlan.targetPomodoros }
         : null
   const strictPause = active?.strictPause ?? openPlan?.strictPause ?? settings.strictPause
+  const pauseToleranceMin =
+    active?.pauseToleranceMin ?? openPlan?.pauseToleranceMin ?? settings.pauseToleranceMin
+  // Con pausa estricta sin tolerancia no hay botón: pausar sería abandonar.
+  const canPause = !strictPause || pauseToleranceMin > 0
 
   const handlePause = () => {
     if (isPaused) {
@@ -113,8 +117,8 @@ export function TimerPanel({
               type="button"
               className="icon-button timer-settings-button"
               onClick={() => setShowSettings(true)}
-              aria-label="Abrir ajustes predeterminados"
-              title="Ajustes predeterminados"
+              aria-label="Abrir ajustes generales"
+              title="Ajustes generales"
             >
               <GearIcon />
             </button>
@@ -205,7 +209,7 @@ export function TimerPanel({
               </>
             )}
 
-            {active && !strictPause && (
+            {active && canPause && (
               <button type="button" className="btn btn-primary" onClick={handlePause}>
                 {isPaused ? <PlayIcon /> : <PauseIcon />}
                 {isPaused ? 'Reanudar' : 'Pausar'}

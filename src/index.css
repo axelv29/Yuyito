@@ -90,6 +90,7 @@
   }
 
   .card--session {
+    position: relative;
     background-color: var(--card-bg-session);
   }
 
@@ -943,6 +944,72 @@
     transform: translateY(-50%);
   }
 
+  /* Botón flotante de la sesión actual minimizada. */
+  .session-mini {
+    position: fixed;
+    top: 4.25rem;
+    left: 1rem;
+    z-index: 40;
+    display: flex;
+    border: var(--zoom-border-width) solid var(--zoom-border-color);
+    border-radius: 50%;
+    background-color: var(--zoom-bg);
+    box-shadow: var(--zoom-shadow);
+    padding: var(--zoom-padding);
+  }
+
+  .session-mini__button {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--palette-primary);
+    cursor: pointer;
+    transition: background-color var(--motion-normal) ease;
+  }
+
+  .session-mini__button:hover {
+    background-color: rgba(32, 63, 59, 0.07);
+  }
+
+  .session-mini__icon {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .session-mini__tip {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 0.5rem);
+    z-index: 40;
+    white-space: nowrap;
+    border: var(--border-hairline) solid var(--card-border-color);
+    border-radius: var(--radius-pill);
+    background-color: var(--palette-ink);
+    color: var(--palette-card);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 0.24rem 0.6rem;
+    box-shadow: var(--card-shadow);
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+    pointer-events: none;
+    transition:
+      opacity var(--motion-normal) ease,
+      transform var(--motion-normal) ease;
+  }
+
+  .session-mini:hover .session-mini__tip,
+  .session-mini__button:focus-visible + .session-mini__tip {
+    opacity: 1;
+    transform: translateY(-50%);
+  }
+
   /* Botón para ocultar el temporizador, junto a la tuerca de ajustes. */
   .timer-hide-button {
     position: absolute;
@@ -950,6 +1017,14 @@
     right: 1.5rem;
     transform: translateY(-50%);
     z-index: 1;
+  }
+
+  /* Botón para minimizar la card de sesión actual. */
+  .session-hide-button {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 2;
   }
 
   .timer-today {
@@ -4272,6 +4347,12 @@
       top: auto;
       bottom: 1rem;
       right: 1rem;
+    }
+
+    .session-mini {
+      top: auto;
+      bottom: 1rem;
+      left: 1rem;
     }
   }
 }

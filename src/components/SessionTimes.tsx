@@ -6,10 +6,13 @@ import {
   SESSION_MAX_BREAK_MIN,
   SESSION_MAX_FOCUS_MIN,
   SESSION_MAX_LONG_BREAK_MIN,
+  SESSION_MAX_PAUSE_TOLERANCE_MIN,
   SESSION_MAX_POMODOROS,
   SESSION_MIN_BREAK_MIN,
   SESSION_MIN_FOCUS_MIN,
   SESSION_MIN_LONG_BREAK_MIN,
+  SESSION_MIN_PAUSE_TOLERANCE_MIN,
+  SESSION_PAUSE_TOLERANCE_STEP,
 } from '@/config/session'
 import { availableFocusMinutes } from '@/config/species'
 import { sessionTimeline, type SessionRhythm, type SessionTimelineSegment } from '@/logic/session'
@@ -51,6 +54,7 @@ interface SessionTimesProps {
   longBreakEvery: number
   longBreakMin: number
   strictPause: boolean
+  pauseToleranceMin: number
   openEnded: boolean
   onOpenEndedChange: (enabled: boolean) => void
   onPreset: (preset: { focus: number; brk: number }) => void
@@ -62,6 +66,7 @@ interface SessionTimesProps {
   onLongBreakEveryChange: (value: number) => void
   onLongBreakMinChange: (value: number) => void
   onStrictPauseToggle: (enabled: boolean) => void
+  onPauseToleranceChange: (value: number) => void
 }
 
 interface NumberFieldProps {
@@ -316,6 +321,7 @@ export function SessionTimes({
   longBreakEvery,
   longBreakMin,
   strictPause,
+  pauseToleranceMin,
   openEnded,
   onOpenEndedChange,
   onPreset,
@@ -327,6 +333,7 @@ export function SessionTimes({
   onLongBreakEveryChange,
   onLongBreakMinChange,
   onStrictPauseToggle,
+  onPauseToleranceChange,
 }: SessionTimesProps) {
   const [custom, setCustom] = useState(
     () => !PRESETS.some((preset) => preset.focus === focusMin && preset.brk === breakMin),
@@ -544,11 +551,32 @@ export function SessionTimes({
             Pausa estricta
             <InfoTip
               label="Más información sobre la pausa estricta"
-              text="Si la activás, el botón de pausa desaparece: una vez empezado el bloque no se puede pausar."
+              text="Si la activás, el bloque no se puede pausar salvo que definas una tolerancia. Con tolerancia 0, pausar equivale a abandonar."
             />
           </span>
           <Switch checked={strictPause} label="Pausa estricta" onChange={onStrictPauseToggle} />
         </div>
+
+        {strictPause && (
+          <div className="session-setting session-setting--sub">
+            <span className="session-setting__label">
+              Tolerancia
+              <InfoTip
+                label="Más información sobre la tolerancia de pausa"
+                text="Tiempo máximo que podés pausar antes de que el árbol se marchite. Con 0, pausar equivale a abandonar."
+              />
+            </span>
+            <NumberField
+              label="Minutos de tolerancia de pausa"
+              value={pauseToleranceMin}
+              min={SESSION_MIN_PAUSE_TOLERANCE_MIN}
+              max={SESSION_MAX_PAUSE_TOLERANCE_MIN}
+              step={SESSION_PAUSE_TOLERANCE_STEP}
+              unit="min"
+              onChange={onPauseToleranceChange}
+            />
+          </div>
+        )}
       </div>
 
       {openEnded ? (

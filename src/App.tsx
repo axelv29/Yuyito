@@ -12,6 +12,7 @@ import { NotificationNotice } from '@/components/NotificationNotice'
 import { SessionCard } from '@/components/SessionCard'
 import { SessionCreateDialog } from '@/components/SessionCreateDialog'
 import { SessionDetailCard } from '@/components/SessionDetailCard'
+import { SessionMiniButton } from '@/components/SessionMiniButton'
 import { StatsPanel } from '@/components/StatsPanel'
 import { StorageNotice } from '@/components/StorageNotice'
 import { StreakOverlay } from '@/components/StreakOverlay'
@@ -295,9 +296,13 @@ function App() {
       }
 
       const record = sessions.find((session) => session.id === tree.sessionId)
-      setSelectedKey(record ? (record.planId ?? record.id) : null)
+      const runningKey =
+        active?.kind === 'focus' && tree.sessionId === active.id
+          ? (active.planId ?? active.id)
+          : null
+      setSelectedKey(tree.planId ?? record?.planId ?? record?.id ?? runningKey)
     },
-    [sessions],
+    [active, sessions],
   )
 
   const settings = useStore((state) => state.settings)
@@ -436,7 +441,9 @@ function App() {
     forestDialogOpen
   const autoHide = isMobile && anyFloatingMenuOpen && !timerPeek
   const timerCardHidden = display.hideTimerCard || autoHide
-  const showSessionCard = !timerCardHidden && active?.kind === 'focus'
+  const sessionCardHidden = display.hideSessionCard
+  const showSessionCard = !timerCardHidden && !sessionCardHidden && active?.kind === 'focus'
+  const showSessionMini = sessionCardHidden && !timerCardHidden && active?.kind === 'focus'
   // Al elegir la sesión que ya se ve en «Sesión en curso», no hace falta abrir
   // otra card con los mismos datos: alcanza con resaltar sus árboles.
   const activeFocusId = active?.kind === 'focus' ? active.id : null
@@ -474,6 +481,14 @@ function App() {
       setTimerPeek(true)
     }
   }, [updateDisplay, anyFloatingMenuOpen])
+  const hideSessionCard = useCallback(
+    () => updateDisplay({ hideSessionCard: true }),
+    [updateDisplay],
+  )
+  const restoreSessionCard = useCallback(
+    () => updateDisplay({ hideSessionCard: false }),
+    [updateDisplay],
+  )
 
   return (
     <div
@@ -536,12 +551,12 @@ function App() {
                 treeShadows={devTreeShadows}
                 selectedSessionIds={selectedIds}
                 selectionKey={active ? null : selectedKey}
-                onSelectTree={active ? undefined : handleSelectTree}
+                onSelectTree={handleSelectTree}
               />
             </div>
 
             <div className="garden-left-rail z-10">
-              {showSessionCard && <SessionCard now={now} />}
+              {showSessionCard && <SessionCard now={now} onHide={hideSessionCard} />}
 
               {!active && selectedEntry && activeForest && (
                 <SessionDetailCard
@@ -593,6 +608,7 @@ function App() {
               </div>
             )}
             {showTimerMini && <TimerMiniButton now={now} onRestore={restoreTimer} />}
+            {showSessionMini && <SessionMiniButton now={now} onRestore={restoreSessionCard} />}
           </div>
         ) : (
           <StatsPanel now={now} view={view} onChangeView={setView} />

@@ -3,9 +3,7 @@ import { playTone } from '@/logic/alarm'
 import { getNotificationPermission, requestNotificationPermission } from '@/logic/notifications'
 import { useEdgeScrollbar } from '@/hooks/useEdgeScrollbar'
 import type { AlarmTone, PomodoroSettings } from '@/state/types'
-import { availableFocusMinutes } from '@/config/species'
 import { BackIcon, VolumeIcon } from './icons'
-import { InfoTip } from './InfoTip'
 import { Select } from './Select'
 
 interface SettingsPanelProps {
@@ -14,38 +12,12 @@ interface SettingsPanelProps {
   onBack: () => void
 }
 
-const FOCUS_PRESETS = [15, 25, 45, 60, 90, 120]
-const AVAILABLE_FOCUS_MINUTES = new Set(availableFocusMinutes())
-const BREAK_PRESETS = [3, 5, 10]
-const LONG_BREAK_PRESETS = [10, 15, 20, 30]
-const LONG_BREAK_EVERY = [2, 3, 4, 5]
-const TOLERANCE_PRESETS = [0, 3, 5, 10]
-
 const TONE_LABELS: Record<AlarmTone, string> = {
   bell: 'Campana',
   chime: 'Campanilla',
   pulse: 'Pulso',
 }
 
-const FOCUS_OPTIONS = FOCUS_PRESETS.map((value) => ({
-  value: String(value),
-  label: String(value),
-  disabled: !AVAILABLE_FOCUS_MINUTES.has(value),
-}))
-const BREAK_OPTIONS = BREAK_PRESETS.map((value) => ({ value: String(value), label: String(value) }))
-const LONG_BREAK_OPTIONS = LONG_BREAK_PRESETS.map((value) => ({
-  value: String(value),
-  label: String(value),
-}))
-const LONG_BREAK_EVERY_OPTIONS = LONG_BREAK_EVERY.map((value) => ({
-  value: String(value),
-  label: `${value} pomodoros`,
-  shortLabel: String(value),
-}))
-const TOLERANCE_OPTIONS = TOLERANCE_PRESETS.map((value) => ({
-  value: String(value),
-  label: value === 0 ? 'Desactivado' : String(value),
-}))
 const TONE_OPTIONS = (Object.keys(TONE_LABELS) as AlarmTone[]).map((tone) => ({
   value: tone,
   label: TONE_LABELS[tone],
@@ -73,12 +45,6 @@ export function SettingsPanel({ settings, onChange, onBack }: SettingsPanelProps
 
   const handleReset = () => {
     onChange({
-      focusMin: 25,
-      breakMin: 5,
-      longBreakMin: 15,
-      longBreakEvery: 4,
-      strictPause: false,
-      pauseToleranceMin: 0,
       alarmTone: 'bell',
       notification: true,
       alarmVolume: 0.6,
@@ -103,117 +69,8 @@ export function SettingsPanel({ settings, onChange, onBack }: SettingsPanelProps
         >
           <BackIcon />
         </button>
-        <h2 className="type-title">Ajustes predeterminados</h2>
+        <h2 className="type-title">Ajustes generales</h2>
       </div>
-      <p className="type-body type-muted">
-        Son los valores con los que arranca cada sesión nueva; lo que haga falta se cambia en la
-        card de nueva sesión.
-      </p>
-
-      <section className="flex flex-col gap-2">
-        <p className="eyebrow">Tiempos</p>
-        <div className="flex items-center justify-between gap-3">
-          <span className="settings-label">
-            <span className="type-body">Pomodoro</span>
-            <InfoTip
-              label="Más información sobre el pomodoro"
-              text="Tiempo en minutos. A los 25 minutos crece un pino; a los 45, un abedul; desde los 60, un roble; a los 90, un ceibo. Los demás tiempos llegan con nuevas especies."
-            />
-          </span>
-          <Select
-            className="select--numeric"
-            value={String(settings.focusMin)}
-            options={FOCUS_OPTIONS}
-            onChange={(value) => onChange({ focusMin: Number(value) })}
-            ariaLabel="Pomodoro en minutos"
-          />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="settings-label">
-            <span className="type-body">Descanso corto</span>
-            <InfoTip label="Más información sobre el descanso corto" text="Tiempo en minutos." />
-          </span>
-          <Select
-            className="select--numeric"
-            value={String(settings.breakMin)}
-            options={BREAK_OPTIONS}
-            onChange={(value) => onChange({ breakMin: Number(value) })}
-            ariaLabel="Descanso corto en minutos"
-          />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="settings-label">
-            <span className="type-body">Descanso largo</span>
-            <InfoTip label="Más información sobre el descanso largo" text="Tiempo en minutos." />
-          </span>
-          <Select
-            className="select--numeric"
-            value={String(settings.longBreakMin)}
-            options={LONG_BREAK_OPTIONS}
-            onChange={(value) => onChange({ longBreakMin: Number(value) })}
-            ariaLabel="Descanso largo en minutos"
-          />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="settings-label">
-            <span className="type-body">Descanso largo cada</span>
-            <InfoTip
-              label="Más información sobre cada cuántos pomodoros va el descanso largo"
-              text="Cantidad de pomodoros entre un descanso largo y el siguiente."
-            />
-          </span>
-          <Select
-            className="select--numeric"
-            value={String(settings.longBreakEvery)}
-            options={LONG_BREAK_EVERY_OPTIONS}
-            onChange={(value) => onChange({ longBreakEvery: Number(value) })}
-            ariaLabel="Descanso largo cada cuántos pomodoros"
-          />
-        </div>
-        <p className="type-body type-muted">
-          Los tiempos de 15 y 120 minutos llegan cuando haya árboles para esos tiempos.
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <p className="eyebrow">Pausa</p>
-        <div className="flex items-center justify-between gap-3">
-          <span className="settings-label">
-            <span className="type-body">Pausa estricta</span>
-            <InfoTip
-              label="Más información sobre la pausa estricta"
-              text="Si la activás, pausar equivale a abandonar: se pide confirmación y, si aceptás, el árbol se marchita y el pomodoro no suma minutos."
-            />
-          </span>
-          <input
-            type="checkbox"
-            className="settings-check"
-            aria-label="Pausa estricta"
-            checked={settings.strictPause}
-            onChange={(e) => onChange({ strictPause: e.target.checked })}
-          />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="settings-label">
-            <span className="type-body">Tolerancia</span>
-            <InfoTip
-              label="Más información sobre la tolerancia de pausa"
-              text="Tiempo máximo que la sesión puede quedar en pausa. Si se agota, la sesión se abandona. Con «Desactivado» podés pausar sin límite y no aparece el contador."
-            />
-          </span>
-          <Select
-            className="select--numeric"
-            value={String(settings.pauseToleranceMin)}
-            options={TOLERANCE_OPTIONS}
-            disabled={settings.strictPause}
-            onChange={(value) => onChange({ pauseToleranceMin: Number(value) })}
-            ariaLabel="Tolerancia de pausa en minutos"
-          />
-        </div>
-        {settings.strictPause && (
-          <p className="type-body type-muted">Con pausa estricta, pausar equivale a abandonar.</p>
-        )}
-      </section>
 
       <section className="flex flex-col gap-2">
         <p className="eyebrow">Alarma</p>

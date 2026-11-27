@@ -149,6 +149,7 @@ describe('newSessionDefaults', () => {
     expect(defaults.longBreaks).toBe(false)
     expect(defaults.focusMin).toBe(DEFAULT_POMODORO_SETTINGS.focusMin)
     expect(defaults.breakMin).toBe(DEFAULT_POMODORO_SETTINGS.breakMin)
+    expect(defaults.pauseToleranceMin).toBe(0)
   })
 
   it('después repite el ritmo de la última sesión', () => {

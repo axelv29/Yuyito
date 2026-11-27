@@ -370,6 +370,24 @@ export function EyeOffIcon({ className }: IconProps) {
   )
 }
 
+/** Flecha hacia la izquierda: minimizar una card. */
+export function CollapseInIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  )
+}
+
 /** Reloj simple: estado de reposo del temporizador colapsado. */
 export function TimerIcon({ className }: IconProps) {
   return (

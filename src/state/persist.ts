@@ -1,7 +1,12 @@
 import { createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { DEFAULT_FOREST_NAME, DEFAULT_FOREST_SIZE, FOREST_SIZES } from '@/config/forest'
 import { GRID_COLS, GRID_ROWS } from '@/config/grid'
-import { SESSION_MAX_OPEN_TREES, SESSION_MAX_POMODOROS, SESSION_MAX_TREES } from '@/config/session'
+import {
+  SESSION_MAX_OPEN_TREES,
+  SESSION_MAX_PAUSE_TOLERANCE_MIN,
+  SESSION_MAX_POMODOROS,
+  SESSION_MAX_TREES,
+} from '@/config/session'
 import { speciesConfig, speciesForFocusMin, speciesFromKind } from '@/config/species'
 import { cellKey, cellOrder } from '@/logic/placement'
 import { reportStorageIssue, useStorageStatus, type StorageIssue } from './storageStatus'
@@ -368,6 +373,11 @@ function isSessionPlan(value: unknown): value is SessionPlan {
         value.longBreakEvery >= 0 &&
         value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
     (value.strictPause === undefined || typeof value.strictPause === 'boolean') &&
+    (value.pauseToleranceMin === undefined ||
+      (typeof value.pauseToleranceMin === 'number' &&
+        Number.isInteger(value.pauseToleranceMin) &&
+        value.pauseToleranceMin >= 0 &&
+        value.pauseToleranceMin <= SESSION_MAX_PAUSE_TOLERANCE_MIN)) &&
     (value.openEnded === undefined || typeof value.openEnded === 'boolean') &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
@@ -420,6 +430,11 @@ function isStoredSessionPlan(
         value.longBreakEvery >= 0 &&
         value.longBreakEvery <= SESSION_MAX_POMODOROS)) &&
     (value.strictPause === undefined || typeof value.strictPause === 'boolean') &&
+    (value.pauseToleranceMin === undefined ||
+      (typeof value.pauseToleranceMin === 'number' &&
+        Number.isInteger(value.pauseToleranceMin) &&
+        value.pauseToleranceMin >= 0 &&
+        value.pauseToleranceMin <= SESSION_MAX_PAUSE_TOLERANCE_MIN)) &&
     (value.openEnded === undefined || typeof value.openEnded === 'boolean') &&
     typeof value.targetPomodoros === 'number' &&
     Number.isInteger(value.targetPomodoros) &&
@@ -471,7 +486,8 @@ function isDisplaySettings(value: unknown): value is DisplaySettings {
     isRecord(value) &&
     typeof value.showForestName === 'boolean' &&
     typeof value.showCountdown === 'boolean' &&
-    (value.hideTimerCard === undefined || typeof value.hideTimerCard === 'boolean')
+    (value.hideTimerCard === undefined || typeof value.hideTimerCard === 'boolean') &&
+    (value.hideSessionCard === undefined || typeof value.hideSessionCard === 'boolean')
   )
 }
 

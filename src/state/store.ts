@@ -12,6 +12,7 @@ import {
   SESSION_MAX_BREAK_MIN,
   SESSION_MAX_FOCUS_MIN,
   SESSION_MAX_LONG_BREAK_MIN,
+  SESSION_MAX_PAUSE_TOLERANCE_MIN,
   SESSION_MAX_POMODOROS,
   SESSION_MAX_TASKS,
   SESSION_MAX_TREES,
@@ -323,11 +324,15 @@ export const useStore = create<StoreState>()(
         }
 
         const session = createFocusSession(sessionId, now, current.cell, plan.focusMin, forest.id)
+        const strictPause = plan.strictPause ?? state.settings.strictPause
         const activeSession: ActiveSession = {
           ...session,
           // Los planes viejos sin pausa estricta propia siguen los ajustes.
-          strictPause: plan.strictPause ?? state.settings.strictPause,
-          pauseToleranceMin: state.settings.pauseToleranceMin,
+          strictPause,
+          // La tolerancia solo aplica a la pausa estricta.
+          pauseToleranceMin: strictPause
+            ? (plan.pauseToleranceMin ?? state.settings.pauseToleranceMin)
+            : 0,
           planId: plan.id,
           pomoIndex: plan.completedPomodoros + 1,
           pomoTotal: plan.openEnded ? undefined : plan.targetPomodoros,
@@ -749,6 +754,16 @@ export const useStore = create<StoreState>()(
           // La pausa estricta nace de los ajustes salvo que la sesión la defina.
           const strictPause =
             typeof input.strictPause === 'boolean' ? input.strictPause : state.settings.strictPause
+          // La tolerancia solo tiene sentido con pausa estricta; sin ella se pausa sin límite.
+          const pauseToleranceMin = strictPause
+            ? clamp(
+                Number.isFinite(input.pauseToleranceMin)
+                  ? (input.pauseToleranceMin as number)
+                  : state.settings.pauseToleranceMin,
+                0,
+                SESSION_MAX_PAUSE_TOLERANCE_MIN,
+              )
+            : 0
           const targetPomodoros = openEnded
             ? 1
             : mode === 'continuous'
@@ -815,6 +830,7 @@ export const useStore = create<StoreState>()(
             longBreakMin,
             longBreakEvery,
             strictPause,
+            pauseToleranceMin,
             targetPomodoros,
             openEnded: openEnded || undefined,
             completedPomodoros: 0,
@@ -1073,12 +1089,16 @@ export const useStore = create<StoreState>()(
               ? settings.longBreakMin
               : settings.breakMin
           const session = createBreakSession(makeId(), now, breakMin)
+          const strictPause = plan?.strictPause ?? settings.strictPause
 
           set({
             active: {
               ...session,
               longBreak: isLong,
-              strictPause: plan?.strictPause ?? settings.strictPause,
+              strictPause,
+              pauseToleranceMin: strictPause
+                ? (plan?.pauseToleranceMin ?? settings.pauseToleranceMin)
+                : 0,
             },
             pendingBreak: false,
             notice: null,
@@ -1091,9 +1111,9 @@ export const useStore = create<StoreState>()(
             return
           }
 
-          // Con pausa estricta la interfaz pide confirmación antes de
-          // abandonar; nunca se pausa ni se marchita en silencio.
-          if (active.strictPause) {
+          // Con pausa estricta y sin tolerancia la interfaz pide confirmación
+          // antes de abandonar; nunca se pausa ni se marchita en silencio.
+          if (active.strictPause && (active.pauseToleranceMin ?? 0) <= 0) {
             return
           }
 

@@ -18,3 +18,7 @@ export const SESSION_MIN_LONG_BREAK_MIN = 5
 export const SESSION_LEFTOVER_WARN_MIN = 10
 export const SESSION_MAX_LONG_BREAK_MIN = 60
 export const SESSION_LONG_BREAK_STEP = 5
+/** Tolerancia de pausa de una sesión estricta: 0 = pausar equivale a abandonar. */
+export const SESSION_MIN_PAUSE_TOLERANCE_MIN = 0
+export const SESSION_MAX_PAUSE_TOLERANCE_MIN = 60
+export const SESSION_PAUSE_TOLERANCE_STEP = 1
